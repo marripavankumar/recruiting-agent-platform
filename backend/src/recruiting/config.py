@@ -1,14 +1,29 @@
 """Runtime settings. Everything that varies by environment or cloud comes from RAP_* variables."""
 
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="RAP_", env_file=".env", extra="ignore")
+    # Repo-root .env, then backend/.env; later files win.
+    model_config = SettingsConfigDict(
+        env_prefix="RAP_", env_file=("../.env", ".env"), extra="ignore"
+    )
 
-    environment: str = "local"
+    environment: Literal["local", "dev", "test", "prod"] = "local"
     database_url: str = "postgresql://rap:rap@localhost:5432/rap"
     qdrant_url: str = "http://localhost:6333"
+
+    # "memory" keeps everything in-process (tests, quick local runs); "postgres" persists.
+    storage: Literal["memory", "postgres"] = "memory"
+
+    # Sign-in: "dev" is local-only; "oidc" works with any OpenID Connect provider.
+    auth_provider: Literal["dev", "oidc"] = "dev"
+    oidc_issuer: str | None = None
+    oidc_audience: str | None = None
+    oidc_jwks_url: str | None = None
+    oidc_email_claim: str = "email"
 
     # Cloud plug-and-play: which adapter backs each cloud service.
     secrets_provider: str = "environment"

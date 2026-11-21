@@ -6,9 +6,6 @@ exactly (checked by hash), so a draft cannot change after approval.
 
 Edit rule: only the first approver may edit. A second approver sees the final content and
 approves or rejects it, so every approval in the chain covers the same version.
-
-This in-memory engine defines the behaviour; the PostgreSQL store (db/migrations) persists
-the same records.
 """
 
 from __future__ import annotations
@@ -22,6 +19,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 from recruiting.approvals.policy import DEFAULT_POLICIES, GatePolicy
+from recruiting.approvals.store import ApprovalStore, InMemoryApprovalStore
 from recruiting.domain import GateType, Role
 
 Content = Mapping[str, str]
@@ -40,6 +38,10 @@ class DecisionAction(StrEnum):
 
 
 class ApprovalError(Exception):
+    pass
+
+
+class UnknownApprovalRequest(ApprovalError):
     pass
 
 
@@ -85,6 +87,7 @@ class ApprovalRequest:
     created_at: datetime
     status: ApprovalStatus = ApprovalStatus.PENDING
     decisions: list[Decision] = field(default_factory=list)
+    resolved_at: datetime | None = None
 
     @property
     def content_sha256(self) -> str:
@@ -99,13 +102,14 @@ class ApprovalEngine:
     def __init__(
         self,
         policies: Mapping[GateType, GatePolicy] | None = None,
+        store: ApprovalStore | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._policies = dict(DEFAULT_POLICIES if policies is None else policies)
         missing = set(GateType) - set(self._policies)
         if missing:
             raise ValueError(f"No approval policy for gates: {sorted(missing)}")
-        self._requests: dict[str, ApprovalRequest] = {}
+        self._store = InMemoryApprovalStore() if store is None else store
         self._clock = clock
 
     def policy_for(self, gate: GateType) -> GatePolicy:
@@ -122,14 +126,14 @@ class ApprovalEngine:
             content=dict(content),
             created_at=self._clock(),
         )
-        self._requests[request.id] = request
+        self._store.add(request)
         return request
 
     def get(self, request_id: str) -> ApprovalRequest:
-        try:
-            return self._requests[request_id]
-        except KeyError:
-            raise ApprovalError(f"Unknown approval request {request_id}") from None
+        request = self._store.get(request_id)
+        if request is None:
+            raise UnknownApprovalRequest(f"Unknown approval request {request_id}")
+        return request
 
     def next_approver_role(self, request: ApprovalRequest) -> Role | None:
         if request.status is not ApprovalStatus.PENDING:
@@ -138,7 +142,7 @@ class ApprovalEngine:
         return steps[request.approval_count] if request.approval_count < len(steps) else None
 
     def pending_for(self, role: Role) -> list[ApprovalRequest]:
-        return [r for r in self._requests.values() if self.next_approver_role(r) == role]
+        return [r for r in self._store.pending() if self.next_approver_role(r) == role]
 
     def decide(
         self,
@@ -161,30 +165,39 @@ class ApprovalEngine:
         if any(d.reviewer.user_id == reviewer.user_id for d in request.decisions):
             raise NotAuthorizedToApprove("The second approver must be a different person")
 
+        new_content = request.content
         if action is DecisionAction.REJECT:
             if not reason or not reason.strip():
                 raise InvalidDecision("A rejection needs a reason")
-            request.status = ApprovalStatus.REJECTED
         elif action is DecisionAction.EDIT_AND_APPROVE:
             if request.approval_count > 0:
                 raise InvalidDecision("Only the first approver can edit; approve or reject instead")
             if edited_content is None or dict(edited_content) == request.content:
                 raise InvalidDecision("Edit-and-approve needs changed content")
-            request.content = dict(edited_content)
+            new_content = dict(edited_content)
         elif edited_content is not None:
             raise InvalidDecision("Use EDIT_AND_APPROVE to change the content")
 
-        request.decisions.append(
-            Decision(
-                reviewer=reviewer,
-                action=action,
-                content_sha256=request.content_sha256,
-                reason=reason,
-                decided_at=self._clock(),
-            )
+        # All checks passed: apply the change, then persist it atomically.
+        prior_decisions = len(request.decisions)
+        now = self._clock()
+        request.content = new_content
+        decision = Decision(
+            reviewer=reviewer,
+            action=action,
+            content_sha256=request.content_sha256,
+            reason=reason,
+            decided_at=now,
         )
-        if request.status is ApprovalStatus.PENDING and self.next_approver_role(request) is None:
+        request.decisions.append(decision)
+        if action is DecisionAction.REJECT:
+            request.status = ApprovalStatus.REJECTED
+        elif self.next_approver_role(request) is None:
             request.status = ApprovalStatus.APPROVED
+        if request.status is not ApprovalStatus.PENDING:
+            request.resolved_at = now
+
+        self._store.record_decision(request, decision, prior_decisions)
         return request
 
     def assert_approved(self, request_id: str, content: Content) -> ApprovalRequest:

@@ -1,3 +1,3 @@
-from recruiting.compliance.optout import OptOut, OptOutRegistry
+from recruiting.compliance.optout import InMemoryOptOutStore, OptOut, OptOutRegistry, OptOutStore
 
-__all__ = ["OptOut", "OptOutRegistry"]
+__all__ = ["InMemoryOptOutStore", "OptOut", "OptOutRegistry", "OptOutStore"]

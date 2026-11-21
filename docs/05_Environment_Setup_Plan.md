@@ -93,7 +93,7 @@ Required for compliance items E11 and E12 before Phase 2 sends anything.
 | 4 | Choose the first cloud for dev, test and prod (any of the mapping above) | Not started |
 | 5 | Terraform module for that cloud, with smoke test | Not started |
 | 6 | Secrets vault adapter for that cloud | Not started |
-| 7 | OpenID Connect sign-in and the 6 roles | Not started (Phase 1) |
+| 7 | OpenID Connect sign-in and the 6 roles | Done (scaffold): OIDC adapter for any provider; roles from app_user |
 | 8 | Sending subdomain, SPF / DKIM / DMARC, warm-up | Not started |
 | 9 | Backups and restore test for PostgreSQL and Qdrant | Not started |
 | 10 | Observability (OpenTelemetry export) | Not started |
@@ -108,6 +108,10 @@ docker compose -f infra/docker-compose.yml up -d     # PostgreSQL, Qdrant, n8n
 cd backend
 python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/activate elsewhere
 pip install -e ".[dev]"
-pytest
+pytest                                                # PostgreSQL tests need RAP_TEST_DATABASE_URL
 uvicorn recruiting.api.main:app --reload             # http://localhost:8000/health
+
+# Try the review queue with the local-dev sign-in (RAP_AUTH_PROVIDER=dev). Add a user first:
+#   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"
+curl -H "X-Dev-User-Email: bd@cbs.example" http://localhost:8000/approvals/pending
 ```
