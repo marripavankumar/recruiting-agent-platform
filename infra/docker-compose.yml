@@ -1,0 +1,42 @@
+# Local development stack. The same images run on any cloud's container service
+# (see docs/05_Environment_Setup_Plan.md). Pinned versions; upgrade deliberately.
+name: recruiting-agent-platform
+
+services:
+  postgres:
+    image: postgres:16.6
+    environment:
+      POSTGRES_USER: rap
+      POSTGRES_PASSWORD: rap
+      POSTGRES_DB: rap
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      # Applied once, on first start of an empty volume.
+      - ../db/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rap -d rap"]
+      interval: 5s
+      retries: 10
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  n8n:
+    image: n8nio/n8n:1.72.1
+    ports:
+      - "5678:5678"
+    environment:
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes:
+      - n8n-data:/home/node/.n8n
+
+volumes:
+  postgres-data:
+  qdrant-data:
+  n8n-data:

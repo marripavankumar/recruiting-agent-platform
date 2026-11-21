@@ -10,14 +10,15 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | [docs/02_Implementation_Plan.md](docs/02_Implementation_Plan.md) | Phased implementation plan with status, scenarios, traceability and risks |
 | [docs/03_Compliance_Checklist.md](docs/03_Compliance_Checklist.md) | Compliance checklist (draft for legal review): email, LinkedIn, privacy, hiring fairness, licences |
 | [docs/04_KPI_Baseline_Timing_Study.md](docs/04_KPI_Baseline_Timing_Study.md) | Timing-study and KPI baseline template for the 80% effort goal (Q12) |
+| [docs/05_Environment_Setup_Plan.md](docs/05_Environment_Setup_Plan.md) | Cloud-agnostic hosting, environments, CI/CD, sending domains, local setup |
 | [docs/source/Business_Requirements_Document.docx](docs/source/Business_Requirements_Document.docx) | Original BRD (Word) |
 
 ## Implementation status (as of 2026-11-22)
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 75% |
-| 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | Not started | 0% |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 80% |
+| 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | In progress | 10% |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Not started | 0% |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Not started | 0% |
 | 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Not started | 0% |
@@ -49,6 +50,20 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | 2026-11-22 | Q7 Candidate email owner | Shared channel-agnostic Outreach Service behind the approval gate, used by Agents 8, 9, 12 |
 | 2026-11-22 | Default LLM and resume parser | Claude is the LLM gateway default; Affinda is the resume-parsing default. Other BRD options stay as adapters |
 | 2026-11-22 | Email and document storage | No fixed default: adapters for Microsoft 365, Gmail, SharePoint, OneDrive and AWS S3; active ones set by configuration |
+| 2026-11-22 | Q15 LinkedIn connection requests | Agent 8 drafts, recruiter approves and sends by hand, platform logs it; partner integration explored. Pending legal confirmation |
+| 2026-11-22 | Hosting | Cloud-agnostic, plug-and-play: containers on Azure, AWS, Google Cloud or on-premises; cloud services behind adapters and per-cloud Terraform modules |
+| 2026-11-22 | Application stack | Python 3.12 + FastAPI (backend, LangGraph agents); Next.js (web app, client portal) |
+
+## Repository layout
+
+| Path | Contents |
+| --- | --- |
+| [backend/](backend/) | Python 3.12, FastAPI, LangGraph: approval-gate engine, Outreach Service, opt-out registry, connector registry |
+| [db/migrations/](db/migrations/) | PostgreSQL schema |
+| [infra/](infra/) | Local Docker Compose stack (PostgreSQL, Qdrant, n8n); per-cloud Terraform modules to come |
+| [docs/](docs/) | BRD, plan, checklists |
+
+To run locally, see [section 6 of the environment plan](docs/05_Environment_Setup_Plan.md#6-running-the-scaffold-locally).
 
 ## Next step
 

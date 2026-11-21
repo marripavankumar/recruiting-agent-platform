@@ -13,8 +13,8 @@ Ten phases run about 32 weeks to go-live, with overlapping tracks. Update the **
 
 | Phase | Name | BRD scope | Weeks | Key deliverables | Exit criteria (summary) | Status | % Done | Status notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 75% | BRD analysed, plan drafted; 13 of 14 open questions resolved, Q15 raised; default adapters chosen (Claude LLM, Affinda parser; email and document storage set by configuration); compliance checklist drafted, awaiting legal review; timing-study template ready, Q12 baseline to be measured; environments pending |
-| 1 | Core platform and data foundation | §7, §8, §9, §10, §11 | 3–8 | Company / Job / Candidate DBs, 6 roles, approval-gate engine, shared AI services | DBs live; roles enforced; no action fires without approval; parsing and search work | Not started | 0% | Starts after stack decision (Phase 0) |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 80% | BRD analysed, plan drafted; 14 of 15 open questions resolved (Q15 pending legal confirmation); default adapters chosen; cloud-agnostic hosting and app stack decided; compliance checklist drafted, awaiting legal review; timing-study template ready, Q12 baseline to be measured; environment plan and local stack done, first cloud and its Terraform module pending |
+| 1 | Core platform and data foundation | §7, §8, §9, §10, §11 | 3–8 | Company / Job / Candidate DBs, 6 roles, approval-gate engine, shared AI services | DBs live; roles enforced; no action fires without approval; parsing and search work | In progress | 10% | Scaffold in place (not yet run on a machine with Python): core schema, approval-gate engine, opt-out registry, Outreach Service, connector registry, LangGraph gate workflow with tests. Next: PostgreSQL persistence, sign-in and roles, review-queue API |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Q1–Q4, Q10, Q11, Q13 resolved |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Reply classification, JD extraction, structured searchable job records | Extraction accuracy meets agreed threshold; JD searchable within 15 min | Not started | 0% | — |
 | 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Multi-source search, 0–100 score, ranked Top 20 with reasons | Recruiters rate ≥10 of Top 20 as qualified on test JDs | Not started | 0% | Q5, Q6, Q9 resolved |
@@ -62,6 +62,8 @@ The plan runs on the working assumptions below. Each open question needs a CBS L
 - Data from LinkedIn is used only through approved, ToS-compliant methods (official APIs or partner tools such as LinkedIn Recruiter, or manual recruiter action). No scraping.
 - Every option in BRD §11 is supported through pluggable adapters; Phase 0 only chooses which one is active first per layer.
 - **Pluggable integrations (decided 2026-11-22):** data providers, job boards / candidate sources and email providers sit behind common connector interfaces, so they can be added, swapped or removed by configuration for easy maintenance (Q4, Q5, Q11).
+- **Cloud-agnostic hosting (decided 2026-11-22):** the BRD names no hosting cloud, so the platform runs as containers on any cloud (Azure, AWS, Google Cloud) or on-premises. Cloud-specific services (secrets vault, managed PostgreSQL, object storage, container runtime) sit behind adapters and per-cloud infrastructure modules, chosen by configuration. See [05_Environment_Setup_Plan.md](05_Environment_Setup_Plan.md).
+- **Application stack (decided 2026-11-22):** Python 3.12 with FastAPI for the backend and agents (LangGraph is Python-first); Next.js (React, TypeScript) for the role-based web app and client portal.
 - Timeline assumes one cross-functional team working in parallel tracks.
 
 **BRD gaps and inconsistencies to resolve**
@@ -82,7 +84,7 @@ The plan runs on the working assumptions below. Each open question needs a CBS L
 | Q12 | Baseline for "reduce manual effort by over 80%": what is today's effort per JD and per client? | §2 | Phase 0 | Open: measured by the Phase 0 timing study (activity 3). |
 | Q13 | Follow-up cadence: how many client follow-ups, at what intervals, before stopping? | Agents 3, 12 | Phase 2 | **Resolved (2026-11-22):** configurable cadence set by Admin; default 3 follow-ups at 3, 7 and 14 days, then stop. |
 | Q14 | Who approves at each gate (role), and is a second approver ever needed? | §10 | Phase 1 | **Resolved (2026-11-22):** configurable per gate. Defaults: BD Manager approves first client email; Recruiter approves LinkedIn requests, candidate outreach and resume submissions. Admin can change the role and add a second approver per gate. |
-| Q15 | LinkedIn has no public API for connection requests, and its User Agreement bans automation. How does Agent 8 send requests? | Agent 8, §1, §10 | Phase 5 | Open (raised 2026-11-22). Proposed: Agent 8 drafts and the recruiter approves, then sends it by hand in LinkedIn or LinkedIn Recruiter and the platform logs it; a LinkedIn Talent Solutions partner integration is explored in parallel. See [compliance checklist C1](03_Compliance_Checklist.md#1-summary-of-what-needs-a-decision). |
+| Q15 | LinkedIn has no public API for connection requests, and its User Agreement bans automation. How does Agent 8 send requests? | Agent 8, §1, §10 | Phase 5 | **Resolved (2026-11-22), pending legal confirmation:** Agent 8 drafts and the recruiter approves, then sends it by hand in LinkedIn or LinkedIn Recruiter and the platform logs it; a LinkedIn Talent Solutions partner integration is explored in parallel. See [compliance checklist C1](03_Compliance_Checklist.md#1-summary-of-what-needs-a-decision). |
 
 ## 3. Target solution architecture
 
@@ -119,7 +121,8 @@ flowchart TD
 
 | Layer | Components | Technology options from BRD |
 | --- | --- | --- |
-| User interface | Role-based web app: review queues, pipeline, dashboards, client portal | Built on chosen stack |
+| User interface | Role-based web app: review queues, pipeline, dashboards, client portal | Next.js (decided 2026-11-22) |
+| Hosting | Containers, managed PostgreSQL, secrets vault, object storage | Not named in BRD; cloud-agnostic by design (Azure, AWS, Google Cloud or on-premises) |
 | Orchestration | 12 agents, state, retries, human-in-the-loop pauses | **LangGraph (default, open source)**; CrewAI, Microsoft AutoGen as alternatives |
 | Workflow automation | Schedules, triggers, integrations glue | n8n, Make, Zapier |
 | AI services | LLM, NLP, resume parsing, JD parsing, embeddings, semantic search, RAG, recommendation engine | GPT-5.5 / GPT-5, Claude, Gemini; Sovren, Affinda, Textkernel |
@@ -152,7 +155,7 @@ Phase 0 closes the open questions, fixes the stack and sets KPI baselines, so la
 
 5. Inventory current data-provider, job-board and email accounts and register them as initial connectors; no provider is hard-coded (Q4, Q5, Q11).
 6. Compliance review: LinkedIn user agreement and API terms, CAN-SPAM, Canada's CASL, GDPR/CCPA-style privacy obligations, and Mexico's LFPDPPP if Mexico is in scope. Draft checklist for legal review: [03_Compliance_Checklist.md](03_Compliance_Checklist.md).
-7. Set up environments (dev, test, prod), source control, CI/CD, secrets vault, and email-sending domain warm-up.
+7. Set up environments (dev, test, prod), source control, CI/CD, secrets vault, and email-sending domain warm-up. Plan: [05_Environment_Setup_Plan.md](05_Environment_Setup_Plan.md).
 
 **Deliverables:** signed scope baseline, stack decision record, compliance checklist, KPI baseline sheet, environments live.
 
