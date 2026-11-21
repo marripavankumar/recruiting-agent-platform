@@ -13,7 +13,7 @@ Ten phases run about 32 weeks to go-live, with overlapping tracks. Update the **
 
 | Phase | Name | BRD scope | Weeks | Key deliverables | Exit criteria (summary) | Status | % Done | Status notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 70% | BRD analysed, plan drafted; 13 of 14 open questions resolved; default adapters chosen (Claude LLM, Affinda parser; email and document storage set by configuration); Q12 baseline to be measured (activity 3); compliance review and environments pending |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 75% | BRD analysed, plan drafted; 13 of 14 open questions resolved, Q15 raised; default adapters chosen (Claude LLM, Affinda parser; email and document storage set by configuration); compliance checklist drafted, awaiting legal review; timing-study template ready, Q12 baseline to be measured; environments pending |
 | 1 | Core platform and data foundation | §7, §8, §9, §10, §11 | 3–8 | Company / Job / Candidate DBs, 6 roles, approval-gate engine, shared AI services | DBs live; roles enforced; no action fires without approval; parsing and search work | Not started | 0% | Starts after stack decision (Phase 0) |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Q1–Q4, Q10, Q11, Q13 resolved |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Reply classification, JD extraction, structured searchable job records | Extraction accuracy meets agreed threshold; JD searchable within 15 min | Not started | 0% | — |
@@ -82,6 +82,7 @@ The plan runs on the working assumptions below. Each open question needs a CBS L
 | Q12 | Baseline for "reduce manual effort by over 80%": what is today's effort per JD and per client? | §2 | Phase 0 | Open: measured by the Phase 0 timing study (activity 3). |
 | Q13 | Follow-up cadence: how many client follow-ups, at what intervals, before stopping? | Agents 3, 12 | Phase 2 | **Resolved (2026-11-22):** configurable cadence set by Admin; default 3 follow-ups at 3, 7 and 14 days, then stop. |
 | Q14 | Who approves at each gate (role), and is a second approver ever needed? | §10 | Phase 1 | **Resolved (2026-11-22):** configurable per gate. Defaults: BD Manager approves first client email; Recruiter approves LinkedIn requests, candidate outreach and resume submissions. Admin can change the role and add a second approver per gate. |
+| Q15 | LinkedIn has no public API for connection requests, and its User Agreement bans automation. How does Agent 8 send requests? | Agent 8, §1, §10 | Phase 5 | Open (raised 2026-11-22). Proposed: Agent 8 drafts and the recruiter approves, then sends it by hand in LinkedIn or LinkedIn Recruiter and the platform logs it; a LinkedIn Talent Solutions partner integration is explored in parallel. See [compliance checklist C1](03_Compliance_Checklist.md#1-summary-of-what-needs-a-decision). |
 
 ## 3. Target solution architecture
 
@@ -136,7 +137,7 @@ Phase 0 closes the open questions, fixes the stack and sets KPI baselines, so la
 
 1. Kick-off and BRD walkthrough with Administrator, BD Manager, Recruiter, Account Manager and Sales Manager representatives.
 2. Resolve open questions Q1–Q14 (Section 2) and sign off a scope baseline.
-3. Map today's manual process for one client and one JD, and time each step (baseline for the 80% goal and the <24-hour target).
+3. Map today's manual process for one client and one JD, and time each step (baseline for the 80% goal and the <24-hour target). Template: [04_KPI_Baseline_Timing_Study.md](04_KPI_Baseline_Timing_Study.md).
 4. Choose the **default active** adapter per BRD §11 layer (all options remain available through the connector framework, Section 5.5): orchestration (LangGraph / CrewAI / AutoGen), LLM, workflow automation (n8n / Make / Zapier), CRM/ATS, vector DB (Pinecone / Weaviate / Qdrant), email (M365 / Gmail), search, resume parser (Sovren / Affinda / Textkernel), document storage (SharePoint / OneDrive / S3). PostgreSQL is fixed by the BRD. **Open-source defaults already decided (2026-11-22)** are listed in the table below.
    | Layer (BRD §11) | Default active (open source) | Licence | Other BRD options kept as adapters |
    | --- | --- | --- | --- |
@@ -150,7 +151,7 @@ Phase 0 closes the open questions, fixes the stack and sets KPI baselines, so la
    | CRM/ATS, data providers, job boards | Commercial services named in BRD | Commercial | All as adapters (Section 5.5) |
 
 5. Inventory current data-provider, job-board and email accounts and register them as initial connectors; no provider is hard-coded (Q4, Q5, Q11).
-6. Compliance review: LinkedIn user agreement and API terms, CAN-SPAM, Canada's CASL, GDPR/CCPA-style privacy obligations, and Mexico's LFPDPPP if Mexico is in scope.
+6. Compliance review: LinkedIn user agreement and API terms, CAN-SPAM, Canada's CASL, GDPR/CCPA-style privacy obligations, and Mexico's LFPDPPP if Mexico is in scope. Draft checklist for legal review: [03_Compliance_Checklist.md](03_Compliance_Checklist.md).
 7. Set up environments (dev, test, prod), source control, CI/CD, secrets vault, and email-sending domain warm-up.
 
 **Deliverables:** signed scope baseline, stack decision record, compliance checklist, KPI baseline sheet, environments live.

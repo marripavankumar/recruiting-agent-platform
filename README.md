@@ -8,13 +8,15 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | --- | --- |
 | [docs/01_Business_Requirements_Document.md](docs/01_Business_Requirements_Document.md) | Business Requirements Document (BRD), Markdown version |
 | [docs/02_Implementation_Plan.md](docs/02_Implementation_Plan.md) | Phased implementation plan with status, scenarios, traceability and risks |
+| [docs/03_Compliance_Checklist.md](docs/03_Compliance_Checklist.md) | Compliance checklist (draft for legal review): email, LinkedIn, privacy, hiring fairness, licences |
+| [docs/04_KPI_Baseline_Timing_Study.md](docs/04_KPI_Baseline_Timing_Study.md) | Timing-study and KPI baseline template for the 80% effort goal (Q12) |
 | [docs/source/Business_Requirements_Document.docx](docs/source/Business_Requirements_Document.docx) | Original BRD (Word) |
 
 ## Implementation status (as of 2026-11-22)
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 70% |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 75% |
 | 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | Not started | 0% |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Not started | 0% |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Not started | 0% |
@@ -50,4 +52,4 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 
 ## Next step
 
-Complete Phase 0: run the timing study for the Q12 baseline, finish the compliance review and set up environments. Details are in [Phase 0 of the plan](docs/02_Implementation_Plan.md#4-phase-0--discovery-and-setup-weeks-13).
+Complete Phase 0: run the timing study for the Q12 baseline using the [template](docs/04_KPI_Baseline_Timing_Study.md), get legal review and sign-off on the [compliance checklist](docs/03_Compliance_Checklist.md) (including Q15, LinkedIn connection requests), and set up environments. Details are in [Phase 0 of the plan](docs/02_Implementation_Plan.md#4-phase-0--discovery-and-setup-weeks-13).
