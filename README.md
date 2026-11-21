@@ -14,7 +14,7 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 45% |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 60% |
 | 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | Not started | 0% |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Not started | 0% |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Not started | 0% |
@@ -38,8 +38,14 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | 2026-11-22 | Q4 Data providers | Pluggable connectors with adapters for all BRD providers (LinkedIn, websites, industry DBs, ZoomInfo, Apollo, Crunchbase, D&B) |
 | 2026-11-22 | Q5 Job boards | Pluggable connectors with adapters for all BRD sources (LinkedIn, Internal ATS, Company DB, Resume DB, Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter, Recruiting CRM) |
 | 2026-11-22 | Q11 Email platform | Both Microsoft 365 and Gmail API adapters |
+| 2026-11-22 | Q8 Client role | Full client portal: submissions, feedback and interview / offer decisions, JD upload, job and candidate status tracking |
+| 2026-11-22 | Q9 Communication Score | Configurable weighted rules: reply speed, completeness, recruiter rating |
+| 2026-11-22 | Q10 Priority Score | Configurable weighted rules: posting age, open roles, role fit |
+| 2026-11-22 | Q13 Follow-up cadence | Configurable; default 3 follow-ups at 3, 7, 14 days |
+| 2026-11-22 | Q14 Approvers | Configurable per gate with optional second approver |
+| 2026-11-22 | Orchestration and open-source defaults | LangGraph (MIT) for agent orchestration and approval-gate interrupts; PostgreSQL; Qdrant (Apache 2.0, self-hosted); n8n (self-hosted). Commercial-only layers (LLM, resume parsing, data providers) stay as pluggable adapters |
 | 2026-11-22 | Q7 Candidate email owner | Shared channel-agnostic Outreach Service behind the approval gate, used by Agents 8, 9, 12 |
 
 ## Next step
 
-Answer the 6 remaining open questions (Q8, Q9, Q10, Q12, Q13, Q14) in [Section 2 of the plan](docs/02_Implementation_Plan.md#2-assumptions-and-open-questions) to complete Phase 0.
+Complete Phase 0: run the timing study for the Q12 baseline, pick default adapters, finish the compliance review and set up environments. Details are in [Phase 0 of the plan](docs/02_Implementation_Plan.md#4-phase-0--discovery-and-setup-weeks-13).
