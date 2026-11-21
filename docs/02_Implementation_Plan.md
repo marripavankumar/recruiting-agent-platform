@@ -13,12 +13,12 @@ Ten phases run about 32 weeks to go-live, with overlapping tracks. Update the **
 
 | Phase | Name | BRD scope | Weeks | Key deliverables | Exit criteria (summary) | Status | % Done | Status notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 30% | BRD analysed, plan drafted; 4 of 14 open questions resolved (Q1, Q2, Q3, Q6); Q4, Q5, Q7–Q14 pending |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 45% | BRD analysed, plan drafted; 8 of 14 open questions resolved (Q1–Q7, Q11); Q8, Q9, Q10, Q12, Q13, Q14 pending |
 | 1 | Core platform and data foundation | §7, §8, §9, §10, §11 | 3–8 | Company / Job / Candidate DBs, 6 roles, approval-gate engine, shared AI services | DBs live; roles enforced; no action fires without approval; parsing and search work | Not started | 0% | Starts after stack decision (Phase 0) |
-| 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Depends on Q4, Q10, Q11, Q13 |
+| 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Depends on Q10, Q13 |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Reply classification, JD extraction, structured searchable job records | Extraction accuracy meets agreed threshold; JD searchable within 15 min | Not started | 0% | — |
-| 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Multi-source search, 0–100 score, ranked Top 20 with reasons | Recruiters rate ≥10 of Top 20 as qualified on test JDs | Not started | 0% | Depends on Q5, Q9 |
-| 5 | Candidate engagement | Agents 8–9 | 18–22 | Approved LinkedIn / email outreach, resume and details collection | No message sends without approval; ≥90% complete candidate data; consent recorded | Not started | 0% | Depends on Q7 |
+| 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Multi-source search, 0–100 score, ranked Top 20 with reasons | Recruiters rate ≥10 of Top 20 as qualified on test JDs | Not started | 0% | Depends on Q9 |
+| 5 | Candidate engagement | Agents 8–9 | 18–22 | Approved LinkedIn / email outreach, resume and details collection | No message sends without approval; ≥90% complete candidate data; consent recorded | Not started | 0% | Uses shared Outreach Service (Q7) |
 | 6 | Matching and client submission | Agents 10–11 | 21–25 | Match reports, recruiter approval, client submission packages | Median JD-to-first-submission <24 h; 100% submissions approved | Not started | 0% | Depends on Q8, Q14 |
 | 7 | Follow-up | Agent 12 | 24–27 | Reminders for client, candidate, interview, offer, feedback, start date | Every open item has a next reminder date | Not started | 0% | Depends on Q13 |
 | 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | SIT, security and compliance tests, UAT, pilot, KPI dashboard, go-live | UAT sign-off by all roles; zero critical defects; compliance sign-off | Not started | 0% | — |
@@ -60,7 +60,8 @@ The plan runs on the working assumptions below. Each open question needs a CBS L
 - CBS LLC is the operating company (named in the BRD's sample emails).
 - The BRD's Agent 1 is the "Company Search Agent" in the workflow, and Agent 5 is the "JD Analyzer Agent"; they are the same agents under two names.
 - Data from LinkedIn is used only through approved, ToS-compliant methods (official APIs or partner tools such as LinkedIn Recruiter, or manual recruiter action). No scraping.
-- One stack option is picked per layer from BRD §11 during Phase 0; the plan does not assume a specific vendor.
+- Every option in BRD §11 is supported through pluggable adapters; Phase 0 only chooses which one is active first per layer.
+- **Pluggable integrations (decided 2026-11-22):** data providers, job boards / candidate sources and email providers sit behind common connector interfaces, so they can be added, swapped or removed by configuration for easy maintenance (Q4, Q5, Q11).
 - Timeline assumes one cross-functional team working in parallel tracks.
 
 **BRD gaps and inconsistencies to resolve**
@@ -70,14 +71,14 @@ The plan runs on the working assumptions below. Each open question needs a CBS L
 | Q1 | Target industry lists differ: §3 lists Aerospace, Energy, Life Sciences; Agent 1 lists Oil & Gas, Semiconductor, Industrial Automation instead. Use the union of both? | §3, Agent 1 | Phase 2 | **Resolved (2026-11-22):** use the union of both lists (14 industries). |
 | Q2 | Agent 2 searches 10 roles; §4 lists 27 target positions. Should hiring discovery cover all 27? | §4, Agent 2 | Phase 2 | **Resolved (2026-11-22):** search all 27 §4 positions. |
 | Q3 | Is Mexico in scope at launch or later ("optional")? Affects data sources, language and privacy law. | Agent 1 | Phase 0 | **Resolved (2026-11-22):** USA and Canada at launch; Mexico in a later phase after go-live. |
-| Q4 | Which data providers are licensed or to be bought (ZoomInfo optional, Apollo, Crunchbase, D&B)? | Agent 1 | Phase 0 | Open |
-| Q5 | Which job boards does CBS LLC hold resume-database licences for (Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter)? | Agent 6 | Phase 0 | Open |
-| Q6 | Is there an existing ATS/CRM (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) to integrate with, or is the BRD's Candidate and Job database the system of record? | §8, §11 | Phase 0 | **Resolved (2026-11-22):** no existing ATS/CRM; the platform's Job and Candidate databases are the system of record. |
-| Q7 | §10 requires approval before "candidate outreach emails", but no agent sends candidate emails. Is candidate email outreach part of Agent 8 or Agent 9? | §10, Agents 8–9 | Phase 5 | Open |
+| Q4 | Which data providers are licensed or to be bought (ZoomInfo optional, Apollo, Crunchbase, D&B)? | Agent 1 | Phase 0 | **Resolved (2026-11-22):** provider-agnostic. Adapters for all BRD options (LinkedIn, company websites, industry databases, ZoomInfo, Apollo, Crunchbase, D&B), switchable by configuration. |
+| Q5 | Which job boards does CBS LLC hold resume-database licences for (Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter)? | Agent 6 | Phase 0 | **Resolved (2026-11-22):** source-agnostic. Adapters for all BRD sources (LinkedIn, Internal ATS, Company DB, Resume DB, Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter, Recruiting CRM), enabled per licence by configuration. |
+| Q6 | Is there an existing ATS/CRM (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) to integrate with, or is the BRD's Candidate and Job database the system of record? | §8, §11 | Phase 0 | **Resolved (2026-11-22):** no existing ATS/CRM; the platform's Job and Candidate databases are the system of record. Optional sync adapters for all BRD CRM/ATS options (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) are included, off by default. |
+| Q7 | §10 requires approval before "candidate outreach emails", but no agent sends candidate emails. Is candidate email outreach part of Agent 8 or Agent 9? | §10, Agents 8–9 | Phase 5 | **Resolved (2026-11-22):** not tied to one agent. A shared, channel-agnostic Outreach Service (LinkedIn, email, future channels) sits behind the approval gate and is callable by Agent 8, Agent 9 and Agent 12. |
 | Q8 | What does the "Client" role see and do in the platform (view submissions, give feedback, upload JDs)? | §9 | Phase 1 | Open |
 | Q9 | How is "Communication Score" measured for ranking (response quality, response time, recruiter rating)? | Agent 7 | Phase 4 | Open |
 | Q10 | How is the 0–100 priority score for hiring opportunities defined (posting age, volume, role fit)? | Agent 2 | Phase 2 | Open |
-| Q11 | Which email platform: Microsoft 365 or Gmail? Which domain(s) will send outreach? | §11 | Phase 0 | Open |
+| Q11 | Which email platform: Microsoft 365 or Gmail? Which domain(s) will send outreach? | §11 | Phase 0 | **Resolved (2026-11-22):** both Microsoft 365 and Gmail API adapters are built; provider and sending domains are configuration. |
 | Q12 | Baseline for "reduce manual effort by over 80%": what is today's effort per JD and per client? | §2 | Phase 0 | Open |
 | Q13 | Follow-up cadence: how many client follow-ups, at what intervals, before stopping? | Agents 3, 12 | Phase 2 | Open |
 | Q14 | Who approves at each gate (role), and is a second approver ever needed? | §10 | Phase 1 | Open |
@@ -136,8 +137,8 @@ Phase 0 closes the open questions, fixes the stack and sets KPI baselines, so la
 1. Kick-off and BRD walkthrough with Administrator, BD Manager, Recruiter, Account Manager and Sales Manager representatives.
 2. Resolve open questions Q1–Q14 (Section 2) and sign off a scope baseline.
 3. Map today's manual process for one client and one JD, and time each step (baseline for the 80% goal and the <24-hour target).
-4. Choose one option per BRD §11 layer: orchestration (LangGraph / CrewAI / AutoGen), LLM, workflow automation (n8n / Make / Zapier), CRM/ATS, vector DB (Pinecone / Weaviate / Qdrant), email (M365 / Gmail), search, resume parser (Sovren / Affinda / Textkernel), document storage (SharePoint / OneDrive / S3). PostgreSQL is fixed by the BRD.
-5. Confirm data-provider and job-board licences and API access (Q4, Q5).
+4. Choose the **default active** adapter per BRD §11 layer (all options remain available through the connector framework, Section 5.5): orchestration (LangGraph / CrewAI / AutoGen), LLM, workflow automation (n8n / Make / Zapier), CRM/ATS, vector DB (Pinecone / Weaviate / Qdrant), email (M365 / Gmail), search, resume parser (Sovren / Affinda / Textkernel), document storage (SharePoint / OneDrive / S3). PostgreSQL is fixed by the BRD.
+5. Inventory current data-provider, job-board and email accounts and register them as initial connectors; no provider is hard-coded (Q4, Q5, Q11).
 6. Compliance review: LinkedIn user agreement and API terms, CAN-SPAM, Canada's CASL, GDPR/CCPA-style privacy obligations, and Mexico's LFPDPPP if Mexico is in scope.
 7. Set up environments (dev, test, prod), source control, CI/CD, secrets vault, and email-sending domain warm-up.
 
@@ -188,7 +189,25 @@ The last column holds only audit fields needed to prove BRD §10 approvals and p
 - Recommendation engine scaffold (used by ranking and matching).
 - Agent orchestration framework (chosen in Phase 0) with state, retries and human-in-the-loop pauses.
 
-**5.5 Integrations base:** email API (M365 / Gmail), CRM/ATS connector, document storage, workflow-automation tool.
+**5.5 Connector framework and integrations (Q4, Q5, Q7, Q11)**
+
+Every integration sits behind a common connector interface. **Adapters are built for all options named in the BRD** and enabled, disabled or swapped by the Administrator through configuration (credentials in the vault, rate limits per adapter). Adding a new provider later means one new adapter; agent logic does not change.
+
+| Connector type | Used by | Adapters delivered (all BRD options) |
+| --- | --- | --- |
+| Company data | Agent 1, Agent 2 | LinkedIn (sanctioned API / tools only), company websites, industry databases, ZoomInfo, Apollo, Crunchbase, Dun & Bradstreet |
+| Job / hiring signals | Agent 2 | Company career pages, Google Custom Search, approved data providers |
+| Candidate sources | Agent 6 | LinkedIn (sanctioned tools only), Internal ATS, Company Database, Resume Database, Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter, Recruiting CRM |
+| Email | Agents 3, 4, 8, 9, 11, 12 | Microsoft 365 API, Gmail API |
+| CRM / ATS (optional sync) | Agents 4, 6, 11, 12 | Bullhorn, RecruitCRM, Zoho Recruit, Salesforce. The platform DB stays the system of record (Q6); sync is off by default |
+| Resume parsing | Agents 9, 10 | Sovren, Affinda, Textkernel |
+| Document storage | Agents 9, 11 | SharePoint, OneDrive, AWS S3 |
+| Vector database | Agents 5, 6, 10 | Pinecone, Weaviate, Qdrant |
+| LLM | All agents | OpenAI GPT-5.5, GPT-5, Claude, Gemini (via the LLM gateway) |
+| Workflow automation | Schedules, triggers | n8n, Make, Zapier |
+
+- **Shared Outreach Service (Q7):** one channel-agnostic service for LinkedIn (sanctioned tools) and email, behind the approval-gate engine. Agent 8, Agent 9 and Agent 12 all send through it; the gate approves, the service delivers and tracks.
+- **Default selection:** Phase 0 picks which adapter is active first in each row; the others stay available and can be switched on without code changes.
 
 **Exit criteria:** databases live with seed data; all six roles can sign in with correct permissions; a test action cannot fire without approval; parsing and semantic search return results on sample resumes and JDs.
 
@@ -295,7 +314,7 @@ Phase 5 contacts approved candidates and collects their resume and details, aimi
 - **Drafts** a personalised message from the BRD template ("Hello John, I came across your profile while searching for Manufacturing Engineers…"), filling the candidate's name and the role family.
 - **Gate:** the Recruiter approves each connection request and message before it is sent (BRD §10).
 - **Sending:** only through LinkedIn-sanctioned channels (for example LinkedIn Recruiter InMail or the recruiter sending from their own account after approval). No browser automation or scraping, and LinkedIn's own weekly invitation limits are respected.
-- **Candidate email outreach** (BRD §10 gate): for candidates with an email on file, the same draft-approve-send flow by email; owning agent per Q7.
+- **Candidate email outreach** (BRD §10 gate): sent through the shared Outreach Service (Q7) with the same draft-approve-send flow, so Agents 8, 9 and 12 all use one approved channel layer.
 - **Tracking:** sent, accepted, replied, not interested, do-not-contact.
 
 ### Agent 9 — Resume Collection Agent
@@ -492,7 +511,7 @@ The biggest risk is platform and legal exposure from outreach; the approval gate
 | LinkedIn account restriction from automation or scraping | Loss of the main sourcing channel | Sanctioned tools only, recruiter approval per request, LinkedIn limits respected | 0, 5 |
 | Email domain blacklisted from cold outreach volume | Client emails land in spam | Separate warmed sending domain, send caps, opt-out handling, bounce monitoring | 0, 2 |
 | Anti-spam and privacy breaches (CAN-SPAM, CASL, GDPR/CCPA, LFPDPPP) | Fines, reputational damage | Legal review in Phase 0, consent and opt-out flags, retention and deletion process | 0, 1, 8 |
-| Data-provider or job-board licence limits | Fewer companies or candidates than KPI targets | Confirm licences early (Q4, Q5), internal DB first | 0 |
+| Data-provider or job-board licence limits | Fewer companies or candidates than KPI targets | Pluggable connectors: add or swap providers by configuration (Q4, Q5); internal DB first | 0, 1 |
 | LLM extraction or ranking errors | Wrong candidates submitted | Human review at every gate, confidence flags, recruiter feedback loop | 3–6 |
 | Biased candidate ranking | Unfair outcomes, legal risk | Protected attributes excluded, periodic bias audit | 4, 8 |
 | Low recruiter adoption | Goals in §2 not reached | Role-based training, pilot feedback, simple review queues | 8 |
