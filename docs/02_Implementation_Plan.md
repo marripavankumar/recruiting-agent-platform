@@ -13,7 +13,7 @@ Ten phases run about 32 weeks to go-live, with overlapping tracks. Update the **
 
 | Phase | Name | BRD scope | Weeks | Key deliverables | Exit criteria (summary) | Status | % Done | Status notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 60% | BRD analysed, plan drafted; 13 of 14 open questions resolved; Q12 baseline to be measured (activity 3); default adapters, compliance review and environments pending |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 70% | BRD analysed, plan drafted; 13 of 14 open questions resolved; default adapters chosen (Claude LLM, Affinda parser; email and document storage set by configuration); Q12 baseline to be measured (activity 3); compliance review and environments pending |
 | 1 | Core platform and data foundation | §7, §8, §9, §10, §11 | 3–8 | Company / Job / Candidate DBs, 6 roles, approval-gate engine, shared AI services | DBs live; roles enforced; no action fires without approval; parsing and search work | Not started | 0% | Starts after stack decision (Phase 0) |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Q1–Q4, Q10, Q11, Q13 resolved |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Reply classification, JD extraction, structured searchable job records | Extraction accuracy meets agreed threshold; JD searchable within 15 min | Not started | 0% | — |
@@ -144,9 +144,10 @@ Phase 0 closes the open questions, fixes the stack and sets KPI baselines, so la
    | Database | **PostgreSQL** | PostgreSQL licence | — |
    | Vector database | **Qdrant** (self-hosted) | Apache 2.0 | Weaviate (BSD-3, also open source), Pinecone |
    | Workflow automation | **n8n** (self-hosted) | Sustainable Use License (source-available, free to self-host) | Make, Zapier |
-   | LLM | No open-source option in BRD; Phase 0 picks default from OpenAI GPT-5.5 / GPT-5, Claude, Gemini | Commercial | All via LLM gateway |
-   | Resume parsing | No open-source option in BRD; Phase 0 picks default from Sovren, Affinda, Textkernel | Commercial | All as adapters |
-   | Document storage, email, CRM/ATS, data providers, job boards | Commercial services named in BRD | Commercial | All as adapters (Section 5.5) |
+   | LLM | **Claude** (decided 2026-11-22; no open-source option in BRD) | Commercial | OpenAI GPT-5.5, GPT-5, Gemini, all via LLM gateway |
+   | Resume parsing | **Affinda** (decided 2026-11-22; no open-source option in BRD) | Commercial | Sovren, Textkernel |
+   | Email, document storage | No fixed default (decided 2026-11-22): adapters for all BRD options are built; Administrator activates one or more per deployment by configuration | Commercial | Microsoft 365 API, Gmail API; SharePoint, OneDrive, AWS S3 |
+   | CRM/ATS, data providers, job boards | Commercial services named in BRD | Commercial | All as adapters (Section 5.5) |
 
 5. Inventory current data-provider, job-board and email accounts and register them as initial connectors; no provider is hard-coded (Q4, Q5, Q11).
 6. Compliance review: LinkedIn user agreement and API terms, CAN-SPAM, Canada's CASL, GDPR/CCPA-style privacy obligations, and Mexico's LFPDPPP if Mexico is in scope.
@@ -209,12 +210,12 @@ Every integration sits behind a common connector interface. **Adapters are built
 | Company data | Agent 1, Agent 2 | LinkedIn (sanctioned API / tools only), company websites, industry databases, ZoomInfo, Apollo, Crunchbase, Dun & Bradstreet |
 | Job / hiring signals | Agent 2 | Company career pages, Google Custom Search, approved data providers |
 | Candidate sources | Agent 6 | LinkedIn (sanctioned tools only), Internal ATS, Company Database, Resume Database, Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter, Recruiting CRM |
-| Email | Agents 3, 4, 8, 9, 11, 12 | Microsoft 365 API, Gmail API |
+| Email | Agents 3, 4, 8, 9, 11, 12 | Microsoft 365 API, Gmail API (no fixed default; active provider and sending domains set by configuration) |
 | CRM / ATS (optional sync) | Agents 4, 6, 11, 12 | Bullhorn, RecruitCRM, Zoho Recruit, Salesforce. The platform DB stays the system of record (Q6); sync is off by default |
-| Resume parsing | Agents 9, 10 | Sovren, Affinda, Textkernel |
-| Document storage | Agents 9, 11 | SharePoint, OneDrive, AWS S3 |
+| Resume parsing | Agents 9, 10 | Affinda (default), Sovren, Textkernel |
+| Document storage | Agents 9, 11 | SharePoint, OneDrive, AWS S3 (no fixed default; set by configuration) |
 | Vector database | Agents 5, 6, 10 | Qdrant (default, open source), Weaviate, Pinecone |
-| LLM | All agents | OpenAI GPT-5.5, GPT-5, Claude, Gemini (via the LLM gateway) |
+| LLM | All agents | Claude (default), OpenAI GPT-5.5, GPT-5, Gemini (via the LLM gateway) |
 | Workflow automation | Schedules, triggers | n8n (default, self-hosted), Make, Zapier |
 
 - **Shared Outreach Service (Q7):** one channel-agnostic service for LinkedIn (sanctioned tools) and email, behind the approval-gate engine. Agent 8, Agent 9 and Agent 12 all send through it; the gate approves, the service delivers and tracks.

@@ -14,7 +14,7 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 60% |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 70% |
 | 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | Not started | 0% |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Not started | 0% |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Not started | 0% |
@@ -45,7 +45,9 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | 2026-11-22 | Q14 Approvers | Configurable per gate with optional second approver |
 | 2026-11-22 | Orchestration and open-source defaults | LangGraph (MIT) for agent orchestration and approval-gate interrupts; PostgreSQL; Qdrant (Apache 2.0, self-hosted); n8n (self-hosted). Commercial-only layers (LLM, resume parsing, data providers) stay as pluggable adapters |
 | 2026-11-22 | Q7 Candidate email owner | Shared channel-agnostic Outreach Service behind the approval gate, used by Agents 8, 9, 12 |
+| 2026-11-22 | Default LLM and resume parser | Claude is the LLM gateway default; Affinda is the resume-parsing default. Other BRD options stay as adapters |
+| 2026-11-22 | Email and document storage | No fixed default: adapters for Microsoft 365, Gmail, SharePoint, OneDrive and AWS S3; active ones set by configuration |
 
 ## Next step
 
-Complete Phase 0: run the timing study for the Q12 baseline, pick default adapters, finish the compliance review and set up environments. Details are in [Phase 0 of the plan](docs/02_Implementation_Plan.md#4-phase-0--discovery-and-setup-weeks-13).
+Complete Phase 0: run the timing study for the Q12 baseline, finish the compliance review and set up environments. Details are in [Phase 0 of the plan](docs/02_Implementation_Plan.md#4-phase-0--discovery-and-setup-weeks-13).
