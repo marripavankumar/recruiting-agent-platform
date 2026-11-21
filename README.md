@@ -14,7 +14,7 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 15% |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 30% |
 | 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | Not started | 0% |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | Not started | 0% |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Not started | 0% |
@@ -27,6 +27,15 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 
 Full details, exit criteria and status notes are in the [implementation plan](docs/02_Implementation_Plan.md#implementation-phases-and-current-status).
 
+## Decisions log
+
+| Date | Question | Decision |
+| --- | --- | --- |
+| 2026-11-22 | Q1 Target industries | Union of BRD §3 and Agent 1 lists (14 industries) |
+| 2026-11-22 | Q2 Hiring discovery roles | All 27 §4 positions |
+| 2026-11-22 | Q3 Mexico | USA and Canada at launch; Mexico after go-live |
+| 2026-11-22 | Q6 ATS/CRM | None; platform Job and Candidate DBs are the system of record |
+
 ## Next step
 
-Answer the 14 open questions (Q1–Q14) in [Section 2 of the plan](docs/02_Implementation_Plan.md#2-assumptions-and-open-questions) to complete Phase 0.
+Answer the 10 remaining open questions (Q4, Q5, Q7–Q14) in [Section 2 of the plan](docs/02_Implementation_Plan.md#2-assumptions-and-open-questions) to complete Phase 0.

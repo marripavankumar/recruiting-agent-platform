@@ -13,11 +13,11 @@ Ten phases run about 32 weeks to go-live, with overlapping tracks. Update the **
 
 | Phase | Name | BRD scope | Weeks | Key deliverables | Exit criteria (summary) | Status | % Done | Status notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 15% | BRD analysed, implementation plan drafted, 14 open questions logged; awaiting CBS LLC answers |
+| 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | Scope baseline, stack decision record, compliance checklist, KPI baseline, environments | Open questions Q1–Q14 answered for Phase 0; licences confirmed; legal sign-off | In progress | 30% | BRD analysed, plan drafted; 4 of 14 open questions resolved (Q1, Q2, Q3, Q6); Q4, Q5, Q7–Q14 pending |
 | 1 | Core platform and data foundation | §7, §8, §9, §10, §11 | 3–8 | Company / Job / Candidate DBs, 6 roles, approval-gate engine, shared AI services | DBs live; roles enforced; no action fires without approval; parsing and search work | Not started | 0% | Starts after stack decision (Phase 0) |
-| 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Depends on Q1, Q2, Q3, Q4, Q10, Q11, Q13 |
+| 2 | Client acquisition | Agents 1–3 | 7–12 | Company discovery, hiring-opportunity signals, approved and tracked client emails | 500 companies in a test month; 100% first emails approved; tracking live | Not started | 0% | Depends on Q4, Q10, Q11, Q13 |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | Reply classification, JD extraction, structured searchable job records | Extraction accuracy meets agreed threshold; JD searchable within 15 min | Not started | 0% | — |
-| 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Multi-source search, 0–100 score, ranked Top 20 with reasons | Recruiters rate ≥10 of Top 20 as qualified on test JDs | Not started | 0% | Depends on Q5, Q6, Q9 |
+| 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Multi-source search, 0–100 score, ranked Top 20 with reasons | Recruiters rate ≥10 of Top 20 as qualified on test JDs | Not started | 0% | Depends on Q5, Q9 |
 | 5 | Candidate engagement | Agents 8–9 | 18–22 | Approved LinkedIn / email outreach, resume and details collection | No message sends without approval; ≥90% complete candidate data; consent recorded | Not started | 0% | Depends on Q7 |
 | 6 | Matching and client submission | Agents 10–11 | 21–25 | Match reports, recruiter approval, client submission packages | Median JD-to-first-submission <24 h; 100% submissions approved | Not started | 0% | Depends on Q8, Q14 |
 | 7 | Follow-up | Agent 12 | 24–27 | Reminders for client, candidate, interview, offer, feedback, start date | Every open item has a next reminder date | Not started | 0% | Depends on Q13 |
@@ -67,12 +67,12 @@ The plan runs on the working assumptions below. Each open question needs a CBS L
 
 | # | Question | BRD reference | Needed by | Answer |
 | --- | --- | --- | --- | --- |
-| Q1 | Target industry lists differ: §3 lists Aerospace, Energy, Life Sciences; Agent 1 lists Oil & Gas, Semiconductor, Industrial Automation instead. Use the union of both? | §3, Agent 1 | Phase 2 | Open |
-| Q2 | Agent 2 searches 10 roles; §4 lists 27 target positions. Should hiring discovery cover all 27? | §4, Agent 2 | Phase 2 | Open |
-| Q3 | Is Mexico in scope at launch or later ("optional")? Affects data sources, language and privacy law. | Agent 1 | Phase 0 | Open |
+| Q1 | Target industry lists differ: §3 lists Aerospace, Energy, Life Sciences; Agent 1 lists Oil & Gas, Semiconductor, Industrial Automation instead. Use the union of both? | §3, Agent 1 | Phase 2 | **Resolved (2026-11-22):** use the union of both lists (14 industries). |
+| Q2 | Agent 2 searches 10 roles; §4 lists 27 target positions. Should hiring discovery cover all 27? | §4, Agent 2 | Phase 2 | **Resolved (2026-11-22):** search all 27 §4 positions. |
+| Q3 | Is Mexico in scope at launch or later ("optional")? Affects data sources, language and privacy law. | Agent 1 | Phase 0 | **Resolved (2026-11-22):** USA and Canada at launch; Mexico in a later phase after go-live. |
 | Q4 | Which data providers are licensed or to be bought (ZoomInfo optional, Apollo, Crunchbase, D&B)? | Agent 1 | Phase 0 | Open |
 | Q5 | Which job boards does CBS LLC hold resume-database licences for (Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter)? | Agent 6 | Phase 0 | Open |
-| Q6 | Is there an existing ATS/CRM (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) to integrate with, or is the BRD's Candidate and Job database the system of record? | §8, §11 | Phase 0 | Open |
+| Q6 | Is there an existing ATS/CRM (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) to integrate with, or is the BRD's Candidate and Job database the system of record? | §8, §11 | Phase 0 | **Resolved (2026-11-22):** no existing ATS/CRM; the platform's Job and Candidate databases are the system of record. |
 | Q7 | §10 requires approval before "candidate outreach emails", but no agent sends candidate emails. Is candidate email outreach part of Agent 8 or Agent 9? | §10, Agents 8–9 | Phase 5 | Open |
 | Q8 | What does the "Client" role see and do in the platform (view submissions, give feedback, upload JDs)? | §9 | Phase 1 | Open |
 | Q9 | How is "Communication Score" measured for ranking (response quality, response time, recruiter rating)? | Agent 7 | Phase 4 | Open |
@@ -200,7 +200,7 @@ Phase 2 turns target-company research into approved, tracked outreach emails, ai
 
 ### Agent 1 — Company Discovery Agent
 
-- **Search criteria:** revenue over $100M; USA, Canada, Mexico (optional, per Q3); industries per Q1.
+- **Search criteria:** revenue over $100M; USA and Canada at launch, Mexico in a later phase (Q3); industries = union of BRD §3 and Agent 1 lists (Q1): Manufacturing, Automotive, Medical Devices, Industrial Equipment, Aerospace, Energy, Consumer Products, Electronics, Heavy Equipment, Defense, Life Sciences, Industrial Automation, Oil & Gas, Semiconductor.
 - **Sources:** LinkedIn (compliant access only), company websites, industry databases, ZoomInfo (optional), Apollo, Crunchbase, Dun & Bradstreet.
 - **Output fields:** company name, revenue, industry, location, hiring manager, engineering manager, HR manager, talent acquisition, director of engineering, LinkedIn URL, website, career page, recruiter contacts, email, phone.
 - **Build tasks:** provider connectors; de-duplication by domain and legal name; revenue and location filter; contact-role mapping; email verification; write to Company DB with source and date.
@@ -208,7 +208,7 @@ Phase 2 turns target-company research into approved, tracked outreach emails, ai
 
 ### Agent 2 — Hiring Opportunity Discovery Agent
 
-- **Searches for** the 10 roles in the BRD (Manufacturing, Quality, Mechanical, CAE, Electrical, Design, Industrial, Product Engineer; Manufacturing Manager; Engineering Manager), or all 27 §4 roles if Q2 says so.
+- **Searches for** all 27 target positions in BRD §4 (Q2), which include the 10 roles listed under Agent 2.
 - **Sources:** company career pages and approved job-data search (BRD §11 Search layer).
 - **Output fields:** job title, location, hiring manager, job link, date posted, priority score (definition per Q10).
 - **Build tasks:** career-page discovery and parsing; title normalisation to §4 role list; link postings to Company DB (updates Hiring History); priority scoring; stale-posting expiry.
@@ -255,7 +255,7 @@ Phase 4 produces a ranked Top 20 with reasons for every JD, meeting the target o
 
 ### Agent 6 — Candidate Search Agent
 
-- **Search order:** internal sources first (Internal ATS, Company Database, Resume Database, Recruiting CRM), then licensed job-board resume databases (Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter per Q5), then LinkedIn through compliant tools only.
+- **Search order:** internal sources first (the platform's own Candidate DB as system of record per Q6, Company Database, Resume Database), then licensed job-board resume databases (Dice, CareerBuilder, Monster, Indeed Resume, ZipRecruiter per Q5), then LinkedIn through compliant tools only.
 - **Filters:** job title, skills, industry, years of experience, education, location, visa, availability, expected rate, LinkedIn profile, resume.
 - **Methods:** structured filter query + semantic (embedding) search against the JD profile from Agent 5; results merged and de-duplicated by email, phone and LinkedIn URL.
 - **Write-back:** new candidates saved to the Candidate DB with source and consent status.
@@ -401,6 +401,7 @@ These start only once the core workflow meets its Phase 8 exit criteria, as the 
 | Market intelligence dashboards: hiring trends by company, location, discipline | Agent 2; Company and Job DBs | Not started |
 | Salary and bill-rate recommendations by role, geography, demand | Job and Candidate DBs; Agent 9 rates | Not started |
 | Internal recruiter copilot recommending the next best action | Agent 12; RAG over all DBs | Not started |
+| Mexico expansion (BRD Agent 1 location "optional"; deferred per Q3) | Agent 1; LFPDPPP compliance review; Spanish-language outreach | Not started |
 
 ## 14. End-to-end scenarios
 
@@ -495,5 +496,5 @@ The biggest risk is platform and legal exposure from outreach; the approval gate
 | LLM extraction or ranking errors | Wrong candidates submitted | Human review at every gate, confidence flags, recruiter feedback loop | 3–6 |
 | Biased candidate ranking | Unfair outcomes, legal risk | Protected attributes excluded, periodic bias audit | 4, 8 |
 | Low recruiter adoption | Goals in §2 not reached | Role-based training, pilot feedback, simple review queues | 8 |
-| Integration delays with ATS/CRM | Schedule slip | Decide system of record in Phase 0 (Q6); integration in Phase 1 | 0, 1 |
+| Integration delays with ATS/CRM | Schedule slip | Resolved by Q6: no external ATS/CRM; platform DB is the system of record | 0, 1 |
 | LLM and data cost overrun | Budget pressure | Cost tracking in LLM gateway, caching, batch runs | 1, 8 |
