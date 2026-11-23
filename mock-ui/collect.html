@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Share your details · CBS LLC</title>
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .wrap { max-width: 620px; margin: 5vh auto; padding: 0 16px; }
+  .wrap h1 { font-size: 22px; margin: 0 0 6px; }
+  .wrap label { display: block; margin: 12px 0 4px; font-weight: 600; font-size: 14px; }
+  .wrap input[type=text], .wrap textarea { width: 100%; }
+  .check { display: flex; gap: 10px; font-weight: 400 !important; align-items: flex-start; }
+</style>
+</head>
+<body>
+<div class="mock-banner">Mock UI: the candidate's page behind Agent 9's secure link. No sign-in; the link expires after 14 days.</div>
+<div class="wrap">
+  <div class="card">
+    <div class="card-body" id="form-step">
+      <h1>CAE Engineer – Crash</h1>
+      <p class="muted" style="margin:0 0 6px">Hi John, please share the details below so your recruiter can put you forward. Fields already filled in come from your earlier messages.</p>
+      <label for="resume">Your current resume</label>
+      <div class="drop" id="resume">Drop your resume here or paste the text</div>
+      <label for="f1">When you could start</label><input type="text" id="f1" value="2 weeks">
+      <label for="f2">Visa status</label><input type="text" id="f2" value="Green card holder">
+      <label for="f3">Current location</label><input type="text" id="f3" placeholder="City, State">
+      <label for="f4">Expected rate</label><input type="text" id="f4" value="$80/hr C2C">
+      <label for="f5">Notice period</label><input type="text" id="f5" value="2 weeks">
+      <label for="f6">Work authorisation</label><input type="text" id="f6" value="Green card holder">
+      <label for="f7">Preferred location</label><input type="text" id="f7" placeholder="e.g. Detroit area, open to relocation">
+      <label class="check"><input type="checkbox" id="c1"> I agree that CBS LLC may store my resume and details to find suitable roles for me.</label>
+      <label class="check"><input type="checkbox" id="c2"> I agree that CBS LLC may submit my resume for the CAE Engineer – Crash role (JOB-2026-0142) with an automotive client. CBS LLC will tell me the client's name and ask again before submitting me anywhere else.</label>
+      <div style="margin-top:16px"><button class="btn primary" id="send">Send to my recruiter</button></div>
+    </div>
+    <div class="card-body" id="done-step" style="display:none">
+      <h1>Thank you</h1>
+      <p class="muted" style="margin:0">Your recruiter has everything needed and will be in touch.</p>
+    </div>
+  </div>
+  <p class="faint" style="text-align:center;margin-top:14px">CBS LLC · your details are used only as described above</p>
+</div>
+<script>
+document.getElementById("send").onclick = () => {
+  if (!document.getElementById("c1").checked || !document.getElementById("c2").checked) {
+    alert("Please tick both consent boxes so your recruiter can put you forward.");
+    return;
+  }
+  document.getElementById("form-step").style.display = "none";
+  document.getElementById("done-step").style.display = "";
+};
+</script>
+</body>
+</html>

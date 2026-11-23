@@ -109,11 +109,16 @@ class ResumeIntake:
         resume_text: str,
         source: str,
         consent: ConsentStatus = ConsentStatus.NONE,
+        candidate_id: str | None = None,
     ) -> IntakeOutcome:
+        """With `candidate_id` (a resume the candidate uploaded), that record is updated."""
         parsed, by = self.parse(resume_text)
-        existing = self._candidates.find_duplicate(
-            parsed.email, normalize_phone(parsed.phone), normalize_linkedin(parsed.linkedin_url)
-        )
+        if candidate_id is not None:
+            existing = self._candidates.get(candidate_id)
+        else:
+            existing = self._candidates.find_duplicate(
+                parsed.email, normalize_phone(parsed.phone), normalize_linkedin(parsed.linkedin_url)
+            )
         candidate = existing or Candidate(id=new_id(), full_name=parsed.full_name, source=source)
         # A newer resume refreshes what it states and never clears known values.
         candidate.full_name = parsed.full_name or candidate.full_name

@@ -17,6 +17,8 @@ from recruiting.records.models import (
     ConsentStatus,
     Contact,
     ContactRole,
+    Engagement,
+    EngagementStatus,
     Job,
     JobPosting,
     JobStatus,
@@ -571,3 +573,96 @@ class PostgresUsageLedger:
             UsageRecord(t, p, m, i, o, float(c) if c is not None else None, at)
             for t, p, m, i, o, c, at in rows
         ]
+
+
+_ENGAGEMENT = """id::text, job_id::text, candidate_id::text, status, approvals, token_hash,
+    token_expires_at, requested_at, consent_store_at, consent_submit_at, consent_evidence, missing,
+    next_reminder_at, history, updated_at"""
+
+
+class PostgresEngagements:
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    @staticmethod
+    def _row(row: tuple) -> Engagement:
+        values = list(row)
+        values[3] = EngagementStatus(values[3])
+        values[4] = dict(values[4] or {})
+        values[5] = values[5].strip() if values[5] else None
+        values[11] = list(values[11] or [])
+        values[13] = list(values[13] or [])
+        return Engagement(*values)
+
+    def _query(self, where: str, params: tuple) -> list[Engagement]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT {_ENGAGEMENT} FROM candidate_engagement WHERE {where}"
+                " ORDER BY updated_at DESC",
+                params,
+            ).fetchall()
+        return [self._row(r) for r in rows]
+
+    def get(self, engagement_id: str) -> Engagement | None:
+        if not is_uuid(engagement_id):
+            return None
+        return next(iter(self._query("id = %s", (engagement_id,))), None)
+
+    def find(self, job_id: str, candidate_id: str) -> Engagement | None:
+        if not (is_uuid(job_id) and is_uuid(candidate_id)):
+            return None
+        return next(
+            iter(self._query("job_id = %s AND candidate_id = %s", (job_id, candidate_id))), None
+        )
+
+    def by_token_hash(self, token_hash: str) -> Engagement | None:
+        return next(iter(self._query("token_hash = %s", (token_hash,))), None)
+
+    def by_approval(self, approval_request_id: str) -> Engagement | None:
+        rows = self._query(
+            "EXISTS (SELECT 1 FROM jsonb_each_text(approvals) a WHERE a.value = %s)",
+            (approval_request_id,),
+        )
+        return next(iter(rows), None)
+
+    def for_candidate(self, candidate_id: str) -> list[Engagement]:
+        return self._query("candidate_id = %s", (candidate_id,)) if is_uuid(candidate_id) else []
+
+    def list(
+        self, job_id: str | None = None, status: EngagementStatus | None = None
+    ) -> list[Engagement]:
+        if job_id is not None and not is_uuid(job_id):
+            return []
+        return self._query(
+            "(%s::uuid IS NULL OR job_id = %s::uuid) AND (%s::text IS NULL OR status = %s)",
+            (job_id, job_id, status.value if status else None, status.value if status else None),
+        )
+
+    def save(self, engagement: Engagement) -> Engagement:
+        e = engagement
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO candidate_engagement (id, job_id, candidate_id, status, approvals,
+                    token_hash, token_expires_at, requested_at, consent_store_at,
+                    consent_submit_at, consent_evidence, missing, next_reminder_at, history,
+                    updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, coalesce(%s, now()))
+                ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status,
+                    approvals = EXCLUDED.approvals, token_hash = EXCLUDED.token_hash,
+                    token_expires_at = EXCLUDED.token_expires_at,
+                    requested_at = EXCLUDED.requested_at,
+                    consent_store_at = EXCLUDED.consent_store_at,
+                    consent_submit_at = EXCLUDED.consent_submit_at,
+                    consent_evidence = EXCLUDED.consent_evidence, missing = EXCLUDED.missing,
+                    next_reminder_at = EXCLUDED.next_reminder_at, history = EXCLUDED.history,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (
+                    e.id, e.job_id, e.candidate_id, e.status.value, Jsonb(e.approvals),
+                    e.token_hash, e.token_expires_at, e.requested_at, e.consent_store_at,
+                    e.consent_submit_at, e.consent_evidence, e.missing, e.next_reminder_at,
+                    Jsonb(e.history), e.updated_at,
+                ),
+            )  # fmt: skip
+        return engagement

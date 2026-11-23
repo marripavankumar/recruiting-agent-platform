@@ -86,7 +86,12 @@ def build_services(settings: Settings) -> Services:
         outreach = build_outreach(settings, approvals, opt_outs)
         workflows = build_workflows(approvals, outreach, MemorySaver())
         platform = build_platform(
-            settings, users=users, opt_outs=opt_outs, deliveries=outreach.log, workflows=workflows
+            settings,
+            users=users,
+            opt_outs=opt_outs,
+            deliveries=outreach.log,
+            workflows=workflows,
+            approvals=approvals,
         )
         return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)
 
@@ -98,6 +103,7 @@ def build_services(settings: Settings) -> Services:
     from recruiting.records.postgres import (
         PostgresCandidates,
         PostgresCompanies,
+        PostgresEngagements,
         PostgresJobs,
         PostgresRankings,
         PostgresUsageLedger,
@@ -122,6 +128,8 @@ def build_services(settings: Settings) -> Services:
         ledger=PostgresUsageLedger(connect),
         rankings=PostgresRankings(connect),
         ranking_weights=PostgresWeights(connect),
+        engagements=PostgresEngagements(connect),
+        approvals=approvals,
     )
     return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)
 

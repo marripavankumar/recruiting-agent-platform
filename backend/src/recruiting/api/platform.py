@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from recruiting.agents.candidate_outreach import CandidateOutreachAgent
 from recruiting.agents.candidate_search import CandidateSearchAgent, CandidateSource
 from recruiting.agents.client_outreach import ClientOutreachAgent, SenderProfile, WorkflowStarter
 from recruiting.agents.discovery import CompanyDiscoveryAgent, CompanySource
@@ -19,16 +20,19 @@ from recruiting.agents.hiring_signals import (
 from recruiting.agents.jd_analysis import JDAnalysisAgent
 from recruiting.agents.jd_intake import JDIntakeAgent
 from recruiting.agents.ranking import CandidateRankingAgent
+from recruiting.agents.resume_collection import ResumeCollectionAgent
 from recruiting.agents.resume_intake import ResumeIntake
 from recruiting.ai.llm import ClaudeProvider, LLMGateway, UsageLedger
 from recruiting.ai.prompts import default_registry
 from recruiting.ai.search import HashingEmbedder, InMemoryIndex, QdrantIndex, SemanticSearch
+from recruiting.approvals import ApprovalEngine
 from recruiting.compliance import OptOutRegistry
 from recruiting.compliance.unsubscribe import UnsubscribeLinks
 from recruiting.config import Settings
 from recruiting.domain import Role
 from recruiting.identity import UserDirectory
 from recruiting.outreach import DeliveryLog
+from recruiting.records.engagements import EngagementStore, InMemoryEngagements
 from recruiting.records.memory import (
     CandidateRepository,
     CompanyRepository,
@@ -65,6 +69,9 @@ class Platform:
     candidate_search: CandidateSearchAgent
     rankings: RankingStore
     ranking_weights: WeightsStore
+    engagements: EngagementStore
+    candidate_outreach: CandidateOutreachAgent | None  # needs approvals and workflows
+    resume_collection: ResumeCollectionAgent
     inbound_webhook_secret: str | None = None
 
 
@@ -103,6 +110,8 @@ def build_platform(
     rankings: RankingStore | None = None,
     ranking_weights: WeightsStore | None = None,
     candidate_sources: list[CandidateSource] | None = None,
+    engagements: EngagementStore | None = None,
+    approvals: ApprovalEngine | None = None,
 ) -> Platform:
     companies = companies or InMemoryCompanies()
     jobs = jobs or InMemoryJobs()
@@ -130,6 +139,18 @@ def build_platform(
     candidate_search = CandidateSearchAgent(
         candidates, search, resume_intake, ranking_agent, candidate_sources or []
     )
+
+    engagements = engagements or InMemoryEngagements()
+    candidate_outreach = None
+    if workflows is not None and approvals is not None:
+        candidate_outreach = CandidateOutreachAgent(
+            candidates, engagements, approvals, deliveries, opt_outs, workflows, unsubscribe,
+            settings.outreach_postal_address, settings.linkedin_weekly_limit,
+        )  # fmt: skip
+    resume_collection = ResumeCollectionAgent(
+        candidates, jobs, engagements, resume_intake, workflows, opt_outs, deliveries, unsubscribe,
+        settings.public_base_url, settings.outreach_postal_address,
+    )  # fmt: skip
 
     outreach_agent = None
     if workflows is not None:
@@ -170,5 +191,8 @@ def build_platform(
         candidate_search=candidate_search,
         rankings=rankings,
         ranking_weights=ranking_weights,
+        engagements=engagements,
+        candidate_outreach=candidate_outreach,
+        resume_collection=resume_collection,
         inbound_webhook_secret=settings.inbound_webhook_secret,
     )

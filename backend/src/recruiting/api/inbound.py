@@ -49,7 +49,14 @@ def receive_email(
         message_id=body.message_id,
         received_at=body.received_at or datetime.now(UTC),
     )
-    return asdict(platform.jd_intake.process(email))
+    # Replies from known candidates go to Agent 9; everything else to Agent 4.
+    candidate = platform.candidates.find_duplicate(email.from_address.lower(), None, None)
+    if candidate is not None:
+        return {
+            "handled_by": "agent-9",
+            **asdict(platform.resume_collection.process_reply(email, candidate)),
+        }
+    return {"handled_by": "agent-4", **asdict(platform.jd_intake.process(email))}
 
 
 _PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">

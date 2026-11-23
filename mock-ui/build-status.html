@@ -25,11 +25,11 @@
     <div class="card kpi"><div class="label">Phase 1 · Core platform</div><div class="value num">70%</div><div class="bar ok"><span style="width:70%"></span></div></div>
     <div class="card kpi"><div class="label">Phase 2 · Client acquisition</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div></div>
     <div class="card kpi"><div class="label">Phase 3 · JD intake &amp; analysis</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div></div>
-    <div class="card kpi"><div class="label">Phase 4 · Search &amp; ranking</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div><div class="target">Phases 5–8 not started</div></div>
+    <div class="card kpi"><div class="label">Phase 4 · Search &amp; ranking</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div><div class="target">Phase 5: 60% · Phases 6–8 not started</div></div>
   </div>
 
   <div class="card" style="margin-bottom:16px">
-    <div class="card-head"><h2>Screens</h2><span class="faint">Tests: 101 pass locally · PostgreSQL tests run in CI</span></div>
+    <div class="card-head"><h2>Screens</h2><span class="faint">Tests: 108 pass locally · PostgreSQL tests run in CI</span></div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Screen</th><th>Backend</th><th>API</th><th>Still open</th></tr></thead>
@@ -43,7 +43,8 @@
           <tr><td><a href="client-portal.html">Client portal</a></td><td><span class="built">Partly</span></td><td><code>/jobs</code> (own company only)</td><td>Submissions and feedback (Phase 6)</td></tr>
           <tr><td><a href="index.html">Dashboard</a></td><td><span class="planned">Planned · Phase 8</span></td><td>—</td><td>KPI endpoint and dashboard</td></tr>
           <tr><td><a href="candidates.html">Candidate ranking</a></td><td><span class="built">Built</span></td><td><code>POST /candidates</code>, <code>/jobs/{id}/ranking</code>, <code>…/review</code>, <code>…/move</code></td><td>Licensed job-board adapters, weight tuning from feedback</td></tr>
-          <tr><td><a href="linkedin-tasks.html">LinkedIn tasks</a></td><td><span class="planned">Partly · Phase 5</span></td><td>Manual LinkedIn channel queues approved requests</td><td>Task list API, Agent 9 resume collection</td></tr>
+          <tr><td><a href="linkedin-tasks.html">Engagement &amp; LinkedIn</a></td><td><span class="built">Built</span></td><td><code>POST /jobs/{id}/outreach</code>, <code>/linkedin-tasks</code>, <code>/engagements/{id}/outcome</code>, <code>…/request-details</code></td><td>PDF/DOCX upload, LinkedIn Recruiter InMail if licensed</td></tr>
+          <tr><td><a href="collect.html">Candidate secure link (public)</a></td><td><span class="built">Built</span></td><td><code>GET</code> / <code>POST /collect/{token}</code></td><td>Legal review of consent wording</td></tr>
           <tr><td><a href="match.html">Match &amp; submission</a></td><td><span class="planned">Planned · Phase 6</span></td><td>—</td><td>Agents 10–11</td></tr>
           <tr><td><a href="followups.html">Follow-ups</a></td><td><span class="planned">Planned · Phase 7</span></td><td>—</td><td>Agent 12</td></tr>
         </tbody>

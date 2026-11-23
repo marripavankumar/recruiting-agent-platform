@@ -78,6 +78,14 @@ DICTIONARY: dict[str, dict[str, tuple[str, ...]]] = {
         "CNC Machining": ("CNC", "machining"),
         "Welding": ("welding",),
     },
+    "standards": {
+        "FMVSS": ("FMVSS",),
+        "IIHS": ("IIHS",),
+        "ISO 13485": ("iso 13485", "iso13485"),
+        "ISO 9001": ("iso 9001", "iso9001"),
+        "IATF 16949": ("iatf 16949", "ts 16949", "iatf16949"),
+        "AS9100": ("as9100", "as 9100"),
+    },
     "lean": {
         "Lean Manufacturing": (
             "lean manufacturing",

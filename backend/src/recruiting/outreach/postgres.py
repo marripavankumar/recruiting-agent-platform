@@ -108,6 +108,9 @@ class PostgresDeliveryLog:
             ).fetchall()
         return [_receipt(r) for r in rows]
 
+    def mark_manually_sent(self, approval_request_id: str, at: datetime) -> DeliveryReceipt:
+        return self._update(approval_request_id, DeliveryStatus.MANUALLY_SENT, None, None, at)
+
     def _update(
         self,
         approval_request_id: str,

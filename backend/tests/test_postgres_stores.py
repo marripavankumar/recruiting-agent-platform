@@ -335,3 +335,39 @@ def test_candidates_rankings_and_weights(connect):
     assert weights.get() == RankingWeights()
     weights.save(RankingWeights(location=0.2), "u-admin")
     assert weights.get().location == 0.2
+
+
+def test_engagement_store(connect):
+    from datetime import UTC, datetime
+
+    from recruiting.records.memory import new_id
+    from recruiting.records.models import Candidate, Company, Engagement, EngagementStatus, Job
+    from recruiting.records.postgres import (
+        PostgresCandidates,
+        PostgresCompanies,
+        PostgresEngagements,
+        PostgresJobs,
+    )
+
+    company = PostgresCompanies(connect).save(
+        Company(new_id(), "Eng Co", f"{new_id()}.example", "test")
+    )
+    job = PostgresJobs(connect).add(
+        Job(new_id(), f"JOB-2098-{new_id()[:4]}", company.id, "CAE Engineer")
+    )
+    candidate = PostgresCandidates(connect).save(Candidate(new_id(), "John", "ats"))
+    store = PostgresEngagements(connect)
+    approval_id = new_id()
+    engagement = Engagement(new_id(), job.id, candidate.id, approvals={"linkedin": approval_id},
+                            token_hash="a" * 64, missing=["resume", "consent"])  # fmt: skip
+    engagement.log(datetime.now(UTC), "drafted")
+    store.save(engagement)
+    assert store.find(job.id, candidate.id).approvals == {"linkedin": approval_id}
+    assert store.by_approval(approval_id).id == engagement.id
+    assert store.by_token_hash("a" * 64).missing == ["resume", "consent"]
+    engagement.status = EngagementStatus.COMPLETE
+    store.save(engagement)
+    assert [e.id for e in store.list(job_id=job.id, status=EngagementStatus.COMPLETE)] == [
+        engagement.id
+    ]
+    assert store.for_candidate(candidate.id)[0].history[0]["event"] == "drafted"

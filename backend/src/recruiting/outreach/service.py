@@ -39,6 +39,7 @@ class DeliveryStatus(StrEnum):
     SENT = "sent"
     # Q15: LinkedIn requests are sent by the recruiter by hand; the platform queues and logs them.
     QUEUED_FOR_MANUAL_SEND = "queued_for_manual_send"
+    MANUALLY_SENT = "manually_sent"  # the recruiter confirmed sending it in LinkedIn
     FAILED = "failed"
 
 
@@ -100,7 +101,12 @@ class DeliveryReceipt:
 
 # Statuses that count against a daily cap: everything that went, or is going, out.
 COUNTED = frozenset(
-    {DeliveryStatus.SENDING, DeliveryStatus.SENT, DeliveryStatus.QUEUED_FOR_MANUAL_SEND}
+    {
+        DeliveryStatus.SENDING,
+        DeliveryStatus.SENT,
+        DeliveryStatus.QUEUED_FOR_MANUAL_SEND,
+        DeliveryStatus.MANUALLY_SENT,
+    }
 )
 
 
@@ -128,6 +134,10 @@ class DeliveryLog(Protocol):
     def record_reply(self, approval_request_id: str, at: datetime) -> None: ...
 
     def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]: ...
+
+    def mark_manually_sent(self, approval_request_id: str, at: datetime) -> DeliveryReceipt:
+        """Q15: the recruiter sent the approved LinkedIn note by hand."""
+        ...
 
 
 class InMemoryDeliveryLog:
@@ -196,6 +206,15 @@ class InMemoryDeliveryLog:
 
     def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]:
         return [r for r in self._receipts.values() if since is None or r.delivered_at >= since]
+
+    def mark_manually_sent(self, approval_request_id: str, at: datetime) -> DeliveryReceipt:
+        receipt = replace(
+            self._receipts[approval_request_id],
+            status=DeliveryStatus.MANUALLY_SENT,
+            delivered_at=at,
+        )
+        self._receipts[approval_request_id] = receipt
+        return receipt
 
 
 class ChannelAdapter(Protocol):

@@ -16,24 +16,41 @@
 
   <div class="page-head">
     <div>
-      <h1>LinkedIn tasks &amp; candidate replies</h1>
-      <p>Approved connection notes are sent by you, by hand, in LinkedIn or LinkedIn Recruiter. The platform never automates LinkedIn (Q15).</p>
+      <h1>Candidate engagement</h1>
+      <p>Agent 8's approved LinkedIn notes for you to send by hand, what each candidate said, and Agent 9's collection of resumes, details and consent. <span class="built">Built in backend</span></p>
     </div>
+    <div class="row"><span class="chip info" title="LinkedIn caps weekly invitations">LinkedIn invitations this week: 37 / 100</span></div>
   </div>
 
-  <div class="notice" style="margin-bottom:16px">Copy the approved note, send it in LinkedIn, then click “Mark as sent”. The note must be sent exactly as approved.</div>
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Contacted (approved)</div><div class="value num">12</div><div class="target">JOB-2026-0142</div></div>
+    <div class="card kpi"><div class="label">Replied</div><div class="value num">5</div><div class="target">Response rate 42% · target &gt;30%</div></div>
+    <div class="card kpi"><div class="label">Interested</div><div class="value num">4</div></div>
+    <div class="card kpi"><div class="label">Complete (resume, details, consent)</div><div class="value num" id="complete">2 / 4</div><div class="bar"><span id="complete-bar" style="width:50%"></span></div><div class="target">Phase 5 exit criterion: ≥ 90% of interested</div></div>
+  </div>
 
   <div class="split">
     <div class="card">
-      <div class="card-head"><h2>To send in LinkedIn</h2><span class="faint" id="task-count">3 tasks</span></div>
+      <div class="card-head"><h2>To send in LinkedIn</h2><span class="faint" id="task-count">2 tasks</span></div>
+      <div class="card-body" style="padding-bottom:0"><div class="notice">Copy the approved note, send it from your own LinkedIn or LinkedIn Recruiter, then click “Mark as sent”. The platform never automates LinkedIn (Q15).</div></div>
       <ul class="list" id="tasks">
         <li data-task>
           <div class="avatar">JM</div>
           <div class="grow">
             <div class="row" style="justify-content:space-between"><span class="title">John Mercer</span><span class="chip info">Approved by you · 10:42</span></div>
             <div class="faint">linkedin.com/in/john-mercer-cae · JOB-2026-0142 · rank #2</div>
-            <div class="email-body" style="padding:10px 0 6px">Hello John, I came across your profile while searching for CAE Engineers with LS-DYNA crash experience. We have an opportunity with a leading automotive manufacturer in Troy, MI. Would you be interested in discussing it? Regards, Dana, CBS LLC</div>
-            <div class="row"><a class="btn sm" href="#" data-toast="Note copied to clipboard (mock)">Copy note</a><a class="btn sm" href="#" data-toast="Opens the LinkedIn profile in a new tab (mock)">Open profile</a><button class="btn sm ok" data-done>Mark as sent</button></div>
+            <div class="email-body" style="padding:10px 0 6px">Hello John,
+
+I came across your profile while searching for CAE Engineers.
+
+We have exciting engineering opportunities with leading manufacturing companies.
+
+Would you be interested in discussing them?
+
+Regards,
+Dana Okafor
+CBS LLC</div>
+            <div class="row"><span class="faint">231 / 300 characters</span><a class="btn sm" href="#" data-toast="Note copied (mock)">Copy note</a><a class="btn sm" href="#" data-toast="Opens the LinkedIn profile in a new tab (mock)">Open profile</a><button class="btn sm ok" data-done>Mark as sent</button></div>
           </div>
         </li>
         <li data-task>
@@ -41,17 +58,18 @@
           <div class="grow">
             <div class="row" style="justify-content:space-between"><span class="title">Elena Vasquez</span><span class="chip info">Approved by you · 10:44</span></div>
             <div class="faint">linkedin.com/in/elena-vasquez-fea · JOB-2026-0142 · rank #4</div>
-            <div class="email-body" style="padding:10px 0 6px">Hello Elena, your FEA and crash simulation work stood out. We have a CAE opportunity with an automotive manufacturer in Michigan. Would you be open to a short conversation? Regards, Dana, CBS LLC</div>
-            <div class="row"><a class="btn sm" href="#" data-toast="Note copied to clipboard (mock)">Copy note</a><a class="btn sm" href="#" data-toast="Opens the LinkedIn profile in a new tab (mock)">Open profile</a><button class="btn sm ok" data-done>Mark as sent</button></div>
-          </div>
-        </li>
-        <li data-task>
-          <div class="avatar">TS</div>
-          <div class="grow">
-            <div class="row" style="justify-content:space-between"><span class="title">Tom Sandoval</span><span class="chip info">Approved by you · yesterday</span></div>
-            <div class="faint">linkedin.com/in/tsandoval-controls · JOB-2026-0139 · rank #3</div>
-            <div class="email-body" style="padding:10px 0 6px">Hello Tom, I came across your profile while searching for Controls Engineers. We have an exciting opportunity with a packaging manufacturer in Grand Rapids. Would you be interested in discussing it? Regards, Dana, CBS LLC</div>
-            <div class="row"><a class="btn sm" href="#" data-toast="Note copied to clipboard (mock)">Copy note</a><a class="btn sm" href="#" data-toast="Opens the LinkedIn profile in a new tab (mock)">Open profile</a><button class="btn sm ok" data-done>Mark as sent</button></div>
+            <div class="email-body" style="padding:10px 0 6px">Hello Elena,
+
+I came across your profile while searching for CAE Engineers.
+
+We have exciting engineering opportunities with leading manufacturing companies.
+
+Would you be interested in discussing them?
+
+Regards,
+Dana Okafor
+CBS LLC</div>
+            <div class="row"><span class="faint">232 / 300 characters</span><a class="btn sm" href="#" data-toast="Note copied (mock)">Copy note</a><a class="btn sm" href="#" data-toast="Opens the LinkedIn profile in a new tab (mock)">Open profile</a><button class="btn sm ok" data-done>Mark as sent</button></div>
           </div>
         </li>
       </ul>
@@ -59,26 +77,29 @@
 
     <div class="stack">
       <div class="card">
-        <div class="card-head"><h2>Resume collection (Agent 9)</h2><span class="faint">Interested candidates</span></div>
+        <div class="card-head"><h2>Contacted candidates</h2><span class="faint">Record what happened</span></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Candidate</th><th>Collected</th><th>Missing</th></tr></thead>
-            <tbody>
-              <tr><td><b>Priya Natarajan</b><span class="sub">JOB-2026-0142</span></td><td><div class="bar ok" style="margin:0;width:110px"><span style="width:100%"></span></div><span class="sub">8 of 8 · consent ✓</span></td><td><span class="chip ok">Complete</span></td></tr>
-              <tr><td><b>Wei Zhang</b><span class="sub">JOB-2026-0142</span></td><td><div class="bar" style="margin:0;width:110px"><span style="width:75%"></span></div><span class="sub">6 of 8</span></td><td><span class="tag miss">Notice period</span><span class="tag miss">Preferred location</span></td></tr>
-              <tr><td><b>Raj Iyer</b><span class="sub">JOB-2026-0139</span></td><td><div class="bar warn" style="margin:0;width:110px"><span style="width:38%"></span></div><span class="sub">3 of 8</span></td><td><span class="tag miss">Resume</span><span class="tag miss">Rate</span><span class="tag miss">+3</span></td></tr>
-            </tbody>
+            <thead><tr><th>Candidate</th><th>Status</th><th>Outcome</th></tr></thead>
+            <tbody id="contacted"></tbody>
           </table>
         </div>
-        <div class="card-foot"><a class="btn sm" href="#" data-toast="Reminder email drafted for approval (mock)">Draft reminder for missing details</a></div>
       </div>
 
       <div class="card">
-        <div class="card-head"><h2>Requested from each candidate</h2></div>
-        <div class="card-body">
-          <span class="tag">Resume</span><span class="tag">Availability</span><span class="tag">Visa status</span><span class="tag">Current location</span><span class="tag">Expected rate</span><span class="tag">Notice period</span><span class="tag">Work authorization</span><span class="tag">Preferred location</span>
-          <p class="faint" style="margin:10px 0 0">Consent to store and submit the candidate's details is recorded before any submission.</p>
+        <div class="card-head"><h2>Resume collection (Agent 9)</h2><a href="collect.html">Preview the candidate's page</a></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Candidate</th><th>Received</th><th>Still missing</th></tr></thead>
+            <tbody>
+              <tr><td><b>Priya Natarajan</b><span class="sub">secure link · 21 Nov</span></td><td><div class="bar ok" style="margin:0;width:110px"><span style="width:100%"></span></div><span class="sub">9 of 9 · consent ✓</span></td><td><span class="chip ok">Complete → matching</span></td></tr>
+              <tr><td><b>Wei Zhang</b><span class="sub">email reply · 22 Nov</span></td><td><div class="bar ok" style="margin:0;width:110px"><span style="width:100%"></span></div><span class="sub">9 of 9 · consent ✓</span></td><td><span class="chip ok">Complete → matching</span></td></tr>
+              <tr><td><b>Raj Iyer</b><span class="sub">JOB-2026-0139</span></td><td><div class="bar" style="margin:0;width:110px"><span style="width:56%"></span></div><span class="sub">5 of 9</span></td><td><span class="tag miss">Resume</span><span class="tag miss">Notice period</span><span class="tag miss">Consent</span><span class="tag miss">+1</span><span class="sub">Reminder 26 Nov (Agent 12)</span></td></tr>
+              <tr><td><b>John Mercer</b><span class="sub">request waiting for your approval</span></td><td><div class="bar warn" style="margin:0;width:110px"><span style="width:44%"></span></div><span class="sub">4 of 9 from his reply</span></td><td><span class="tag miss">Current location</span><span class="tag miss">Preferred location</span><span class="tag miss">+3</span></td></tr>
+            </tbody>
+          </table>
         </div>
+        <div class="card-foot" style="justify-content:space-between"><span class="faint">Candidates can also just reply by email: details, resume and written consent are read automatically.</span></div>
       </div>
     </div>
   </div>
@@ -87,11 +108,32 @@
 </div>
 </div>
 <script>
+const CONTACTED = [
+  ["Tom Sandoval", "Contacted · LinkedIn (sent by you)", "c1"],
+  ["Hannah Brooks", "Contacted · email", "c2"],
+  ["Marcus Odum", "Accepted on LinkedIn", "c3"],
+];
+const OUTCOMES = [["accepted", "Accepted"], ["interested", "Interested"], ["not_interested", "Not interested"], ["do_not_contact", "Do not contact"]];
+function renderContacted() {
+  document.getElementById("contacted").innerHTML = CONTACTED.map(([name, status, id]) => `
+    <tr><td><b>${name}</b></td><td><span class="chip">${status}</span></td>
+    <td><select data-outcome="${id}" aria-label="Outcome for ${name}"><option value="">Choose…</option>${OUTCOMES.map(([v, l]) => `<option value="${v}">${l}</option>`).join("")}</select></td></tr>`).join("");
+  document.querySelectorAll("[data-outcome]").forEach((s) => s.onchange = () => {
+    const msg = {
+      accepted: "Recorded: connection accepted.",
+      interested: "Recorded. Agent 9 drafted a request with a secure link; it is in your approval queue.",
+      not_interested: "Recorded: not interested. No further outreach for this job.",
+      do_not_contact: "Recorded and opted out on every channel: no agent will contact this person again.",
+    }[s.value];
+    if (msg) toast(msg);
+  });
+}
+renderContacted();
 document.querySelectorAll("[data-done]").forEach((b) => b.addEventListener("click", () => {
   b.closest("[data-task]").remove();
   const left = document.querySelectorAll("[data-task]").length;
   document.getElementById("task-count").textContent = `${left} task${left === 1 ? "" : "s"}`;
-  toast("Logged as sent by you. Agent 12 will remind you if there is no reply in 5 days.");
+  toast("Logged as sent by you; status is now Contacted.");
 }));
 </script>
 </body>

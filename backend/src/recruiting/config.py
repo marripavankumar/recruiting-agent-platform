@@ -54,6 +54,8 @@ class Settings(BaseSettings):
     outreach_postal_address: str = "CBS LLC, postal address to be configured"
     outreach_daily_cap_email: int = 100  # BRD target 200-500 a week after approval
     client_outreach_min_priority: int = 70
+    # LinkedIn caps connection invitations per week; drafts stop at this number (Agent 8).
+    linkedin_weekly_limit: int = 100
     # Shared secret the mail-routing workflow (n8n) sends with inbound replies.
     inbound_webhook_secret: str | None = None
     # Vector store: "memory" (in-process) or "qdrant" (at RAP_QDRANT_URL).

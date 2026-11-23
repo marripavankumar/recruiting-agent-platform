@@ -128,6 +128,8 @@ Main endpoints (all need sign-in except the last two):
 | Companies (Agents 1-3) | `GET /companies`, `GET /companies/{id}`, `POST /companies/import`, `POST /companies/hiring-signals`, `POST /companies/outreach-drafts` | View: Admin, BD, Sales, Account; run: Admin, BD |
 | Jobs (Agents 4-5) | `GET /jobs`, `GET /jobs/{id}`, `PATCH /jobs/{id}`, `GET /jobs/search?q=` | Staff; Clients see own jobs; edit: Admin, Account, Recruiter |
 | Candidates (Agents 6-7) | `POST /candidates`, `GET /candidates`, `GET /candidates/{id}`, `POST` / `GET /jobs/{id}/ranking`, `POST /jobs/{id}/ranking/{candidate_id}/review`, `POST /jobs/{id}/ranking/{candidate_id}/move` | Admin, Recruiter, Account |
+| Engagement (Agents 8-9) | `POST /jobs/{id}/outreach`, `GET /jobs/{id}/engagements`, `POST /engagements/{id}/outcome`, `POST /engagements/{id}/request-details`, `GET /linkedin-tasks`, `POST /linkedin-tasks/{approval_id}/sent` | Admin, Recruiter (Account: view) |
+| Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
 | Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |
 | Unsubscribe | `GET` / `POST /unsubscribe?token=` | Public (signed link) |

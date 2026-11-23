@@ -210,3 +210,50 @@ class Ranking:
     @property
     def qualified_in_top_20(self) -> int:
         return sum(1 for c in self.top[:20] if c.verdict is Verdict.QUALIFIED)
+
+
+class EngagementStatus(StrEnum):
+    """Agents 8-9 tracking per job and candidate (plan section 9)."""
+
+    DRAFTED = "drafted"  # outreach waiting in the recruiter's approval queue
+    DRAFT_REJECTED = "draft_rejected"  # the recruiter rejected the draft; nothing was sent
+    CONTACTED = "contacted"  # email sent or LinkedIn note queued for the recruiter
+    ACCEPTED = "accepted"  # LinkedIn connection accepted
+    REPLIED = "replied"
+    INTERESTED = "interested"
+    NOT_INTERESTED = "not_interested"
+    DO_NOT_CONTACT = "do_not_contact"
+    DETAILS_REQUESTED = "details_requested"  # Agent 9 request sent, items outstanding
+    COMPLETE = "complete"  # resume, the eight details and consent received: ready for Agent 10
+
+
+# Agent 9: what a candidate supplies before matching (BRD Agent 9).
+DETAIL_ITEMS = (
+    "availability", "visa_status", "current_location", "expected_rate", "notice_period",
+    "work_authorization", "preferred_location",
+)  # fmt: skip
+REQUIRED_ITEMS = ("resume", *DETAIL_ITEMS, "consent")
+
+
+@dataclass
+class Engagement:
+    id: str
+    job_id: str
+    candidate_id: str
+    status: EngagementStatus = EngagementStatus.DRAFTED
+    # kind -> approval request id: "linkedin", "email", "details_request"
+    approvals: dict[str, str] = field(default_factory=dict)
+    token_hash: str | None = None  # Agent 9 upload link (only the hash is stored)
+    token_expires_at: datetime | None = None
+    requested_at: datetime | None = None
+    consent_store_at: datetime | None = None
+    consent_submit_at: datetime | None = None  # consent to be submitted for this job's client
+    consent_evidence: str | None = None
+    missing: list[str] = field(default_factory=list)
+    next_reminder_at: datetime | None = None  # picked up by Agent 12
+    history: list[dict[str, Any]] = field(default_factory=list)
+    updated_at: datetime | None = None
+
+    def log(self, at: datetime, event: str, **details: Any) -> None:
+        self.history.append({"at": at.isoformat(), "event": event, **details})
+        self.updated_at = at

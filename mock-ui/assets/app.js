@@ -25,7 +25,7 @@ const NAV = [
   { group: "Recruiting" },
   { id: "jobs", href: "jobs.html", label: "Jobs", roles: STAFF },
   { id: "candidates", href: "candidates.html", label: "Candidate ranking", roles: ["administrator", "recruiter", "account_manager"] },
-  { id: "linkedin", href: "linkedin-tasks.html", label: "LinkedIn tasks", roles: ["administrator", "recruiter"] },
+  { id: "linkedin", href: "linkedin-tasks.html", label: "Engagement & LinkedIn", roles: ["administrator", "recruiter", "account_manager"] },
   { id: "match", href: "match.html", label: "Match & submission", roles: ["administrator", "recruiter", "account_manager"] },
   { id: "followups", href: "followups.html", label: "Follow-ups", roles: STAFF },
   { group: "Settings" },
