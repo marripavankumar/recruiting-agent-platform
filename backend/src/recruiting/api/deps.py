@@ -1,11 +1,16 @@
 from __future__ import annotations
 
-from typing import Annotated
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import Depends, HTTPException, Request, status
 
 from recruiting.api.services import Services
+from recruiting.domain import Role
 from recruiting.identity import AuthenticationError, CurrentUser
+
+if TYPE_CHECKING:
+    from recruiting.api.platform import Platform
 
 
 def get_services(request: Request) -> Services:
@@ -29,3 +34,17 @@ def current_user(request: Request, services: ServicesDep) -> CurrentUser:
 
 
 UserDep = Annotated[CurrentUser, Depends(current_user)]
+
+
+def require_role(user: CurrentUser, roles: Iterable[Role]) -> None:
+    allowed = tuple(roles)
+    if user.role not in allowed:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Your role cannot use this function")
+
+
+def require_platform(services: Services) -> Platform:
+    if services.platform is None:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "Business services are not configured"
+        )
+    return services.platform

@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     # "memory" keeps everything in-process (tests, quick local runs); "postgres" persists.
     storage: Literal["memory", "postgres"] = "memory"
+    # Local in-memory runs only: sign in as administrator@cbs.example, bd.manager@cbs.example,
+    # recruiter@cbs.example, account.manager@cbs.example or sales.manager@cbs.example.
+    demo_users: bool = False
 
     # Sign-in: "dev" is local-only; "oidc" works with any OpenID Connect provider.
     auth_provider: Literal["dev", "oidc"] = "dev"
@@ -29,13 +32,29 @@ class Settings(BaseSettings):
     secrets_provider: str = "environment"
 
     # Default active adapters (stack decision record, 2026-11-22).
-    llm_provider: str = "claude"
+    # "claude" uses the Anthropic API (ANTHROPIC_API_KEY or an `ant auth login` profile);
+    # "none" runs every agent on its rule-based fallback.
+    llm_provider: Literal["claude", "none"] = "claude"
+    llm_model: str = "claude-opus-5-5"
     resume_parser: str = "affinda"
     # No fixed default: the Administrator activates one or more per deployment.
-    email_providers: list[str] = []
+    email_providers: list[str] = []  # ["m365"] or ["gmail"]
+    email_sender: str | None = None  # mailbox the approved emails are sent from
     document_stores: list[str] = []
 
     # Outreach is off outside prod unless explicitly allowed (environment plan section 2).
     outreach_enabled: bool = False
     # Test environment: when set, outreach goes only to these addresses (JSON list).
     outreach_allow_list: list[str] = []
+
+    # Commercial email compliance (checklist E1-E7) and Agent 3.
+    public_base_url: str = "http://localhost:8000"
+    unsubscribe_secret: str = "local-dev-unsubscribe-secret"  # set a real secret outside local
+    outreach_sender_name: str = "CBS LLC Business Development"
+    outreach_postal_address: str = "CBS LLC, postal address to be configured"
+    outreach_daily_cap_email: int = 100  # BRD target 200-500 a week after approval
+    client_outreach_min_priority: int = 70
+    # Shared secret the mail-routing workflow (n8n) sends with inbound replies.
+    inbound_webhook_secret: str | None = None
+    # Vector store: "memory" (in-process) or "qdrant" (at RAP_QDRANT_URL).
+    vector_store: Literal["memory", "qdrant"] = "memory"

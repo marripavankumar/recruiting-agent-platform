@@ -111,10 +111,24 @@ pip install -e ".[dev]"                               # or: uv sync --extra dev,
 pytest                                                # PostgreSQL tests need RAP_TEST_DATABASE_URL
 uvicorn recruiting.api.main:app --reload             # http://localhost:8000/health
 
-# Try the review queue with the local-dev sign-in (RAP_AUTH_PROVIDER=dev). Add a user first:
+# Quickest try-out, no database or API key: in-memory storage, rule-based agents, demo users
+RAP_STORAGE=memory RAP_LLM_PROVIDER=none RAP_DEMO_USERS=true uvicorn recruiting.api.main:app --reload
+# Open http://localhost:8000/docs. Sign in by sending a header, e.g.
+curl -H "X-Dev-User-Email: bd.manager@cbs.example" http://localhost:8000/approvals/pending
+
+# With PostgreSQL (RAP_STORAGE=postgres), add users first:
 #   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"
-curl -H "X-Dev-User-Email: bd@cbs.example" http://localhost:8000/approvals/pending
-# An Administrator manages users and approvers per gate at /admin/users and /admin/gate-policies.
 ```
+
+Main endpoints (all need sign-in except the last two):
+
+| Area | Endpoints | Roles |
+| --- | --- | --- |
+| Approval queue | `GET /approvals/pending`, `GET /approvals/{id}`, `POST /approvals/{id}/decision` | Staff, per gate policy |
+| Companies (Agents 1-3) | `GET /companies`, `GET /companies/{id}`, `POST /companies/import`, `POST /companies/hiring-signals`, `POST /companies/outreach-drafts` | View: Admin, BD, Sales, Account; run: Admin, BD |
+| Jobs (Agents 4-5) | `GET /jobs`, `GET /jobs/{id}`, `PATCH /jobs/{id}`, `GET /jobs/search?q=` | Staff; Clients see own jobs; edit: Admin, Account, Recruiter |
+| Administration | `/admin/users`, `/admin/gate-policies`, `GET /admin/llm-usage` | Administrator |
+| Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |
+| Unsubscribe | `GET` / `POST /unsubscribe?token=` | Public (signed link) |
 
 Windows note: Smart App Control can block newly downloaded native Python modules (for example `psycopg_binary`) with "An Application Control policy has blocked this file". It may allow a module after a while, as it did for `ormsgpack`. While `psycopg` is blocked, run with `RAP_STORAGE=memory`; the PostgreSQL tests then run only in CI or in a Linux container.

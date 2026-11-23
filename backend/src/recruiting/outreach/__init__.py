@@ -1,7 +1,12 @@
-from recruiting.outreach.channels import ManualLinkedInChannel
+from recruiting.outreach.channels import (
+    GmailEmailChannel,
+    ManualLinkedInChannel,
+    Microsoft365EmailChannel,
+)
 from recruiting.outreach.service import (
     AlreadySent,
     ChannelAdapter,
+    DailyCapReached,
     DeliveryLog,
     DeliveryReceipt,
     DeliveryResult,
@@ -19,13 +24,16 @@ from recruiting.outreach.service import (
 __all__ = [
     "AlreadySent",
     "ChannelAdapter",
+    "DailyCapReached",
     "DeliveryLog",
     "DeliveryReceipt",
     "DeliveryResult",
     "DeliveryStatus",
     "GateChannelMismatch",
     "InMemoryDeliveryLog",
+    "GmailEmailChannel",
     "ManualLinkedInChannel",
+    "Microsoft365EmailChannel",
     "NoActiveChannel",
     "OutboundMessage",
     "OutreachDisabled",

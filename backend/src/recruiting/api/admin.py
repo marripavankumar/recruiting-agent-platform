@@ -133,3 +133,24 @@ def update_gate_policy(
     except InvalidPolicy as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
     return _policy_out(policy)
+
+
+@router.get("/llm-usage")
+def llm_usage(user: UserDep, services: ServicesDep) -> list[dict]:
+    """Cost tracking per prompt template version (plan section 5.4)."""
+    _require_admin(user)
+    platform = services.platform
+    if platform is None or platform.gateway is None:
+        return []
+    totals: dict[tuple[str, str], dict] = {}
+    for entry in platform.gateway.ledger.entries():
+        row = totals.setdefault(
+            (entry.template_key, entry.model),
+            {"template": entry.template_key, "model": entry.model, "calls": 0,
+             "input_tokens": 0, "output_tokens": 0, "cost_usd": 0.0},
+        )  # fmt: skip
+        row["calls"] += 1
+        row["input_tokens"] += entry.input_tokens
+        row["output_tokens"] += entry.output_tokens
+        row["cost_usd"] = round(row["cost_usd"] + (entry.cost_usd or 0.0), 6)
+    return sorted(totals.values(), key=lambda r: r["template"])

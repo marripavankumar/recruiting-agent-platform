@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 from recruiting.db import Connect
 from recruiting.domain import Channel
 from recruiting.outreach.service import (
+    COUNTED,
     AlreadySent,
     DeliveryReceipt,
     DeliveryResult,
@@ -16,11 +17,10 @@ from recruiting.outreach.service import (
     OutboundMessage,
 )
 
-_SELECT = """
-    SELECT approval_request_id::text, channel, recipient, content, delivery_status,
-           provider_message_id, delivered_at, error
-    FROM outreach_message WHERE approval_request_id = %s
-"""
+_COLUMNS = """approval_request_id::text, channel, recipient, content, delivery_status,
+    provider_message_id, delivered_at, error, opened_at, replied_at"""
+_SELECT = f"SELECT {_COLUMNS} FROM outreach_message WHERE approval_request_id = %s"
+_COUNTED = tuple(s.value for s in COUNTED)
 
 
 class PostgresDeliveryLog:
@@ -64,6 +64,50 @@ class PostgresDeliveryLog:
             row = conn.execute(_SELECT, (approval_request_id,)).fetchone()
         return _receipt(row) if row else None
 
+    def sent_count_since(self, channel: Channel, since: datetime) -> int:
+        with self._connect() as conn:
+            (count,) = conn.execute(
+                "SELECT count(*) FROM outreach_message WHERE channel = %s"
+                " AND delivery_status = ANY(%s) AND delivered_at >= %s",
+                (channel.value, list(_COUNTED), since),
+            ).fetchone()
+        return count
+
+    def latest_to(self, recipient: str) -> DeliveryReceipt | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                f"SELECT {_COLUMNS} FROM outreach_message"
+                " WHERE lower(rtrim(recipient, '/')) = lower(rtrim(%s, '/'))"
+                " ORDER BY delivered_at DESC LIMIT 1",
+                (recipient.strip(),),
+            ).fetchone()
+        return _receipt(row) if row else None
+
+    def record_open(self, approval_request_id: str, at: datetime) -> None:
+        self._mark("opened_at", approval_request_id, at)
+
+    def record_reply(self, approval_request_id: str, at: datetime) -> None:
+        self._mark("replied_at", approval_request_id, at)
+
+    def _mark(self, column: str, approval_request_id: str, at: datetime) -> None:
+        assert column in ("opened_at", "replied_at")
+        with self._connect() as conn:
+            conn.execute(
+                f"UPDATE outreach_message SET {column} = coalesce({column}, %s)"
+                " WHERE approval_request_id = %s",
+                (at, approval_request_id),
+            )
+
+    def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT {_COLUMNS} FROM outreach_message"
+                " WHERE %(since)s::timestamptz IS NULL OR delivered_at >= %(since)s"
+                " ORDER BY delivered_at",
+                {"since": since},
+            ).fetchall()
+        return [_receipt(r) for r in rows]
+
     def _update(
         self,
         approval_request_id: str,
@@ -93,6 +137,9 @@ class PostgresDeliveryLog:
 
 
 def _receipt(row: tuple) -> DeliveryReceipt:
-    request_id, channel, recipient, content, status, provider_id, delivered_at, error = row
+    (request_id, channel, recipient, content, status, provider_id, delivered_at, error, opened,
+     replied) = row  # fmt: skip
     message = OutboundMessage(request_id, Channel(channel), recipient, dict(content))
-    return DeliveryReceipt(message, DeliveryStatus(status), provider_id, delivered_at, error)
+    return DeliveryReceipt(
+        message, DeliveryStatus(status), provider_id, delivered_at, error, opened, replied
+    )

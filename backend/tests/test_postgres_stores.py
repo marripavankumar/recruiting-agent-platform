@@ -191,3 +191,89 @@ def test_user_admin(connect):
     assert created.user_id in [u.user_id for u in users.list_users()]
     with pytest.raises(UnknownUser):
         users.update_user(str(uuid.uuid4()), admin.user_id, active=False)
+
+
+def test_company_job_and_usage_repositories(connect):
+    from datetime import UTC, date, datetime
+
+    from recruiting.ai.llm import UsageRecord
+    from recruiting.records.memory import new_id
+    from recruiting.records.models import (
+        Company,
+        ConsentBasis,
+        Contact,
+        ContactRole,
+        Job,
+        JobPosting,
+        OutreachStatus,
+    )
+    from recruiting.records.postgres import PostgresCompanies, PostgresJobs, PostgresUsageLedger
+
+    with connect() as conn:
+        # DELETE, not TRUNCATE ... CASCADE: that would cascade through app_user to gate_policy.
+        for table in ("job_posting", "job", "company_contact", "company", "llm_usage"):
+            conn.execute(f"DELETE FROM {table}")
+    companies = PostgresCompanies(connect)
+    company = companies.save(
+        Company(new_id(), "Northfield Axle", "https://www.Northfield-Axle.example/", "list",
+                industry="Automotive", revenue_usd=1.2e9, country="US", locations=["Troy, MI"],
+                priority_score=80)
+    )  # fmt: skip
+    assert companies.by_domain("northfield-axle.example").name == "Northfield Axle"
+    assert [c.id for c in companies.list(min_priority=70)] == [company.id]
+    companies.set_outreach_status(company.id, OutreachStatus.CONTACTED)
+    assert companies.get(company.id).outreach_status is OutreachStatus.CONTACTED
+
+    contact = Contact(new_id(), company.id, "Rachel Lee", "Engineering Manager",
+                      ContactRole.ENGINEERING_MANAGER, email="R.Lee@northfield-axle.example",
+                      country="US", consent_basis=ConsentBasis.NOT_REQUIRED)  # fmt: skip
+    companies.save_contact(contact)
+    assert companies.contact_by_email("r.lee@NORTHFIELD-axle.example").id == contact.id
+
+    posting = JobPosting(new_id(), company.id, "CAE Engineer", "CAE Engineer",
+                         "https://northfield-axle.example/j/1", date_posted=date(2026, 11, 20))  # fmt: skip
+    companies.save_posting(posting)
+    posting.active = False
+    companies.save_posting(posting)
+    assert companies.postings(company.id) == []
+    assert companies.posting_by_url(posting.url).active is False
+
+    jobs = PostgresJobs(connect)
+    code = jobs.next_job_code(2026)
+    job = Job(new_id(), code, company.id, "CAE Engineer", required_skills=["LS-DYNA"],
+              review_fields=["visa_requirements"], analysis={"must_have_skills": ["LS-DYNA"]})  # fmt: skip
+    jobs.add(job)
+    assert jobs.next_job_code(2026) != code
+    job.review_fields = []
+    jobs.save(job)
+    loaded = jobs.get(job.id)
+    assert loaded.review_fields == [] and loaded.analysis["must_have_skills"] == ["LS-DYNA"]
+    assert [j.id for j in jobs.list(client_company_id=company.id)] == [job.id]
+    assert jobs.list(client_company_id="not-a-uuid") == []
+
+    ledger = PostgresUsageLedger(connect)
+    ledger.record(
+        UsageRecord(
+            "jd_analysis@1", "claude", "claude-opus-5-5", 1000, 200, 0.008, datetime.now(UTC)
+        )
+    )
+    assert ledger.entries()[-1].template_key == "jd_analysis@1"
+
+
+def test_delivery_log_tracking_and_cap_counts(engine, connect):
+    from datetime import UTC, datetime, timedelta
+
+    from recruiting.domain import Channel
+    from recruiting.outreach import DeliveryResult, DeliveryStatus, OutboundMessage
+    from recruiting.outreach.postgres import PostgresDeliveryLog
+
+    request = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-1", DRAFT, requested_by="agent-3")
+    log = PostgresDeliveryLog(connect)
+    now = datetime.now(UTC)
+    log.claim(OutboundMessage(request.id, Channel.EMAIL, "Lee@Example.com", DRAFT), now)
+    log.complete(request.id, DeliveryResult(DeliveryStatus.SENT, "m-1"), now)
+    assert log.sent_count_since(Channel.EMAIL, now - timedelta(hours=1)) >= 1
+    assert log.latest_to("lee@example.com").message.approval_request_id == request.id
+    log.record_reply(request.id, now)
+    log.record_reply(request.id, now + timedelta(hours=1))  # first reply time is kept
+    assert log.get(request.id).replied_at == now

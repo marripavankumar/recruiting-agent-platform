@@ -66,6 +66,13 @@ class OutreachDisabled(OutreachError):
     """Outreach is off in this environment, or the recipient is not on its allow-list."""
 
 
+class DailyCapReached(OutreachError):
+    """The channel's daily send cap is used up (protects the sending domain's reputation).
+
+    The approval stays unused, so the send can be retried the next day.
+    """
+
+
 @dataclass(frozen=True)
 class OutboundMessage:
     approval_request_id: str
@@ -87,6 +94,14 @@ class DeliveryReceipt:
     provider_message_id: str | None
     delivered_at: datetime
     error: str | None = None
+    opened_at: datetime | None = None
+    replied_at: datetime | None = None
+
+
+# Statuses that count against a daily cap: everything that went, or is going, out.
+COUNTED = frozenset(
+    {DeliveryStatus.SENDING, DeliveryStatus.SENT, DeliveryStatus.QUEUED_FOR_MANUAL_SEND}
+)
 
 
 class DeliveryLog(Protocol):
@@ -101,6 +116,18 @@ class DeliveryLog(Protocol):
     def fail(self, approval_request_id: str, error: str, at: datetime) -> DeliveryReceipt: ...
 
     def get(self, approval_request_id: str) -> DeliveryReceipt | None: ...
+
+    def sent_count_since(self, channel: Channel, since: datetime) -> int: ...
+
+    def latest_to(self, recipient: str) -> DeliveryReceipt | None:
+        """Most recent delivery to this address (used to match replies)."""
+        ...
+
+    def record_open(self, approval_request_id: str, at: datetime) -> None: ...
+
+    def record_reply(self, approval_request_id: str, at: datetime) -> None: ...
+
+    def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]: ...
 
 
 class InMemoryDeliveryLog:
@@ -141,6 +168,35 @@ class InMemoryDeliveryLog:
     def get(self, approval_request_id: str) -> DeliveryReceipt | None:
         return self._receipts.get(approval_request_id)
 
+    def sent_count_since(self, channel: Channel, since: datetime) -> int:
+        return sum(
+            1
+            for r in self._receipts.values()
+            if r.message.channel == channel and r.status in COUNTED and r.delivered_at >= since
+        )
+
+    def latest_to(self, recipient: str) -> DeliveryReceipt | None:
+        wanted = OptOutRegistry.normalize(recipient)
+        matches = [
+            r
+            for r in self._receipts.values()
+            if OptOutRegistry.normalize(r.message.recipient) == wanted
+        ]
+        return max(matches, key=lambda r: r.delivered_at, default=None)
+
+    def record_open(self, approval_request_id: str, at: datetime) -> None:
+        receipt = self._receipts[approval_request_id]
+        if receipt.opened_at is None:
+            self._receipts[approval_request_id] = replace(receipt, opened_at=at)
+
+    def record_reply(self, approval_request_id: str, at: datetime) -> None:
+        receipt = self._receipts[approval_request_id]
+        if receipt.replied_at is None:
+            self._receipts[approval_request_id] = replace(receipt, replied_at=at)
+
+    def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]:
+        return [r for r in self._receipts.values() if since is None or r.delivered_at >= since]
+
 
 class ChannelAdapter(Protocol):
     channel: Channel
@@ -158,6 +214,7 @@ class OutreachService:
         log: DeliveryLog | None = None,
         enabled: bool = True,
         allow_list: Iterable[str] = (),
+        daily_caps: Mapping[Channel, int] | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._approvals = approvals
@@ -167,10 +224,23 @@ class OutreachService:
         self._enabled = enabled
         # Empty means every recipient; otherwise only these (test environment).
         self._allow_list = frozenset(OptOutRegistry.normalize(a) for a in allow_list)
+        self._daily_caps = dict(daily_caps or {})
         self._clock = clock
+
+    @property
+    def log(self) -> DeliveryLog:
+        return self._log
 
     def receipt(self, approval_request_id: str) -> DeliveryReceipt | None:
         return self._log.get(approval_request_id)
+
+    def remaining_today(self, channel: Channel) -> int | None:
+        cap = self._daily_caps.get(channel)
+        if cap is None:
+            return None
+        now = self._clock()
+        start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return max(cap - self._log.sent_count_since(channel, start), 0)
 
     def send(self, message: OutboundMessage) -> DeliveryReceipt:
         request = self._approvals.assert_approved(message.approval_request_id, message.content)
@@ -185,6 +255,10 @@ class OutreachService:
         adapter = self._channels.get(message.channel)
         if adapter is None:
             raise NoActiveChannel(f"No active adapter for channel {message.channel}")
+        # Soft cap: two sends racing at the limit may both pass; the claim below still
+        # guarantees each approval delivers at most once.
+        if self.remaining_today(message.channel) == 0:
+            raise DailyCapReached(f"Daily {message.channel} cap reached; retry tomorrow")
 
         self._log.claim(message, self._clock())
         try:
