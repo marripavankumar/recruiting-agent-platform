@@ -271,6 +271,49 @@ class SubmissionStatus(StrEnum):
     WITHDRAWN = "withdrawn"  # the recruiter withdrew it before approval
 
 
+class PlacementStage(StrEnum):
+    """Pipeline after a submission is sent (plan section 11): Submitted -> Interview -> Offer ->
+    Started, or rejected / withdrawn at any step."""
+
+    SUBMITTED = "submitted"
+    INTERVIEW_REQUESTED = "interview_requested"
+    INTERVIEW_SCHEDULED = "interview_scheduled"
+    INTERVIEWED = "interviewed"
+    OFFER_EXTENDED = "offer_extended"
+    OFFER_ACCEPTED = "offer_accepted"
+    STARTED = "started"
+    CLIENT_REJECTED = "client_rejected"
+    OFFER_DECLINED = "offer_declined"
+    CANDIDATE_WITHDRAWN = "candidate_withdrawn"
+
+
+# Which stage may follow which (recorded by staff; the client portal sets the first steps).
+STAGE_NEXT: dict[PlacementStage, set[PlacementStage]] = {
+    PlacementStage.SUBMITTED: {
+        PlacementStage.INTERVIEW_REQUESTED, PlacementStage.INTERVIEW_SCHEDULED,
+        PlacementStage.CLIENT_REJECTED,
+    },
+    PlacementStage.INTERVIEW_REQUESTED: {PlacementStage.INTERVIEW_SCHEDULED},
+    PlacementStage.INTERVIEW_SCHEDULED: {
+        PlacementStage.INTERVIEW_SCHEDULED, PlacementStage.INTERVIEWED,
+    },
+    PlacementStage.INTERVIEWED: {
+        PlacementStage.INTERVIEW_SCHEDULED, PlacementStage.OFFER_EXTENDED,
+        PlacementStage.CLIENT_REJECTED,
+    },
+    PlacementStage.OFFER_EXTENDED: {PlacementStage.OFFER_ACCEPTED, PlacementStage.OFFER_DECLINED},
+    PlacementStage.OFFER_ACCEPTED: {PlacementStage.STARTED},
+    PlacementStage.STARTED: set(),
+    PlacementStage.CLIENT_REJECTED: set(),
+    PlacementStage.OFFER_DECLINED: set(),
+    PlacementStage.CANDIDATE_WITHDRAWN: set(),
+}  # fmt: skip
+CLOSED_STAGES = {
+    PlacementStage.STARTED, PlacementStage.CLIENT_REJECTED, PlacementStage.OFFER_DECLINED,
+    PlacementStage.CANDIDATE_WITHDRAWN,
+}  # fmt: skip
+
+
 class ClientDecision(StrEnum):
     """Client portal feedback on a submission (Q8)."""
 
@@ -300,6 +343,68 @@ class Submission:
     follow_up_at: datetime | None = None  # client follow-up, picked up by Agent 12
     client_decision: ClientDecision | None = None
     client_feedback: str | None = None
+    history: list[dict[str, Any]] = field(default_factory=list)
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
+    # Phase 7 pipeline (migration 0008).
+    stage: PlacementStage | None = None  # set once the package is sent
+    stage_at: datetime | None = None
+    interview_at: datetime | None = None
+    offer_at: datetime | None = None
+    start_date: date | None = None
+    stage_reason: str | None = None
+
+    def log(self, at: datetime, event: str, **details: Any) -> None:
+        self.history.append({"at": at.isoformat(), "event": event, **details})
+        self.updated_at = at
+
+
+class FollowUpKind(StrEnum):
+    """Agent 12 follow-up types (BRD Agent 12, plan section 11)."""
+
+    CLIENT_OUTREACH = "client_outreach"  # first client email with no reply
+    SUBMISSION_FEEDBACK = "submission_feedback"  # submission with no client decision
+    CANDIDATE_OUTREACH = "candidate_outreach"  # candidate contacted, no reply
+    CANDIDATE_DETAILS = "candidate_details"  # resume, details or consent still missing
+    INTERVIEW_SCHEDULING = "interview_scheduling"  # client asked for an interview
+    INTERVIEW_PREP = "interview_prep"  # confirm the time and prepare the candidate
+    INTERVIEW_FEEDBACK = "interview_feedback"  # interview held, no outcome logged
+    OFFER = "offer"  # offer extended: track the decision and terms
+    START_DATE = "start_date"  # offer accepted: documents and start-date check-ins
+
+
+# Kinds where a follow-up is a message to the client or candidate (approval gate applies).
+MESSAGE_KINDS = {
+    FollowUpKind.CLIENT_OUTREACH, FollowUpKind.SUBMISSION_FEEDBACK,
+    FollowUpKind.CANDIDATE_OUTREACH, FollowUpKind.CANDIDATE_DETAILS,
+    FollowUpKind.INTERVIEW_FEEDBACK,
+}  # fmt: skip
+
+
+class FollowUpStatus(StrEnum):
+    OPEN = "open"  # has a due date
+    DONE = "done"  # resolved: the record moved on, or every step was completed
+    STOPPED = "stopped"  # the cadence limit was reached with no response (scenario S8)
+    CANCELLED = "cancelled"  # job closed, opted out or withdrawn
+
+
+@dataclass
+class FollowUp:
+    id: str
+    kind: FollowUpKind
+    subject_id: str  # company, engagement or submission id
+    owner_role: str
+    anchor_at: datetime  # the event the cadence counts from
+    due_at: datetime | None
+    status: FollowUpStatus = FollowUpStatus.OPEN
+    attempt: int = 0  # follow-ups done or drafted so far
+    job_id: str | None = None
+    candidate_id: str | None = None
+    company_id: str | None = None
+    owner_id: str | None = None  # a named user, e.g. the job's recruiter
+    note: str = ""
+    approvals: list[str] = field(default_factory=list)  # drafted follow-up messages
+    context: dict[str, Any] = field(default_factory=dict)  # recipient, subject, names
     history: list[dict[str, Any]] = field(default_factory=list)
     created_at: datetime | None = None
     updated_at: datetime | None = None

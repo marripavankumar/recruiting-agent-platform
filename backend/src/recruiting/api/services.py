@@ -101,9 +101,11 @@ def build_services(settings: Settings) -> Services:
     from recruiting.identity.postgres import PostgresUserDirectory
     from recruiting.outreach.postgres import PostgresDeliveryLog
     from recruiting.records.postgres import (
+        PostgresCadence,
         PostgresCandidates,
         PostgresCompanies,
         PostgresEngagements,
+        PostgresFollowUps,
         PostgresJobs,
         PostgresRankings,
         PostgresSubmissions,
@@ -131,6 +133,8 @@ def build_services(settings: Settings) -> Services:
         ranking_weights=PostgresWeights(connect),
         engagements=PostgresEngagements(connect),
         submissions=PostgresSubmissions(connect),
+        follow_ups=PostgresFollowUps(connect),
+        follow_up_cadence=PostgresCadence(connect),
         approvals=approvals,
     )
     return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)

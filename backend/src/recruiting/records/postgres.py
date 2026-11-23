@@ -9,6 +9,7 @@ from psycopg.types.json import Jsonb
 from recruiting.agents.ranking import RankingWeights
 from recruiting.ai.llm import UsageRecord
 from recruiting.db import Connect, is_uuid
+from recruiting.records.followups import DEFAULT_CADENCE, validate_cadence
 from recruiting.records.memory import normalize_domain
 from recruiting.records.models import (
     Candidate,
@@ -20,10 +21,14 @@ from recruiting.records.models import (
     ContactRole,
     Engagement,
     EngagementStatus,
+    FollowUp,
+    FollowUpKind,
+    FollowUpStatus,
     Job,
     JobPosting,
     JobStatus,
     OutreachStatus,
+    PlacementStage,
     Priority,
     RankedCandidate,
     Ranking,
@@ -674,7 +679,8 @@ class PostgresEngagements:
 _SUBMISSION = """id::text, job_id::text, candidate_id::text, client_company_id::text, status, match,
     package, recipient, approval_request_id::text, right_to_represent_at, right_to_represent_by,
     warnings, rejection_reason, sent_at, sent_content, follow_up_at, client_decision,
-    client_feedback, history, created_at, updated_at"""
+    client_feedback, history, created_at, updated_at, stage, stage_at, interview_at, offer_at,
+    start_date, stage_reason"""
 
 
 class PostgresSubmissions:
@@ -687,6 +693,7 @@ class PostgresSubmissions:
         values[4] = SubmissionStatus(values[4])
         values[11] = list(values[11] or [])
         values[16] = ClientDecision(values[16]) if values[16] else None
+        values[21] = PlacementStage(values[21]) if values[21] else None
         return Submission(*values)
 
     def _query(self, where: str, params: tuple) -> list[Submission]:
@@ -737,9 +744,10 @@ class PostgresSubmissions:
                     status, match, package, recipient, approval_request_id,
                     right_to_represent_at, right_to_represent_by, warnings, rejection_reason,
                     sent_at, sent_content, follow_up_at, client_decision, client_feedback,
-                    history, created_at, updated_at)
+                    history, created_at, updated_at, stage, stage_at, interview_at,
+                    offer_at, start_date, stage_reason)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, coalesce(%s, now()), coalesce(%s, now()))
+                    %s, coalesce(%s, now()), coalesce(%s, now()), %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status,
                     match = EXCLUDED.match, package = EXCLUDED.package,
                     recipient = EXCLUDED.recipient,
@@ -751,7 +759,10 @@ class PostgresSubmissions:
                     follow_up_at = EXCLUDED.follow_up_at,
                     client_decision = EXCLUDED.client_decision,
                     client_feedback = EXCLUDED.client_feedback, history = EXCLUDED.history,
-                    updated_at = EXCLUDED.updated_at
+                    updated_at = EXCLUDED.updated_at, stage = EXCLUDED.stage,
+                    stage_at = EXCLUDED.stage_at, interview_at = EXCLUDED.interview_at,
+                    offer_at = EXCLUDED.offer_at, start_date = EXCLUDED.start_date,
+                    stage_reason = EXCLUDED.stage_reason
                 """,
                 (
                     s.id, s.job_id, s.candidate_id, s.client_company_id, s.status.value,
@@ -760,6 +771,106 @@ class PostgresSubmissions:
                     s.rejection_reason, s.sent_at, Jsonb(s.sent_content), s.follow_up_at,
                     s.client_decision.value if s.client_decision else None, s.client_feedback,
                     Jsonb(s.history), s.created_at, s.updated_at,
+                    s.stage.value if s.stage else None, s.stage_at, s.interview_at,
+                    s.offer_at, s.start_date, s.stage_reason,
                 ),
             )  # fmt: skip
         return submission
+
+
+_FOLLOW_UP = """id::text, kind, subject_id, owner_role, anchor_at, due_at, status, attempt,
+    job_id::text, candidate_id::text, company_id::text, owner_id, note, approvals, context,
+    history, created_at, updated_at"""
+
+
+class PostgresFollowUps:
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    @staticmethod
+    def _row(row: tuple) -> FollowUp:
+        values = list(row)
+        values[1] = FollowUpKind(values[1])
+        values[6] = FollowUpStatus(values[6])
+        values[13] = list(values[13] or [])
+        return FollowUp(*values)
+
+    def _query(self, where: str, params: tuple) -> list[FollowUp]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT {_FOLLOW_UP} FROM follow_up WHERE {where}"
+                " ORDER BY due_at NULLS LAST, created_at",
+                params,
+            ).fetchall()
+        return [self._row(r) for r in rows]
+
+    def get(self, follow_up_id: str) -> FollowUp | None:
+        if not is_uuid(follow_up_id):
+            return None
+        return next(iter(self._query("id = %s", (follow_up_id,))), None)
+
+    def find(self, kind: FollowUpKind, subject_id: str) -> FollowUp | None:
+        rows = self._query("kind = %s AND subject_id = %s", (kind.value, subject_id))
+        return next(iter(rows), None)
+
+    def list(
+        self, status: FollowUpStatus | None = None, job_id: str | None = None
+    ) -> list[FollowUp]:
+        if job_id is not None and not is_uuid(job_id):
+            return []
+        value = status.value if status else None
+        return self._query(
+            "(%s::text IS NULL OR status = %s) AND (%s::uuid IS NULL OR job_id = %s::uuid)",
+            (value, value, job_id, job_id),
+        )
+
+    def save(self, item: FollowUp) -> FollowUp:
+        f = item
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO follow_up (id, kind, subject_id, owner_role, anchor_at, due_at,
+                    status, attempt, job_id, candidate_id, company_id, owner_id, note, approvals,
+                    context, history, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    coalesce(%s, now()), coalesce(%s, now()))
+                ON CONFLICT (id) DO UPDATE SET owner_role = EXCLUDED.owner_role,
+                    anchor_at = EXCLUDED.anchor_at, due_at = EXCLUDED.due_at,
+                    status = EXCLUDED.status, attempt = EXCLUDED.attempt,
+                    owner_id = EXCLUDED.owner_id, note = EXCLUDED.note,
+                    approvals = EXCLUDED.approvals, context = EXCLUDED.context,
+                    history = EXCLUDED.history, updated_at = EXCLUDED.updated_at
+                """,
+                (
+                    f.id, f.kind.value, f.subject_id, f.owner_role, f.anchor_at, f.due_at,
+                    f.status.value, f.attempt, f.job_id, f.candidate_id, f.company_id,
+                    f.owner_id, f.note, f.approvals, Jsonb(f.context), Jsonb(f.history),
+                    f.created_at, f.updated_at,
+                ),
+            )  # fmt: skip
+        return item
+
+
+class PostgresCadence:
+    """Q13 cadence; kinds without a saved row use the default."""
+
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    def get(self) -> dict[FollowUpKind, list[int]]:
+        with self._connect() as conn:
+            rows = conn.execute("SELECT kind, days FROM follow_up_cadence").fetchall()
+        saved = {FollowUpKind(k): list(d) for k, d in rows if k in FollowUpKind._value2member_map_}
+        return {k: saved.get(k, list(v)) for k, v in DEFAULT_CADENCE.items()}
+
+    def save(self, kind: FollowUpKind, days: list[int], by: str) -> None:
+        days = validate_cadence(days)
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO follow_up_cadence (kind, days, updated_by) VALUES (%s, %s, %s)
+                ON CONFLICT (kind) DO UPDATE SET days = EXCLUDED.days,
+                    updated_by = EXCLUDED.updated_by, updated_at = now()
+                """,
+                (kind.value, days, by),
+            )

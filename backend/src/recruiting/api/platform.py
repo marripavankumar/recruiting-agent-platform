@@ -6,6 +6,7 @@ import itertools
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from recruiting.agents.candidate_outreach import CandidateOutreachAgent
@@ -13,6 +14,7 @@ from recruiting.agents.candidate_search import CandidateSearchAgent, CandidateSo
 from recruiting.agents.client_outreach import ClientOutreachAgent, SenderProfile, WorkflowStarter
 from recruiting.agents.client_submission import ClientSubmissionAgent
 from recruiting.agents.discovery import CompanyDiscoveryAgent, CompanySource
+from recruiting.agents.follow_up import FollowUpAgent
 from recruiting.agents.hiring_signals import (
     CareerPageFetcher,
     HiringSignalsAgent,
@@ -35,6 +37,12 @@ from recruiting.domain import Role
 from recruiting.identity import UserDirectory
 from recruiting.outreach import DeliveryLog
 from recruiting.records.engagements import EngagementStore, InMemoryEngagements
+from recruiting.records.followups import (
+    CadenceStore,
+    FollowUpStore,
+    InMemoryCadence,
+    InMemoryFollowUps,
+)
 from recruiting.records.memory import (
     CandidateRepository,
     CompanyRepository,
@@ -76,6 +84,8 @@ class Platform:
     candidate_outreach: CandidateOutreachAgent | None  # needs approvals and workflows
     resume_collection: ResumeCollectionAgent
     submissions: ClientSubmissionAgent
+    follow_ups: FollowUpAgent
+    follow_up_cadence: CadenceStore
     inbound_webhook_secret: str | None = None
 
 
@@ -117,7 +127,11 @@ def build_platform(
     engagements: EngagementStore | None = None,
     approvals: ApprovalEngine | None = None,
     submissions: SubmissionStore | None = None,
+    follow_ups: FollowUpStore | None = None,
+    follow_up_cadence: CadenceStore | None = None,
+    clock: Callable[[], datetime] | None = None,
 ) -> Platform:
+    timing: dict[str, Any] = {"clock": clock} if clock is not None else {}
     companies = companies or InMemoryCompanies()
     jobs = jobs or InMemoryJobs()
     candidates = candidates or InMemoryCandidates()
@@ -150,17 +164,29 @@ def build_platform(
     if workflows is not None and approvals is not None:
         candidate_outreach = CandidateOutreachAgent(
             candidates, engagements, approvals, deliveries, opt_outs, workflows, unsubscribe,
-            settings.outreach_postal_address, settings.linkedin_weekly_limit,
+            settings.outreach_postal_address, settings.linkedin_weekly_limit, **timing,
         )  # fmt: skip
     resume_collection = ResumeCollectionAgent(
         candidates, jobs, engagements, resume_intake, workflows, opt_outs, deliveries, unsubscribe,
-        settings.public_base_url, settings.outreach_postal_address,
+        settings.public_base_url, settings.outreach_postal_address, **timing,
     )  # fmt: skip
 
     submission_agent = ClientSubmissionAgent(
         companies, jobs, candidates, engagements, submissions or InMemorySubmissions(),
         ResumeMatchingAgent(ranking_agent, gateway, HashingEmbedder(), _log_llm_error),
-        approvals, deliveries, workflows,
+        approvals, deliveries, workflows, rankings=rankings, **timing,
+    )  # fmt: skip
+
+    follow_up_cadence = follow_up_cadence or InMemoryCadence()
+
+    def user_name(user_id: str | None) -> str | None:
+        return next((u.display_name for u in users.list_users() if u.user_id == user_id), None)
+
+    follow_up_agent = FollowUpAgent(
+        follow_ups or InMemoryFollowUps(), follow_up_cadence, companies, jobs, candidates,
+        engagements, submission_agent, resume_collection, approvals, deliveries, workflows,
+        opt_outs, unsubscribe, settings.outreach_sender_name, settings.outreach_postal_address,
+        user_name, **timing,
     )  # fmt: skip
 
     outreach_agent = None
@@ -206,5 +232,7 @@ def build_platform(
         candidate_outreach=candidate_outreach,
         resume_collection=resume_collection,
         submissions=submission_agent,
+        follow_ups=follow_up_agent,
+        follow_up_cadence=follow_up_cadence,
         inbound_webhook_secret=settings.inbound_webhook_secret,
     )

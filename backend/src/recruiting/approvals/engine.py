@@ -40,6 +40,8 @@ class DecisionAction(StrEnum):
     APPROVE = "approve"
     EDIT_AND_APPROVE = "edit_and_approve"
     REJECT = "reject"
+    # The request no longer applies (e.g. its job was closed); recorded like a rejection.
+    CANCEL = "cancel"
 
 
 class ApprovalError(Exception):
@@ -104,7 +106,11 @@ class ApprovalRequest:
 
     @property
     def approval_count(self) -> int:
-        return sum(1 for d in self.decisions if d.action is not DecisionAction.REJECT)
+        return sum(
+            1
+            for d in self.decisions
+            if d.action in (DecisionAction.APPROVE, DecisionAction.EDIT_AND_APPROVE)
+        )
 
 
 class ApprovalEngine:
@@ -196,6 +202,8 @@ class ApprovalEngine:
         reason: str | None = None,
         edited_content: Content | None = None,
     ) -> ApprovalRequest:
+        if action is DecisionAction.CANCEL:
+            raise InvalidDecision("Use cancel() to withdraw a request")
         request = self.get(request_id)
         if request.status is not ApprovalStatus.PENDING:
             raise InvalidDecision(f"Request is already {request.status}")
@@ -240,6 +248,24 @@ class ApprovalEngine:
         if request.status is not ApprovalStatus.PENDING:
             request.resolved_at = now
 
+        self._store.record_decision(request, decision, prior_decisions)
+        return request
+
+    def cancel(self, request_id: str, by: Reviewer, reason: str) -> ApprovalRequest:
+        """Withdraw a pending request whose subject no longer applies (scenario S22: the job
+        was filled or closed). Not an approval: the request ends REJECTED and nothing is sent.
+        The person closing the job is recorded, whatever the gate's approver role."""
+        if not reason.strip():
+            raise InvalidDecision("A cancellation needs a reason")
+        request = self.get(request_id)
+        if request.status is not ApprovalStatus.PENDING:
+            return request
+        prior_decisions = len(request.decisions)
+        now = self._clock()
+        decision = Decision(by, DecisionAction.CANCEL, request.content_sha256, reason, now)
+        request.decisions.append(decision)
+        request.status = ApprovalStatus.REJECTED
+        request.resolved_at = now
         self._store.record_decision(request, decision, prior_decisions)
         return request
 

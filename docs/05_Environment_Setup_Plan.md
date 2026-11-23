@@ -131,6 +131,8 @@ Main endpoints (all need sign-in except the last two):
 | Engagement (Agents 8-9) | `POST /jobs/{id}/outreach`, `GET /jobs/{id}/engagements`, `POST /engagements/{id}/outcome`, `POST /engagements/{id}/request-details`, `GET /linkedin-tasks`, `POST /linkedin-tasks/{approval_id}/sent` | Admin, Recruiter (Account: view) |
 | Matching and submission (Agents 10-11) | `POST /jobs/{id}/submissions`, `GET /jobs/{id}/submissions`, `GET` / `PATCH /submissions/{id}`, `POST /submissions/{id}/request-approval`, `POST /submissions/{id}/withdraw` | Admin, Recruiter, Account Manager (request approval: Admin, Recruiter) |
 | Client portal submissions | `GET /client/submissions`, `POST /client/submissions/{id}/feedback` | Client (own company) |
+| Follow-ups (Agent 12) | `GET /follow-ups`, `GET /follow-ups/summary`, `POST /follow-ups/run`, `POST /follow-ups/{id}/complete`, `.../snooze`, `.../draft`, `POST /submissions/{id}/stage` | All staff; `scope=all`: Admin |
+| Follow-up cadence (Q13) | `GET /admin/follow-up-cadence`, `PUT /admin/follow-up-cadence/{kind}` | Admin |
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
 | Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |

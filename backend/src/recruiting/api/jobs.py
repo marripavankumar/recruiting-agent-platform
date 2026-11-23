@@ -12,6 +12,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel
 
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
+from recruiting.approvals import Reviewer
 from recruiting.domain import Role
 from recruiting.identity import CurrentUser
 from recruiting.records.models import Job, JobStatus, Priority
@@ -110,6 +111,7 @@ def update_job(job_id: str, body: JobUpdate, user: UserDep, services: ServicesDe
     if job is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
     changes = body.model_dump(exclude_unset=True, exclude={"confirm_fields"})
+    was_open = job.status is JobStatus.OPEN
     for name, value in changes.items():
         setattr(job, name, value)
     confirmed = set(changes) | set(body.confirm_fields)
@@ -118,4 +120,10 @@ def update_job(job_id: str, body: JobUpdate, user: UserDep, services: ServicesDe
         job = platform.jd_analysis.analyse(job)  # refresh the search profile
         job.review_fields = [f for f in job.review_fields if f not in confirmed]
     platform.jobs.save(job)
-    return _job_out(job, user)
+    out = _job_out(job, user)
+    if was_open and job.status in (JobStatus.FILLED, JobStatus.CLOSED):
+        # Scenario S22: stop all open outreach, submissions and follow-ups for this job.
+        out["stopped"] = platform.follow_ups.close_job(
+            job.id, Reviewer(user.user_id, user.role), f"Job {job.job_code} is {job.status}"
+        )
+    return out

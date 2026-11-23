@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict
+from datetime import date, datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, status
@@ -22,7 +23,7 @@ from recruiting.agents.client_submission import (
 )
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
 from recruiting.domain import Role
-from recruiting.records.models import ClientDecision, Submission
+from recruiting.records.models import ClientDecision, PlacementStage, Submission
 
 router = APIRouter(tags=["submissions"])
 
@@ -49,6 +50,14 @@ class ApprovalIn(BaseModel):
     acknowledge_flags: bool = False
     recipient: str | None = Field(default=None, max_length=320)
     other_agency: str | None = Field(default=None, max_length=200)
+
+
+class StageIn(BaseModel):
+    stage: PlacementStage
+    interview_at: datetime | None = None
+    offer_at: datetime | None = None
+    start_date: date | None = None
+    reason: str | None = Field(default=None, max_length=1000)
 
 
 class FeedbackIn(BaseModel):
@@ -80,6 +89,9 @@ def _client_out(services, submission: Submission) -> dict[str, Any]:
         "package": json.loads(sent.get("package") or "{}"),
         "client_decision": submission.client_decision,
         "client_feedback": submission.client_feedback,
+        "stage": submission.stage,
+        "interview_at": submission.interview_at,
+        "start_date": submission.start_date,
     }
 
 
@@ -152,6 +164,21 @@ def withdraw(submission_id: str, user: UserDep, services: ServicesDep) -> dict:
         return _out(services, _agent(services).withdraw(submission_id, user.user_id))
     except SubmissionError as exc:
         raise _errors(exc) from exc
+
+
+@router.post("/submissions/{submission_id}/stage")
+def set_stage(submission_id: str, body: StageIn, user: UserDep, services: ServicesDep) -> dict:
+    """Pipeline after submission: interview, offer, start, or rejected / withdrawn. A withdrawal
+    returns the next-ranked candidates to consider (scenario S21)."""
+    require_role(user, TALENT)
+    try:
+        submission, suggestions = _agent(services).set_stage(
+            submission_id, body.stage, user.user_id, interview_at=body.interview_at,
+            offer_at=body.offer_at, start_date=body.start_date, reason=body.reason,
+        )  # fmt: skip
+    except SubmissionError as exc:
+        raise _errors(exc) from exc
+    return {**_out(services, submission), "suggestions": suggestions}
 
 
 # ----- client portal (Q8) ----------------------------------------------------------------------

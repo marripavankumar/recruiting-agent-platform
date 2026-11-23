@@ -425,3 +425,64 @@ def test_submission_store(connect):
     listed = store.list(candidate_id=candidate.id, client_company_id=company.id)
     assert [s.id for s in listed] == [sub.id]
     assert store.list(job_id="not-a-uuid") == []
+
+
+def test_follow_up_store_and_cadence(connect):
+    from datetime import UTC, date, datetime, timedelta
+
+    from recruiting.records.memory import new_id
+    from recruiting.records.models import (
+        Candidate,
+        Company,
+        FollowUp,
+        FollowUpKind,
+        FollowUpStatus,
+        Job,
+        PlacementStage,
+        Submission,
+    )
+    from recruiting.records.postgres import (
+        PostgresCadence,
+        PostgresCandidates,
+        PostgresCompanies,
+        PostgresFollowUps,
+        PostgresJobs,
+        PostgresSubmissions,
+    )
+
+    with connect() as conn:
+        conn.execute("DELETE FROM follow_up_cadence")
+    company = PostgresCompanies(connect).save(
+        Company(new_id(), "FU Co", f"{new_id()}.example", "test")
+    )
+    job = PostgresJobs(connect).add(
+        Job(new_id(), f"JOB-2096-{new_id()[:4]}", company.id, "CAE Engineer")
+    )
+    candidate = PostgresCandidates(connect).save(Candidate(new_id(), "Wei", "ats"))
+    now = datetime.now(UTC)
+    sub = Submission(new_id(), job.id, candidate.id, company.id,
+                     stage=PlacementStage.OFFER_ACCEPTED, stage_at=now,
+                     start_date=date(2027, 1, 4))  # fmt: skip
+    subs = PostgresSubmissions(connect)
+    subs.save(sub)
+    loaded = subs.get(sub.id)
+    assert loaded.stage is PlacementStage.OFFER_ACCEPTED and loaded.start_date == date(2027, 1, 4)
+
+    store = PostgresFollowUps(connect)
+    item = FollowUp(new_id(), FollowUpKind.START_DATE, sub.id, "recruiter", now,
+                    now + timedelta(days=3), job_id=job.id, candidate_id=candidate.id,
+                    context={"recipient": "x@y.example"}, approvals=["a1"])  # fmt: skip
+    item.log(now, "created")
+    store.save(item)
+    found = store.find(FollowUpKind.START_DATE, sub.id)
+    assert found.id == item.id and found.context == {"recipient": "x@y.example"}
+    assert found.approvals == ["a1"] and found.history[0]["event"] == "created"
+    item.status, item.due_at = FollowUpStatus.DONE, None
+    store.save(item)
+    assert store.list(status=FollowUpStatus.OPEN, job_id=job.id) == []
+    assert [i.id for i in store.list(job_id=job.id)] == [item.id]
+
+    cadence = PostgresCadence(connect)
+    assert cadence.get()[FollowUpKind.CLIENT_OUTREACH] == [3, 7, 14]
+    cadence.save(FollowUpKind.CLIENT_OUTREACH, [2, 5], "u-admin")
+    assert cadence.get()[FollowUpKind.CLIENT_OUTREACH] == [2, 5]

@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from recruiting.agents.client_outreach import WorkflowStarter
@@ -28,14 +28,18 @@ from recruiting.outreach import DeliveryLog, DeliveryStatus
 from recruiting.records.engagements import EngagementStore
 from recruiting.records.memory import CandidateRepository, CompanyRepository, JobRepository, new_id
 from recruiting.records.models import (
+    CLOSED_STAGES,
+    STAGE_NEXT,
     ClientDecision,
     ConsentStatus,
     ContactRole,
     EngagementStatus,
     JobStatus,
+    PlacementStage,
     Submission,
     SubmissionStatus,
 )
+from recruiting.records.rankings import RankingStore
 from recruiting.records.submissions import SubmissionStore
 
 # The nine BRD package items, in the BRD's order.
@@ -48,6 +52,11 @@ EDITABLE = (
 )  # fmt: skip
 # A submission in these states counts as "this candidate is with this client".
 LIVE = (SubmissionStatus.PENDING_APPROVAL, SubmissionStatus.SUBMITTED)
+INTERVIEW_REACHED = {
+    PlacementStage.INTERVIEW_REQUESTED, PlacementStage.INTERVIEW_SCHEDULED,
+    PlacementStage.INTERVIEWED, PlacementStage.OFFER_EXTENDED, PlacementStage.OFFER_ACCEPTED,
+    PlacementStage.STARTED, PlacementStage.OFFER_DECLINED,
+}  # fmt: skip
 BLOCKING_FLAGS = ("missing_must_have", "work_authorization", "hard_filter")
 CONTACT_ORDER = (
     ContactRole.HIRING_MANAGER, ContactRole.ENGINEERING_MANAGER,
@@ -98,6 +107,7 @@ class ClientSubmissionAgent:
         deliveries: DeliveryLog,
         workflows: WorkflowStarter | None,
         follow_up_days: int = 2,
+        rankings: RankingStore | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._companies = companies
@@ -110,6 +120,7 @@ class ClientSubmissionAgent:
         self._deliveries = deliveries
         self._workflows = workflows
         self._follow_up = timedelta(days=follow_up_days)
+        self._rankings = rankings
         self._clock = clock
 
     # ----- helpers ----------
@@ -316,7 +327,11 @@ class ClientSubmissionAgent:
         receipt = self._deliveries.get(aid)
         now = self._clock()
         if request.status is ApprovalStatus.REJECTED:
-            rejections = [d for d in request.decisions if d.action is DecisionAction.REJECT]
+            rejections = [
+                d
+                for d in request.decisions
+                if d.action in (DecisionAction.REJECT, DecisionAction.CANCEL)
+            ]
             submission.status = SubmissionStatus.REJECTED
             submission.rejection_reason = rejections[-1].reason if rejections else None
             submission.log(now, "rejected", reason=submission.rejection_reason)
@@ -326,6 +341,7 @@ class ClientSubmissionAgent:
             submission.sent_content = dict(receipt.message.content)
             submission.recipient = receipt.message.recipient
             submission.follow_up_at = receipt.delivered_at + self._follow_up
+            submission.stage, submission.stage_at = PlacementStage.SUBMITTED, receipt.delivered_at
             submission.log(now, "submitted", to=receipt.message.recipient)
             engagement = self._engagements.find(submission.job_id, submission.candidate_id)
             if engagement is not None:
@@ -361,7 +377,85 @@ class ClientSubmissionAgent:
             None if decision is not ClientDecision.HOLD else now + self._follow_up
         )
         submission.log(now, "client_feedback", by=by, decision=decision.value)
+        stage = submission.stage or PlacementStage.SUBMITTED
+        if decision is ClientDecision.INTERVIEW and stage is PlacementStage.SUBMITTED:
+            self._move(submission, PlacementStage.INTERVIEW_REQUESTED, now, by)
+        elif decision is ClientDecision.REJECTED and stage not in CLOSED_STAGES:
+            # Scenario S20: status Rejected with the client's reason.
+            submission.stage_reason = submission.client_feedback or "Rejected by the client"
+            self._move(submission, PlacementStage.CLIENT_REJECTED, now, by)
+        elif decision is ClientDecision.HOLD:
+            submission.stage_at = now  # the feedback follow-up counts again from today
         return self._submissions.save(submission)
+
+    # ----- pipeline (plan section 11) ----------
+
+    def _move(self, submission: Submission, stage: PlacementStage, now: datetime, by: str):
+        before = submission.stage
+        submission.stage, submission.stage_at = stage, now
+        submission.log(now, "stage", by=by, stage=stage.value, previous=before and before.value)
+
+    def set_stage(
+        self, submission_id: str, stage: PlacementStage, by: str, *,
+        interview_at: datetime | None = None, offer_at: datetime | None = None,
+        start_date: date | None = None, reason: str | None = None,
+    ) -> tuple[Submission, list[dict[str, Any]]]:  # fmt: skip
+        """Record Interview, Offer, Start or a rejection / withdrawal. A withdrawal returns the
+        next-ranked candidates not yet submitted for the job (scenario S21)."""
+        submission = self.get(submission_id)
+        current = submission.stage
+        if submission.status is not SubmissionStatus.SUBMITTED or current is None:
+            raise SubmissionError("Only a sent submission has a pipeline stage")
+        if current in CLOSED_STAGES:
+            raise SubmissionError(f"The submission is already {current}")
+        allowed = STAGE_NEXT[current] | {PlacementStage.CANDIDATE_WITHDRAWN}
+        if stage not in allowed:
+            raise SubmissionError(
+                f"Cannot go from {current} to {stage}; next: {', '.join(sorted(allowed))}"
+            )
+        reason = (reason or "").strip()[:1000] or None
+        if stage is PlacementStage.INTERVIEW_SCHEDULED and interview_at is None:
+            raise SubmissionError("Give the interview date and time")
+        if stage is PlacementStage.OFFER_ACCEPTED and start_date is None:
+            raise SubmissionError("Give the start date")
+        if stage in (
+            PlacementStage.CLIENT_REJECTED, PlacementStage.OFFER_DECLINED,
+            PlacementStage.CANDIDATE_WITHDRAWN,
+        ) and not reason:  # fmt: skip
+            raise SubmissionError("Give a reason")
+        now = self._clock()
+        if interview_at is not None:
+            submission.interview_at = interview_at
+        if stage is PlacementStage.OFFER_EXTENDED:
+            submission.offer_at = offer_at or now
+        if start_date is not None:
+            submission.start_date = start_date
+        submission.stage_reason = reason or submission.stage_reason
+        self._move(submission, stage, now, by)
+        self._submissions.save(submission)
+        suggestions = (
+            self.next_candidates(submission.job_id)
+            if stage is PlacementStage.CANDIDATE_WITHDRAWN
+            else []
+        )
+        return submission, suggestions
+
+    def next_candidates(self, job_id: str, limit: int = 3) -> list[dict[str, Any]]:
+        ranking = self._rankings.get(job_id) if self._rankings else None
+        if ranking is None:
+            return []
+        taken = {s.candidate_id for s in self._submissions.list(job_id=job_id)}
+        out = []
+        for entry in ranking.top:
+            if entry.candidate_id in taken:
+                continue
+            candidate = self._candidates.get(entry.candidate_id)
+            out.append({"candidate_id": entry.candidate_id, "rank": entry.rank,
+                        "score": entry.score,
+                        "name": candidate.full_name if candidate else None})  # fmt: skip
+            if len(out) == limit:
+                break
+        return out
 
     # ----- reporting ----------
 
@@ -381,7 +475,7 @@ class ClientSubmissionAgent:
         compliant = sum(
             1 for s in sent if s.approval_request_id and s.right_to_represent_at and s.sent_content
         )
-        interviews = sum(1 for s in sent if s.client_decision is ClientDecision.INTERVIEW)
+        interviews = sum(1 for s in sent if s.stage in INTERVIEW_REACHED)
         return {
             **counts,
             "total": len(items),
