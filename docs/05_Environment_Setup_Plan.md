@@ -45,7 +45,7 @@ SharePoint, OneDrive and S3 are the BRD's document-storage options and are built
 | Prod | Live operation | Real company, job and candidate data | Manual approval after test sign-off | CBS users by role; ops on-call |
 
 - Real candidate or contact data never leaves prod (compliance checklist P6, P8).
-- Outbound email and LinkedIn tasks are disabled in local and dev. In test, outreach can go only to an allow-list of internal addresses.
+- Outbound email and LinkedIn tasks are disabled in local and dev (`RAP_OUTREACH_ENABLED=false`). In test, outreach can go only to an allow-list of internal addresses (`RAP_OUTREACH_ALLOW_LIST`). The Outreach Service enforces both before any channel adapter runs.
 - Each environment has its own database, vault, sending identity and API keys.
 
 ## 3. Repository and CI/CD
@@ -100,18 +100,21 @@ Required for compliance items E11 and E12 before Phase 2 sends anything.
 
 ## 6. Running the scaffold locally
 
-Prerequisites: Python 3.12+, Docker Desktop.
+Prerequisites: Python 3.12+ (or [uv](https://docs.astral.sh/uv/)), Docker Desktop.
 
 ```
 cp .env.example .env
 docker compose -f infra/docker-compose.yml up -d     # PostgreSQL, Qdrant, n8n
 cd backend
 python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/activate elsewhere
-pip install -e ".[dev]"
+pip install -e ".[dev]"                               # or: uv sync --extra dev, then prefix commands with "uv run"
 pytest                                                # PostgreSQL tests need RAP_TEST_DATABASE_URL
 uvicorn recruiting.api.main:app --reload             # http://localhost:8000/health
 
 # Try the review queue with the local-dev sign-in (RAP_AUTH_PROVIDER=dev). Add a user first:
 #   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"
 curl -H "X-Dev-User-Email: bd@cbs.example" http://localhost:8000/approvals/pending
+# An Administrator manages users and approvers per gate at /admin/users and /admin/gate-policies.
 ```
+
+Windows note: Smart App Control can block newly downloaded native Python modules (for example `psycopg_binary`) with "An Application Control policy has blocked this file". It may allow a module after a while, as it did for `ormsgpack`. While `psycopg` is blocked, run with `RAP_STORAGE=memory`; the PostgreSQL tests then run only in CI or in a Linux container.

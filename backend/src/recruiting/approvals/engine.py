@@ -18,7 +18,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from recruiting.approvals.policy import DEFAULT_POLICIES, GatePolicy
+from recruiting.approvals.policy import (
+    DEFAULT_POLICIES,
+    GatePolicy,
+    InMemoryPolicyStore,
+    PolicyStore,
+)
 from recruiting.approvals.store import ApprovalStore, InMemoryApprovalStore
 from recruiting.domain import GateType, Role
 
@@ -54,6 +59,10 @@ class InvalidDecision(ApprovalError):
 
 
 class NotApproved(ApprovalError):
+    pass
+
+
+class InvalidPolicy(ApprovalError):
     pass
 
 
@@ -101,25 +110,55 @@ class ApprovalRequest:
 class ApprovalEngine:
     def __init__(
         self,
-        policies: Mapping[GateType, GatePolicy] | None = None,
+        policies: Mapping[GateType, GatePolicy] | PolicyStore | None = None,
         store: ApprovalStore | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
-        self._policies = dict(DEFAULT_POLICIES if policies is None else policies)
-        missing = set(GateType) - set(self._policies)
+        # Policies are read from the store on use, so an Administrator's change reaches every
+        # running instance without a restart.
+        if policies is None:
+            policies = DEFAULT_POLICIES
+        self._policies: PolicyStore = (
+            InMemoryPolicyStore(policies) if isinstance(policies, Mapping) else policies
+        )
+        missing = set(GateType) - set(self._policies.load())
         if missing:
             raise ValueError(f"No approval policy for gates: {sorted(missing)}")
         self._store = InMemoryApprovalStore() if store is None else store
         self._clock = clock
 
+    def policies(self) -> dict[GateType, GatePolicy]:
+        return self._policies.load()
+
     def policy_for(self, gate: GateType) -> GatePolicy:
-        return self._policies[gate]
+        return self._policies.load()[gate]
+
+    def update_policy(self, policy: GatePolicy, updated_by: str) -> GatePolicy:
+        """Q14: the Administrator changes who approves a gate. Pending requests follow the new
+        policy from their next step; decisions already made stay valid."""
+        for role in policy.steps:
+            if role is Role.CLIENT:
+                raise InvalidPolicy("Client users cannot approve platform actions")
+        self._policies.save(policy, updated_by)
+        return policy
 
     def submit(
-        self, gate: GateType, subject_id: str, content: Content, requested_by: str
+        self,
+        gate: GateType,
+        subject_id: str,
+        content: Content,
+        requested_by: str,
+        *,
+        request_id: str | None = None,
     ) -> ApprovalRequest:
+        """Create a pending request. With `request_id`, submitting again returns the existing
+        request, so a workflow step that re-runs after a crash does not create a duplicate."""
+        if request_id is not None:
+            existing = self._store.get(request_id)
+            if existing is not None:
+                return existing
         request = ApprovalRequest(
-            id=str(uuid.uuid4()),
+            id=request_id or str(uuid.uuid4()),
             gate=gate,
             subject_id=subject_id,
             requested_by=requested_by,
@@ -135,14 +174,18 @@ class ApprovalEngine:
             raise UnknownApprovalRequest(f"Unknown approval request {request_id}")
         return request
 
-    def next_approver_role(self, request: ApprovalRequest) -> Role | None:
+    def next_approver_role(
+        self, request: ApprovalRequest, policies: Mapping[GateType, GatePolicy] | None = None
+    ) -> Role | None:
         if request.status is not ApprovalStatus.PENDING:
             return None
-        steps = self.policy_for(request.gate).steps
+        policy = policies[request.gate] if policies is not None else self.policy_for(request.gate)
+        steps = policy.steps
         return steps[request.approval_count] if request.approval_count < len(steps) else None
 
     def pending_for(self, role: Role) -> list[ApprovalRequest]:
-        return [r for r in self._store.pending() if self.next_approver_role(r) == role]
+        policies = self.policies()
+        return [r for r in self._store.pending() if self.next_approver_role(r, policies) == role]
 
     def decide(
         self,

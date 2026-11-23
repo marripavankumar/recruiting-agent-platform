@@ -6,12 +6,18 @@ from recruiting.approvals.engine import (
     Decision,
     DecisionAction,
     InvalidDecision,
+    InvalidPolicy,
     NotApproved,
     NotAuthorizedToApprove,
     Reviewer,
     UnknownApprovalRequest,
 )
-from recruiting.approvals.policy import DEFAULT_POLICIES, GatePolicy
+from recruiting.approvals.policy import (
+    DEFAULT_POLICIES,
+    GatePolicy,
+    InMemoryPolicyStore,
+    PolicyStore,
+)
 from recruiting.approvals.store import ApprovalStore, ConcurrentDecision, InMemoryApprovalStore
 
 __all__ = [
@@ -26,9 +32,12 @@ __all__ = [
     "DecisionAction",
     "GatePolicy",
     "InMemoryApprovalStore",
+    "InMemoryPolicyStore",
     "InvalidDecision",
+    "InvalidPolicy",
     "NotApproved",
     "NotAuthorizedToApprove",
+    "PolicyStore",
     "Reviewer",
     "UnknownApprovalRequest",
 ]

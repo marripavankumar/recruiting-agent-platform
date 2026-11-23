@@ -2,15 +2,18 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from pydantic import BaseModel
 
 from recruiting.api.deps import ServicesDep, UserDep
+from recruiting.api.services import WorkflowResumer
 from recruiting.approvals import (
     ApprovalEngine,
     ApprovalRequest,
+    ApprovalStatus,
     ConcurrentDecision,
     DecisionAction,
     InvalidDecision,
@@ -21,6 +24,7 @@ from recruiting.approvals import (
 from recruiting.domain import Role
 from recruiting.identity import CurrentUser
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/approvals", tags=["approvals"])
 
 
@@ -108,7 +112,11 @@ def get_approval(request_id: str, user: UserDep, services: ServicesDep) -> Appro
 
 @router.post("/{request_id}/decision", response_model=ApprovalOut)
 def decide(
-    request_id: str, body: DecisionIn, user: UserDep, services: ServicesDep
+    request_id: str,
+    body: DecisionIn,
+    user: UserDep,
+    services: ServicesDep,
+    background: BackgroundTasks,
 ) -> ApprovalOut:
     _require_staff(user)
     engine = services.approvals
@@ -126,4 +134,15 @@ def decide(
         raise HTTPException(status.HTTP_403_FORBIDDEN, str(exc)) from exc
     except (InvalidDecision, ConcurrentDecision) as exc:
         raise HTTPException(status.HTTP_409_CONFLICT, str(exc)) from exc
+    if request.status is not ApprovalStatus.PENDING and services.workflows is not None:
+        # After the response: the decision is already saved, so a delivery error cannot undo it.
+        background.add_task(_resume_workflow, services.workflows, request.id)
     return to_out(engine, request)
+
+
+def _resume_workflow(workflows: WorkflowResumer, request_id: str) -> None:
+    try:
+        workflows.resume(request_id)
+    except Exception:
+        # The thread stays paused at its last checkpoint and can be resumed again later.
+        logger.exception("Resuming the workflow for approval %s failed", request_id)

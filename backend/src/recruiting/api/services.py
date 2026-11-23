@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any, Protocol
 
 from recruiting.approvals import ApprovalEngine
 from recruiting.compliance import OptOutRegistry
@@ -14,6 +15,11 @@ from recruiting.identity import (
     OidcAuthenticator,
     UserDirectory,
 )
+from recruiting.outreach import DeliveryLog, ManualLinkedInChannel, OutreachService
+
+
+class WorkflowResumer(Protocol):
+    def resume(self, approval_request_id: str) -> Any: ...
 
 
 @dataclass
@@ -22,6 +28,8 @@ class Services:
     opt_outs: OptOutRegistry
     users: UserDirectory
     authenticator: Authenticator
+    # Resumes the workflow thread waiting on an approval once it is decided. None: no workflows.
+    workflows: WorkflowResumer | None = None
 
 
 def build_authenticator(settings: Settings) -> Authenticator:
@@ -42,17 +50,52 @@ def build_authenticator(settings: Settings) -> Authenticator:
 def build_services(settings: Settings) -> Services:
     authenticator = build_authenticator(settings)
     if settings.storage == "memory":
-        return Services(ApprovalEngine(), OptOutRegistry(), InMemoryUserDirectory(), authenticator)
+        from langgraph.checkpoint.memory import MemorySaver
 
-    from recruiting.approvals.postgres import PostgresApprovalStore, load_gate_policies
+        approvals, opt_outs = ApprovalEngine(), OptOutRegistry()
+        outreach = build_outreach(settings, approvals, opt_outs)
+        workflows = build_workflows(approvals, outreach, MemorySaver())
+        return Services(approvals, opt_outs, InMemoryUserDirectory(), authenticator, workflows)
+
+    from recruiting.approvals.postgres import PostgresApprovalStore, PostgresPolicyStore
     from recruiting.compliance.postgres import PostgresOptOutStore
-    from recruiting.db import connection_factory
-    from recruiting.identity.users import PostgresUserDirectory
+    from recruiting.db import connection_factory, workflow_checkpointer
+    from recruiting.identity.postgres import PostgresUserDirectory
+    from recruiting.outreach.postgres import PostgresDeliveryLog
 
     connect = connection_factory(settings.database_url)
+    approvals = ApprovalEngine(PostgresPolicyStore(connect), store=PostgresApprovalStore(connect))
+    opt_outs = OptOutRegistry(PostgresOptOutStore(connect))
+    outreach = build_outreach(settings, approvals, opt_outs, PostgresDeliveryLog(connect))
     return Services(
-        approvals=ApprovalEngine(load_gate_policies(connect), store=PostgresApprovalStore(connect)),
-        opt_outs=OptOutRegistry(PostgresOptOutStore(connect)),
+        approvals=approvals,
+        opt_outs=opt_outs,
         users=PostgresUserDirectory(connect),
         authenticator=authenticator,
+        workflows=build_workflows(
+            approvals, outreach, workflow_checkpointer(settings.database_url)
+        ),
     )
+
+
+def build_outreach(
+    settings: Settings,
+    approvals: ApprovalEngine,
+    opt_outs: OptOutRegistry,
+    log: DeliveryLog | None = None,
+) -> OutreachService:
+    # Email adapters (Microsoft 365, Gmail) arrive in Phase 2; LinkedIn is manual (Q15).
+    return OutreachService(
+        approvals,
+        opt_outs,
+        [ManualLinkedInChannel()],
+        log=log,
+        enabled=settings.outreach_enabled,
+        allow_list=settings.outreach_allow_list,
+    )
+
+
+def build_workflows(approvals: ApprovalEngine, outreach: OutreachService, checkpointer: Any):
+    from recruiting.workflows.outreach_graph import OutreachWorkflow, build_outreach_graph
+
+    return OutreachWorkflow(build_outreach_graph(approvals, outreach, checkpointer))

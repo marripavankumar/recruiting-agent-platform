@@ -118,7 +118,7 @@ def test_opt_out_store(connect):
 
 
 def test_user_directory(connect):
-    from recruiting.identity.users import PostgresUserDirectory
+    from recruiting.identity.postgres import PostgresUserDirectory
 
     reviewer = make_user(connect, Role.RECRUITER)
     with connect() as conn:
@@ -129,3 +129,65 @@ def test_user_directory(connect):
     assert user is not None
     assert user.role is Role.RECRUITER
     assert PostgresUserDirectory(connect).by_email("nobody@cbs.example") is None
+
+
+def test_delivery_log_claims_each_approval_once(engine, connect):
+    from datetime import UTC, datetime
+
+    from recruiting.domain import Channel
+    from recruiting.outreach import AlreadySent, DeliveryResult, DeliveryStatus, OutboundMessage
+    from recruiting.outreach.postgres import PostgresDeliveryLog
+
+    request = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-1", DRAFT, requested_by="agent-3")
+    log = PostgresDeliveryLog(connect)
+    message = OutboundMessage(request.id, Channel.EMAIL, "lee@example.com", DRAFT)
+    now = datetime.now(UTC)
+
+    log.claim(message, now)
+    assert log.get(request.id).status is DeliveryStatus.SENDING
+    with pytest.raises(AlreadySent):
+        log.claim(message, now)  # a second claimer (retry or concurrent send) is refused
+
+    receipt = log.complete(request.id, DeliveryResult(DeliveryStatus.SENT, "msg-1"), now)
+    assert receipt.status is DeliveryStatus.SENT
+    assert receipt.provider_message_id == "msg-1"
+    assert receipt.message == message
+    assert log.get(str(uuid.uuid4())) is None
+
+
+def test_policy_change_reaches_other_engines_without_restart(connect):
+    from recruiting.approvals import GatePolicy
+    from recruiting.approvals.postgres import PostgresApprovalStore, PostgresPolicyStore
+
+    admin = make_user(connect, Role.ADMINISTRATOR)
+    instance_a = ApprovalEngine(PostgresPolicyStore(connect), store=PostgresApprovalStore(connect))
+    instance_b = ApprovalEngine(PostgresPolicyStore(connect), store=PostgresApprovalStore(connect))
+    gate = GateType.RESUME_SUBMISSION
+    changed = GatePolicy(gate, Role.RECRUITER, Role.ACCOUNT_MANAGER)
+    try:
+        instance_a.update_policy(changed, admin.user_id)
+        assert instance_b.policy_for(gate) == changed
+    finally:
+        PostgresPolicyStore(connect).save(DEFAULT_POLICIES[gate], admin.user_id)
+
+
+def test_user_admin(connect):
+    from recruiting.identity import DuplicateUser, InvalidUser, UnknownUser
+    from recruiting.identity.postgres import PostgresUserDirectory
+
+    admin = make_user(connect, Role.ADMINISTRATOR)
+    users = PostgresUserDirectory(connect)
+    email = f"{uuid.uuid4()}@cbs.example"
+    created = users.create_user(email, "New Recruiter", Role.RECRUITER, None, admin.user_id)
+    assert users.by_email(email).user_id == created.user_id
+    with pytest.raises(DuplicateUser):
+        users.create_user(email.upper(), "Again", Role.RECRUITER, None, admin.user_id)
+    with pytest.raises(InvalidUser):
+        users.create_user("hm@client.example", "HM", Role.CLIENT, str(uuid.uuid4()), admin.user_id)
+
+    updated = users.update_user(created.user_id, admin.user_id, role=Role.BD_MANAGER, active=False)
+    assert (updated.role, updated.active) == (Role.BD_MANAGER, False)
+    assert users.by_email(email) is None  # inactive users cannot sign in
+    assert created.user_id in [u.user_id for u in users.list_users()]
+    with pytest.raises(UnknownUser):
+        users.update_user(str(uuid.uuid4()), admin.user_id, active=False)

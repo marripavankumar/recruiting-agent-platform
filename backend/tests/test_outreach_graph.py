@@ -86,3 +86,40 @@ def test_resume_before_decision_pauses_again():
     assert graph.get_state(config).next == ("await_approval",)
     assert len(engine.pending_for(Role.BD_MANAGER)) == 1
     assert email.sent == []
+
+
+def test_workflow_thread_is_found_by_approval_request_id():
+    from recruiting.domain import Channel, GateType
+    from recruiting.workflows.outreach_graph import OutreachWorkflow
+
+    engine, email, graph = make_graph()
+    workflow = OutreachWorkflow(graph)
+    request_id = workflow.start(
+        gate=GateType.FIRST_CLIENT_EMAIL,
+        subject_id="company-1",
+        channel=Channel.EMAIL,
+        recipient="lee@example.com",
+        content=START_STATE["content"],
+    )
+    assert [r.id for r in engine.pending_for(Role.BD_MANAGER)] == [request_id]
+
+    engine.decide(request_id, Reviewer("u-bd", Role.BD_MANAGER), DecisionAction.APPROVE)
+    final = workflow.resume(request_id)
+    assert final["delivery_status"] == "sent"
+    assert len(email.sent) == 1
+    assert workflow.resume(request_id) is None  # thread finished; nothing to resume
+    assert workflow.resume("no-such-request") is None
+
+
+def test_disabled_outreach_ends_the_thread_without_sending():
+    engine = ApprovalEngine()
+    email = FakeEmailChannel()
+    service = OutreachService(engine, OptOutRegistry(), [email], enabled=False)
+    graph = build_outreach_graph(engine, service, MemorySaver())
+    config = {"configurable": {"thread_id": "t-off"}}
+    graph.invoke(START_STATE, config)
+    request_id = graph.get_state(config).values["approval_request_id"]
+    engine.decide(request_id, Reviewer("u-bd", Role.BD_MANAGER), DecisionAction.APPROVE)
+    final = graph.invoke(Command(resume=True), config)
+    assert final["delivery_status"] == "blocked_outreach_disabled"
+    assert email.sent == []

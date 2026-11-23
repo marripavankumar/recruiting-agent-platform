@@ -11,6 +11,7 @@ from recruiting.outreach import (
     ManualLinkedInChannel,
     NoActiveChannel,
     OutboundMessage,
+    OutreachDisabled,
     OutreachService,
     RecipientOptedOut,
 )
@@ -108,3 +109,59 @@ def test_no_active_channel():
     request = approved(engine)
     with pytest.raises(NoActiveChannel):
         service.send(email_to(request.id))
+
+
+class BrokenEmailChannel:
+    channel = Channel.EMAIL
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def deliver(self, message: OutboundMessage) -> DeliveryResult:
+        self.calls += 1
+        raise TimeoutError("provider did not answer")
+
+
+def test_receipt_is_logged(setup):
+    engine, _, _, _, service = setup
+    request = approved(engine)
+    service.send(email_to(request.id))
+    receipt = service.receipt(request.id)
+    assert receipt.status is DeliveryStatus.SENT
+    assert receipt.provider_message_id == "msg-1"
+
+
+def test_failed_delivery_keeps_its_claim_so_it_is_never_retried_blindly():
+    engine = ApprovalEngine()
+    broken = BrokenEmailChannel()
+    service = OutreachService(engine, OptOutRegistry(), [broken])
+    request = approved(engine)
+    with pytest.raises(TimeoutError):
+        service.send(email_to(request.id))
+    receipt = service.receipt(request.id)
+    assert receipt.status is DeliveryStatus.FAILED
+    assert "provider did not answer" in receipt.error
+    with pytest.raises(AlreadySent):
+        service.send(email_to(request.id))
+    assert broken.calls == 1
+
+
+def test_disabled_outreach_sends_nothing_and_keeps_the_approval_unused():
+    engine = ApprovalEngine()
+    email = FakeEmailChannel()
+    service = OutreachService(engine, OptOutRegistry(), [email], enabled=False)
+    request = approved(engine)
+    with pytest.raises(OutreachDisabled):
+        service.send(email_to(request.id))
+    assert email.sent == []
+    assert service.receipt(request.id) is None
+
+
+def test_allow_list_limits_recipients():
+    engine = ApprovalEngine()
+    email = FakeEmailChannel()
+    service = OutreachService(engine, OptOutRegistry(), [email], allow_list=["QA@cbs.example"])
+    with pytest.raises(OutreachDisabled):
+        service.send(email_to(approved(engine).id, recipient="lee@example.com"))
+    service.send(email_to(approved(engine).id, recipient="qa@cbs.example"))
+    assert [m.recipient for m in email.sent] == ["qa@cbs.example"]

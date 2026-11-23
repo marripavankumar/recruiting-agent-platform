@@ -112,3 +112,15 @@ def test_pending_queue_by_role():
     request = submit_first_email(engine)
     assert engine.pending_for(Role.BD_MANAGER) == [request]
     assert engine.pending_for(Role.RECRUITER) == []
+
+
+def test_submit_with_request_id_is_idempotent():
+    engine = ApprovalEngine()
+    first = engine.submit(
+        GateType.FIRST_CLIENT_EMAIL, "c-1", {"body": "a"}, requested_by="agent", request_id="r-1"
+    )
+    again = engine.submit(
+        GateType.FIRST_CLIENT_EMAIL, "c-1", {"body": "a"}, requested_by="agent", request_id="r-1"
+    )
+    assert first.id == again.id == "r-1"
+    assert len(engine.pending_for(Role.BD_MANAGER)) == 1

@@ -1,6 +1,8 @@
 """Who approves at each gate (Q14): configurable, with an optional second approver."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Protocol
 
 from recruiting.domain import GateType, Role
 
@@ -29,3 +31,20 @@ DEFAULT_POLICIES: dict[GateType, GatePolicy] = {
     ),
     GateType.RESUME_SUBMISSION: GatePolicy(GateType.RESUME_SUBMISSION, Role.RECRUITER),
 }
+
+
+class PolicyStore(Protocol):
+    def load(self) -> dict[GateType, GatePolicy]: ...
+
+    def save(self, policy: GatePolicy, updated_by: str) -> None: ...
+
+
+class InMemoryPolicyStore:
+    def __init__(self, policies: Mapping[GateType, GatePolicy] = DEFAULT_POLICIES) -> None:
+        self._policies = dict(policies)
+
+    def load(self) -> dict[GateType, GatePolicy]:
+        return dict(self._policies)
+
+    def save(self, policy: GatePolicy, updated_by: str) -> None:
+        self._policies[policy.gate] = policy

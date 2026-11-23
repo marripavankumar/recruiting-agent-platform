@@ -4,14 +4,26 @@ from recruiting.identity.auth import (
     DevHeaderAuthenticator,
     OidcAuthenticator,
 )
-from recruiting.identity.users import CurrentUser, InMemoryUserDirectory, UserDirectory
+from recruiting.identity.users import (
+    CurrentUser,
+    DuplicateUser,
+    InMemoryUserDirectory,
+    InvalidUser,
+    UnknownUser,
+    UserDirectory,
+    UserError,
+)
 
 __all__ = [
     "AuthenticationError",
     "Authenticator",
     "CurrentUser",
     "DevHeaderAuthenticator",
+    "DuplicateUser",
     "InMemoryUserDirectory",
+    "InvalidUser",
     "OidcAuthenticator",
+    "UnknownUser",
     "UserDirectory",
+    "UserError",
 ]

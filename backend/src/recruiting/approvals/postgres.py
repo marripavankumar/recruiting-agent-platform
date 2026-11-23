@@ -25,16 +25,51 @@ SUBJECT_TYPES: dict[GateType, str] = {
 }
 
 
-def load_gate_policies(connect: Connect) -> dict[GateType, GatePolicy]:
+class PostgresPolicyStore:
     """Q14: the Administrator edits approvers per gate in the gate_policy table."""
-    with connect() as conn:
-        rows = conn.execute(
-            "SELECT gate, first_approver_role, second_approver_role FROM gate_policy"
-        ).fetchall()
-    return {
-        GateType(gate): GatePolicy(GateType(gate), Role(first), Role(second) if second else None)
-        for gate, first, second in rows
-    }
+
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    def load(self) -> dict[GateType, GatePolicy]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT gate, first_approver_role, second_approver_role FROM gate_policy"
+            ).fetchall()
+        return {
+            GateType(gate): GatePolicy(
+                GateType(gate), Role(first), Role(second) if second else None
+            )
+            for gate, first, second in rows
+        }
+
+    def save(self, policy: GatePolicy, updated_by: str) -> None:
+        second = policy.second_approver.value if policy.second_approver else None
+        with self._connect() as conn:
+            conn.execute(
+                """
+                UPDATE gate_policy
+                SET first_approver_role = %s, second_approver_role = %s, updated_by = %s,
+                    updated_at = now()
+                WHERE gate = %s
+                """,
+                (policy.first_approver.value, second, updated_by, policy.gate.value),
+            )
+            conn.execute(
+                """
+                INSERT INTO audit_log (actor, action, entity_type, entity_id, details)
+                VALUES (%s, 'gate_policy.update', 'gate_policy', %s, %s)
+                """,
+                (
+                    updated_by,
+                    policy.gate.value,
+                    Jsonb({"first": policy.first_approver.value, "second": second}),
+                ),
+            )
+
+
+def load_gate_policies(connect: Connect) -> dict[GateType, GatePolicy]:
+    return PostgresPolicyStore(connect).load()
 
 
 class PostgresApprovalStore:

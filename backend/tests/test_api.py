@@ -105,3 +105,49 @@ def test_dev_sign_in_refused_outside_local():
 def test_oidc_settings_required():
     with pytest.raises(RuntimeError):
         build_services(Settings(environment="prod", auth_provider="oidc", storage="memory"))
+
+
+class FakeWorkflows:
+    def __init__(self, fail: bool = False) -> None:
+        self.resumed: list[str] = []
+        self.fail = fail
+
+    def resume(self, approval_request_id: str) -> None:
+        self.resumed.append(approval_request_id)
+        if self.fail:
+            raise RuntimeError("mail provider down")
+
+
+def client_with_workflows(workflows: FakeWorkflows, engine: ApprovalEngine) -> TestClient:
+    services = Services(
+        approvals=engine,
+        opt_outs=OptOutRegistry(),
+        users=InMemoryUserDirectory([BD, ADMIN]),
+        authenticator=DevHeaderAuthenticator(),
+        workflows=workflows,
+    )
+    return TestClient(create_app(services))
+
+
+def test_decision_resumes_the_waiting_workflow():
+    engine, workflows = ApprovalEngine(), FakeWorkflows()
+    client = client_with_workflows(workflows, engine)
+    request = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-1", DRAFT, requested_by="agent-3")
+    url = f"/approvals/{request.id}/decision"
+
+    assert client.post(url, json={"action": "reject"}, headers=as_user(BD)).status_code == 409
+    assert workflows.resumed == []  # refused decisions resume nothing
+    client.post(url, json={"action": "approve"}, headers=as_user(BD))
+    assert workflows.resumed == [request.id]
+
+
+def test_workflow_failure_does_not_undo_the_decision():
+    engine, workflows = ApprovalEngine(), FakeWorkflows(fail=True)
+    client = client_with_workflows(workflows, engine)
+    request = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-1", DRAFT, requested_by="agent-3")
+    response = client.post(
+        f"/approvals/{request.id}/decision", json={"action": "approve"}, headers=as_user(BD)
+    )
+    assert response.status_code == 200
+    assert engine.get(request.id).status == "approved"
+    assert workflows.resumed == [request.id]

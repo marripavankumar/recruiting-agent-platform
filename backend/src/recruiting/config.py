@@ -37,3 +37,5 @@ class Settings(BaseSettings):
 
     # Outreach is off outside prod unless explicitly allowed (environment plan section 2).
     outreach_enabled: bool = False
+    # Test environment: when set, outreach goes only to these addresses (JSON list).
+    outreach_allow_list: list[str] = []

@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from recruiting.api import approvals
+from recruiting.api import admin, approvals
 from recruiting.api.services import Services
 
 
@@ -13,4 +13,5 @@ def create_app(services: Services, environment: str = "local") -> FastAPI:
         return {"status": "ok", "environment": environment}
 
     app.include_router(approvals.router)
+    app.include_router(admin.router)
     return app
