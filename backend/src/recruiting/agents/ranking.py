@@ -74,7 +74,7 @@ _SPONSORSHIP_NEEDED = re.compile(
 _SPONSORSHIP_FREE = re.compile(
     r"\b(us citizen|u\.s\. citizen|citizen|green card|permanent resident|gc holder|ead)\b", re.I
 )
-_NO_SPONSORSHIP_JOB = re.compile(
+NO_SPONSORSHIP_JOB = re.compile(
     r"\b(citizen|green card|no sponsorship|without sponsorship|clearance)\b", re.I
 )
 _DEGREES = [
@@ -309,7 +309,7 @@ class CandidateRankingAgent:
         if must_cov < weights.min_must_have_coverage:
             excluded = f"Has under {weights.min_must_have_coverage:.0%} of the must-have skills"
         sponsorship = needs_sponsorship(candidate)
-        if job.visa_requirements and _NO_SPONSORSHIP_JOB.search(job.visa_requirements):
+        if job.visa_requirements and NO_SPONSORSHIP_JOB.search(job.visa_requirements):
             if sponsorship:
                 excluded = (
                     excluded or f"Needs visa sponsorship; job requires: {job.visa_requirements}"

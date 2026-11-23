@@ -11,6 +11,7 @@ from typing import Any
 from recruiting.agents.candidate_outreach import CandidateOutreachAgent
 from recruiting.agents.candidate_search import CandidateSearchAgent, CandidateSource
 from recruiting.agents.client_outreach import ClientOutreachAgent, SenderProfile, WorkflowStarter
+from recruiting.agents.client_submission import ClientSubmissionAgent
 from recruiting.agents.discovery import CompanyDiscoveryAgent, CompanySource
 from recruiting.agents.hiring_signals import (
     CareerPageFetcher,
@@ -19,6 +20,7 @@ from recruiting.agents.hiring_signals import (
 )
 from recruiting.agents.jd_analysis import JDAnalysisAgent
 from recruiting.agents.jd_intake import JDIntakeAgent
+from recruiting.agents.matching import ResumeMatchingAgent
 from recruiting.agents.ranking import CandidateRankingAgent
 from recruiting.agents.resume_collection import ResumeCollectionAgent
 from recruiting.agents.resume_intake import ResumeIntake
@@ -47,6 +49,7 @@ from recruiting.records.rankings import (
     RankingStore,
     WeightsStore,
 )
+from recruiting.records.submissions import InMemorySubmissions, SubmissionStore
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +75,7 @@ class Platform:
     engagements: EngagementStore
     candidate_outreach: CandidateOutreachAgent | None  # needs approvals and workflows
     resume_collection: ResumeCollectionAgent
+    submissions: ClientSubmissionAgent
     inbound_webhook_secret: str | None = None
 
 
@@ -112,6 +116,7 @@ def build_platform(
     candidate_sources: list[CandidateSource] | None = None,
     engagements: EngagementStore | None = None,
     approvals: ApprovalEngine | None = None,
+    submissions: SubmissionStore | None = None,
 ) -> Platform:
     companies = companies or InMemoryCompanies()
     jobs = jobs or InMemoryJobs()
@@ -150,6 +155,12 @@ def build_platform(
     resume_collection = ResumeCollectionAgent(
         candidates, jobs, engagements, resume_intake, workflows, opt_outs, deliveries, unsubscribe,
         settings.public_base_url, settings.outreach_postal_address,
+    )  # fmt: skip
+
+    submission_agent = ClientSubmissionAgent(
+        companies, jobs, candidates, engagements, submissions or InMemorySubmissions(),
+        ResumeMatchingAgent(ranking_agent, gateway, HashingEmbedder(), _log_llm_error),
+        approvals, deliveries, workflows,
     )  # fmt: skip
 
     outreach_agent = None
@@ -194,5 +205,6 @@ def build_platform(
         engagements=engagements,
         candidate_outreach=candidate_outreach,
         resume_collection=resume_collection,
+        submissions=submission_agent,
         inbound_webhook_secret=settings.inbound_webhook_secret,
     )

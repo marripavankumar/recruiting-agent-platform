@@ -1,6 +1,15 @@
 from fastapi import FastAPI
 
-from recruiting.api import admin, approvals, candidates, companies, engagement, inbound, jobs
+from recruiting.api import (
+    admin,
+    approvals,
+    candidates,
+    companies,
+    engagement,
+    inbound,
+    jobs,
+    submissions,
+)
 from recruiting.api.services import Services
 
 
@@ -18,5 +27,6 @@ def create_app(services: Services, environment: str = "local") -> FastAPI:
     app.include_router(jobs.router)
     app.include_router(candidates.router)
     app.include_router(engagement.router)
+    app.include_router(submissions.router)
     app.include_router(inbound.router)
     return app

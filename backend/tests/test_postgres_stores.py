@@ -371,3 +371,57 @@ def test_engagement_store(connect):
         engagement.id
     ]
     assert store.for_candidate(candidate.id)[0].history[0]["event"] == "drafted"
+
+
+def test_submission_store(connect):
+    from datetime import UTC, datetime
+
+    from recruiting.approvals import ApprovalEngine
+    from recruiting.approvals.postgres import PostgresApprovalStore
+    from recruiting.domain import GateType
+    from recruiting.records.memory import new_id
+    from recruiting.records.models import (
+        Candidate,
+        ClientDecision,
+        Company,
+        Job,
+        Submission,
+        SubmissionStatus,
+    )
+    from recruiting.records.postgres import (
+        PostgresCandidates,
+        PostgresCompanies,
+        PostgresJobs,
+        PostgresSubmissions,
+    )
+
+    company = PostgresCompanies(connect).save(
+        Company(new_id(), "Sub Co", f"{new_id()}.example", "test")
+    )
+    job = PostgresJobs(connect).add(
+        Job(new_id(), f"JOB-2097-{new_id()[:4]}", company.id, "CAE Engineer")
+    )
+    candidate = PostgresCandidates(connect).save(Candidate(new_id(), "Priya", "ats"))
+    store = PostgresSubmissions(connect)
+    sub = Submission(new_id(), job.id, candidate.id, company.id,
+                     match={"score": 88, "flags": []}, package={"match_percent": 88},
+                     warnings=["Acknowledged: x"])  # fmt: skip
+    sub.log(datetime.now(UTC), "matched")
+    store.save(sub)
+    assert store.get(sub.id).match["score"] == 88
+
+    approval = ApprovalEngine(store=PostgresApprovalStore(connect)).submit(
+        GateType.RESUME_SUBMISSION, sub.id, {"subject": "s", "body": "b"}, "agent-11"
+    )
+    now = datetime.now(UTC)
+    sub.approval_request_id, sub.right_to_represent_at = approval.id, now
+    sub.status, sub.sent_at, sub.sent_content = SubmissionStatus.SUBMITTED, now, {"body": "b"}
+    sub.client_decision = ClientDecision.INTERVIEW
+    store.save(sub)
+    loaded = store.by_approval(approval.id)
+    assert loaded.status is SubmissionStatus.SUBMITTED
+    assert loaded.client_decision is ClientDecision.INTERVIEW
+    assert loaded.warnings == ["Acknowledged: x"] and loaded.history[0]["event"] == "matched"
+    listed = store.list(candidate_id=candidate.id, client_company_id=company.id)
+    assert [s.id for s in listed] == [sub.id]
+    assert store.list(job_id="not-a-uuid") == []

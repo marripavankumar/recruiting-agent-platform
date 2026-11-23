@@ -225,6 +225,7 @@ class EngagementStatus(StrEnum):
     DO_NOT_CONTACT = "do_not_contact"
     DETAILS_REQUESTED = "details_requested"  # Agent 9 request sent, items outstanding
     COMPLETE = "complete"  # resume, the eight details and consent received: ready for Agent 10
+    SUBMITTED = "submitted"  # Agent 11 sent the approved package to the client
 
 
 # Agent 9: what a candidate supplies before matching (BRD Agent 9).
@@ -252,6 +253,55 @@ class Engagement:
     missing: list[str] = field(default_factory=list)
     next_reminder_at: datetime | None = None  # picked up by Agent 12
     history: list[dict[str, Any]] = field(default_factory=list)
+    updated_at: datetime | None = None
+
+    def log(self, at: datetime, event: str, **details: Any) -> None:
+        self.history.append({"at": at.isoformat(), "event": event, **details})
+        self.updated_at = at
+
+
+class SubmissionStatus(StrEnum):
+    """Agents 10-11 and the recruiter approval step (plan section 10)."""
+
+    MATCHED = "matched"  # Agent 10 report ready; the recruiter reviews and edits the notes
+    PENDING_APPROVAL = "pending_approval"  # package waiting at the resume-submission gate
+    REJECTED = "rejected"  # the approver rejected it; nothing was sent, reason kept for tuning
+    SUBMITTED = "submitted"  # sent to the client; the sent version is kept for audit
+    FAILED = "failed"  # approved but the email could not be delivered
+    WITHDRAWN = "withdrawn"  # the recruiter withdrew it before approval
+
+
+class ClientDecision(StrEnum):
+    """Client portal feedback on a submission (Q8)."""
+
+    INTERVIEW = "interview"
+    HOLD = "hold"
+    REJECTED = "rejected"
+
+
+@dataclass
+class Submission:
+    id: str
+    job_id: str
+    candidate_id: str
+    client_company_id: str
+    status: SubmissionStatus = SubmissionStatus.MATCHED
+    # Agent 10: score, strengths, missing_skills, interview_probability, notes, flags ...
+    match: dict[str, Any] = field(default_factory=dict)
+    package: dict[str, Any] = field(default_factory=dict)  # Agent 11: the nine BRD items
+    recipient: str | None = None  # client hiring manager's email
+    approval_request_id: str | None = None
+    right_to_represent_at: datetime | None = None
+    right_to_represent_by: str | None = None
+    warnings: list[str] = field(default_factory=list)
+    rejection_reason: str | None = None
+    sent_at: datetime | None = None
+    sent_content: dict[str, str] = field(default_factory=dict)  # exactly what was sent
+    follow_up_at: datetime | None = None  # client follow-up, picked up by Agent 12
+    client_decision: ClientDecision | None = None
+    client_feedback: str | None = None
+    history: list[dict[str, Any]] = field(default_factory=list)
+    created_at: datetime | None = None
     updated_at: datetime | None = None
 
     def log(self, at: datetime, event: str, **details: Any) -> None:

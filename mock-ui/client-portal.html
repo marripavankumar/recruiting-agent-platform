@@ -17,7 +17,7 @@
   <div class="page-head">
     <div>
       <h1>Northfield Axle Systems</h1>
-      <p>Your open roles and the candidates CBS LLC has submitted. You see only your company's information. (Shown as it looks once the recruiter approves the pending submissions.)</p>
+      <p>Your open roles and the candidates CBS LLC has submitted, exactly as sent. You see only your company's information and only submissions that were approved and sent. <span class="built">Built in backend</span></p>
     </div>
     <div class="row">
       <a class="btn primary" href="#" data-toast="Upload or paste a job description; your CBS account manager is notified (mock)">Share a new job description</a>
@@ -41,6 +41,7 @@
           <div class="row" style="margin-top:8px" data-actions>
             <a class="btn sm" href="#" data-toast="Opens the resume and skill matrix (mock)">Resume &amp; skill matrix</a>
             <button class="btn sm ok" data-fb="Interview requested. Your account manager will schedule it.">Request interview</button>
+            <button class="btn sm" data-fb="On hold. CBS will check back with you in two days.">Hold</button>
             <button class="btn sm danger" data-fb="Thanks, we've noted it's not a fit.">Not a fit</button>
           </div>
         </div>
@@ -53,6 +54,7 @@
           <div class="row" style="margin-top:8px" data-actions>
             <a class="btn sm" href="#" data-toast="Opens the resume and skill matrix (mock)">Resume &amp; skill matrix</a>
             <button class="btn sm ok" data-fb="Interview requested. Your account manager will schedule it.">Request interview</button>
+            <button class="btn sm" data-fb="On hold. CBS will check back with you in two days.">Hold</button>
             <button class="btn sm danger" data-fb="Thanks, we've noted it's not a fit.">Not a fit</button>
           </div>
         </div>
@@ -86,9 +88,10 @@
 <script>
 document.querySelectorAll("[data-fb]").forEach((b) => b.addEventListener("click", () => {
   const actions = b.closest("[data-actions]");
-  actions.innerHTML = `<span class="chip ${b.classList.contains("ok") ? "ok" : ""}">${b.classList.contains("ok") ? "Interview requested" : "Marked not a fit"}</span>`;
+  const label = b.classList.contains("ok") ? "Interview requested" : b.classList.contains("danger") ? "Marked not a fit" : "On hold";
+  actions.innerHTML = `<span class="chip ${b.classList.contains("ok") ? "ok" : ""}">${label}</span>`;
   toast(b.dataset.fb);
-  const left = document.querySelectorAll("[data-sub] [data-fb]").length / 2;
+  const left = document.querySelectorAll("[data-sub] [data-fb]").length / 3;
   document.getElementById("waiting").textContent = left;
 }));
 </script>

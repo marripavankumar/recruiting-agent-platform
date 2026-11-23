@@ -18,36 +18,34 @@
     <div>
       <div class="crumbs"><a href="jobs.html">JOB-2026-0142</a> / Priya Natarajan</div>
       <h1>Match report &amp; submission package</h1>
-      <p>Agent 10 compared the resume with the JD; Agent 11 built the client package. Submission waits for your approval.</p>
+      <p>Agent 10 compared the resume with the JD (structured match, resume-to-JD similarity and an AI review). Agent 11 built the client package. Nothing reaches the client until the resume-submission gate is approved. <span class="built">Built in backend</span></p>
     </div>
     <div class="row">
-      <span class="chip warn">Awaiting recruiter approval</span>
-      <a class="btn" href="approvals.html">Review in approval queue</a>
+      <span class="chip" id="status-chip">Matched · ready for your review</span>
     </div>
   </div>
 
   <div class="grid cols-4" style="margin-bottom:16px">
-    <div class="card kpi"><div class="label">Match score</div><div class="value num">92%</div><div class="bar ok"><span style="width:92%"></span></div></div>
-    <div class="card kpi"><div class="label">Interview probability</div><div class="value num">High</div><div class="target">Similar profiles: 7 of 9 interviewed</div></div>
-    <div class="card kpi"><div class="label">Rate vs budget</div><div class="value num">$78 / h</div><div class="target">Client range $70–82 · within</div></div>
-    <div class="card kpi"><div class="label">Availability</div><div class="value num">2 weeks</div><div class="target">Start 9 Dec 2026</div></div>
+    <div class="card kpi"><div class="label">Match score</div><div class="value num">92%</div><div class="bar ok"><span style="width:92%"></span></div><div class="target">Structured 93 · JD similarity 0.86</div></div>
+    <div class="card kpi"><div class="label">Interview probability</div><div class="value num">64%</div><div class="target">Estimate; calibrated once Agent 12 records interview outcomes</div></div>
+    <div class="card kpi"><div class="label">Agent 10 flags</div><div class="value num">0</div><div class="target">Missing must-have or work authorisation would show here</div></div>
+    <div class="card kpi"><div class="label">Consent for this job</div><div class="value num">✓</div><div class="target">Secure link · 21 Nov 2026 (checklist P2)</div></div>
   </div>
 
   <div class="split">
     <div class="stack">
       <div class="card">
-        <div class="card-head"><h2>Skill matrix</h2><span class="faint">JD requirement vs resume evidence</span></div>
+        <div class="card-head"><h2>Skill matrix</h2><span class="faint">JD requirement vs resume</span></div>
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Requirement</th><th>Type</th><th>Evidence in resume</th><th>Fit</th></tr></thead>
+            <thead><tr><th>Skill</th><th>Type</th><th>In skills</th><th>In resume text</th></tr></thead>
             <tbody>
-              <tr><td>LS-DYNA</td><td>Must</td><td>8 years, daily use; model build to correlation</td><td><span class="chip ok">Strong</span></td></tr>
-              <tr><td>ANSA / HyperMesh</td><td>Must</td><td>ANSA (6 yrs), HyperMesh (4 yrs)</td><td><span class="chip ok">Strong</span></td></tr>
-              <tr><td>FMVSS 208 / 214</td><td>Must</td><td>Frontal and side load cases on 2 vehicle programs</td><td><span class="chip ok">Strong</span></td></tr>
-              <tr><td>Test correlation</td><td>Must</td><td>Led correlation for midsize SUV program</td><td><span class="chip ok">Strong</span></td></tr>
-              <tr><td>Primer</td><td>Nice</td><td>Mentioned in skills list</td><td><span class="chip info">Partial</span></td></tr>
-              <tr><td>EV battery enclosure</td><td>Nice</td><td>Side-pole impact optimisation, −11% mass</td><td><span class="chip ok">Strong</span></td></tr>
-              <tr><td>IIHS small overlap</td><td>Nice</td><td>Not found</td><td><span class="chip bad">Missing</span></td></tr>
+              <tr><td>LS-DYNA</td><td>Required</td><td><span class="chip ok">Yes</span></td><td>Yes</td></tr>
+              <tr><td>ANSA</td><td>Required</td><td><span class="chip ok">Yes</span></td><td>Yes</td></tr>
+              <tr><td>FMVSS</td><td>Required</td><td><span class="chip ok">Yes</span></td><td>Yes</td></tr>
+              <tr><td>HyperMesh</td><td>Preferred</td><td><span class="chip ok">Yes</span></td><td>Yes</td></tr>
+              <tr><td>Primer</td><td>Preferred</td><td><span class="chip ok">Yes</span></td><td>No</td></tr>
+              <tr><td>Python</td><td>Preferred</td><td><span class="chip bad">No</span></td><td>No</td></tr>
             </tbody>
           </table>
         </div>
@@ -57,50 +55,72 @@
         <div class="card">
           <div class="card-head"><h2>Strengths</h2></div>
           <ul class="list">
-            <li>Full-vehicle crash ownership on two programs</li>
-            <li>EV battery protection experience (growing need for client)</li>
-            <li>Lives 20 miles from Troy site; onsite OK</li>
+            <li>Has 3 of 3 must-have skills (LS-DYNA, ANSA, FMVSS)</li>
+            <li>8 years vs 5 required</li>
+            <li>Currently a CAE Engineer</li>
+            <li>Based in Novi, MI (same state)</li>
           </ul>
         </div>
         <div class="card">
-          <div class="card-head"><h2>Gaps to address</h2></div>
+          <div class="card-head"><h2>Concerns to check</h2></div>
           <ul class="list">
-            <li>No IIHS small-overlap work: mention willingness to ramp up</li>
+            <li>No IIHS small-overlap work in the resume</li>
             <li>Python scripting is light (macros only)</li>
           </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Other matches for this job</h2><span class="faint">Flagged candidates are shown, not dropped</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Candidate</th><th>Match</th><th>Agent 10 flags</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td><b>Wei Zhang</b></td><td class="num">89%</td><td><span class="faint">None</span></td><td><span class="chip ok">Submitted · 22 Nov</span></td></tr>
+              <tr><td><b>Raj Iyer</b></td><td class="num">61%</td><td><span class="tag miss">Missing must-have: ANSA</span><span class="tag miss">Needs visa sponsorship</span></td><td><span class="chip">Matched · recruiter decides</span></td></tr>
+              <tr><td><b>Tom Sandoval</b></td><td class="num">—</td><td><span class="faint">—</span></td><td><span class="chip bad">Blocked: already submitted to this client (JOB-2026-0128)</span></td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-head"><h2>Client package preview</h2><a class="btn sm" href="#" data-toast="Downloads the package as PDF (mock)">PDF</a></div>
+      <div class="card-head"><h2>Client package</h2><span class="faint">The nine BRD items</span></div>
       <div class="card-body stack" style="gap:12px">
         <div class="email">
-          <div class="email-meta"><b>To</b><span>Rachel Lee · Northfield Axle Systems</span><b>Subject</b><span>Submission: Priya Natarajan – CAE Engineer (Crash / LS-DYNA)</span></div>
+          <div class="email-meta"><b>To</b><span>Sam Lee, Crash Lead · Northfield Axle Systems (hiring manager on file)</span><b>Subject</b><span>Candidate submission: JOB-2026-0142 CAE Engineer – Crash – Priya Natarajan</span></div>
           <div class="email-body"><b>Candidate summary</b>
-Senior CAE Engineer with 8 years in automotive crash safety. Owns full-vehicle LS-DYNA models from build through test correlation, with FMVSS 208/214 load cases on two vehicle programs and recent EV battery-enclosure impact work.
+Priya Natarajan is currently a CAE Engineer at Lakeside Automotive. 8 years of engineering experience. Has 3 of 3 must-have skills for this role. MS Mechanical Engineering.
 
 <b>Key projects</b>
 • Frontal crash correlation, midsize SUV program
-• Battery enclosure side-pole impact optimisation (−11% mass)
+• Battery enclosure side-pole impact optimisation
 
-<b>Submission notes</b>
-Strong fit for all must-haves. No IIHS small-overlap work yet; keen to learn.</div>
+<b>Notes to the hiring manager</b> <span class="faint">(editable)</span>
+<span id="notes" contenteditable="true" style="outline:1px dashed var(--line);display:block;padding:4px">Hands-on with LS-DYNA, ANSA, FMVSS. Available 2 weeks, green card holder, based in Novi, MI.</span>
+<b>Resume</b>
+Included in full below the sign-off. Branded PDF / DOCX attachment: planned.</div>
         </div>
         <dl class="kv">
           <dt>Match</dt><dd>92%</dd>
-          <dt>Availability</dt><dd>2 weeks (start 9 Dec)</dd>
-          <dt>Rate</dt><dd>$78/h C2C</dd>
-          <dt>Work authorization</dt><dd>US citizen</dd>
-          <dt>Location</dt><dd>Novi, MI · onsite OK</dd>
-          <dt>Attachments</dt><dd><span class="tag">Resume (PDF, contact details removed)</span><span class="tag">Skill matrix</span></dd>
-          <dt>Consent</dt><dd><span class="chip ok">Candidate agreed to submission · 21 Nov 2026</span></dd>
+          <dt>Availability</dt><dd>2 weeks</dd>
+          <dt>Rate</dt><dd>$78/h C2C <span class="faint">(editable)</span></dd>
+          <dt>Visa</dt><dd>Green card holder</dd>
+          <dt>Location</dt><dd>Novi, MI</dd>
         </dl>
+        <div class="stack" style="gap:8px" id="approval-step">
+          <label class="row" style="gap:8px;align-items:flex-start"><input type="checkbox" id="rtr"> <span>The candidate agreed that CBS LLC represents them for this job (right to represent, required)</span></label>
+          <label class="faint" for="agency">Another agency known to have submitted this candidate? (shown to the approver as a warning)</label>
+          <input type="text" id="agency" placeholder="Agency name, if known">
+        </div>
       </div>
-      <div class="card-foot">
-        <a class="btn danger" href="#" data-toast="Rejected with reason; the candidate is not submitted (mock)">Reject</a>
-        <a class="btn" href="#" data-toast="Summary becomes editable (mock)">Edit summary</a>
-        <a class="btn ok" href="#" data-toast="Approved and submitted. The client sees it in their portal (mock)">Approve and submit</a>
+      <div class="card-foot" style="justify-content:space-between">
+        <a class="btn" href="#" data-toast="Withdrawn: the package is not sent (mock)">Withdraw</a>
+        <div class="row">
+          <a class="btn" href="#" data-toast="Notes and rate saved (mock)">Save edits</a>
+          <button class="btn primary" id="send">Send for approval</button>
+        </div>
       </div>
     </div>
   </div>
@@ -108,5 +128,18 @@ Strong fit for all must-haves. No IIHS small-overlap work yet; keen to learn.</d
 </main>
 </div>
 </div>
+<script>
+document.getElementById("send").addEventListener("click", () => {
+  if (!document.getElementById("rtr").checked) {
+    toast("Confirm the right to represent first.");
+    return;
+  }
+  const chip = document.getElementById("status-chip");
+  chip.textContent = "Pending approval · resume-submission gate";
+  chip.className = "chip warn";
+  document.getElementById("send").outerHTML = '<a class="btn primary" href="approvals.html">Open approval queue</a>';
+  toast("In the approval queue. Once approved, Agent 11 emails the hiring manager, keeps the sent copy and sets a client follow-up for Agent 12.");
+});
+</script>
 </body>
 </html>

@@ -129,6 +129,8 @@ Main endpoints (all need sign-in except the last two):
 | Jobs (Agents 4-5) | `GET /jobs`, `GET /jobs/{id}`, `PATCH /jobs/{id}`, `GET /jobs/search?q=` | Staff; Clients see own jobs; edit: Admin, Account, Recruiter |
 | Candidates (Agents 6-7) | `POST /candidates`, `GET /candidates`, `GET /candidates/{id}`, `POST` / `GET /jobs/{id}/ranking`, `POST /jobs/{id}/ranking/{candidate_id}/review`, `POST /jobs/{id}/ranking/{candidate_id}/move` | Admin, Recruiter, Account |
 | Engagement (Agents 8-9) | `POST /jobs/{id}/outreach`, `GET /jobs/{id}/engagements`, `POST /engagements/{id}/outcome`, `POST /engagements/{id}/request-details`, `GET /linkedin-tasks`, `POST /linkedin-tasks/{approval_id}/sent` | Admin, Recruiter (Account: view) |
+| Matching and submission (Agents 10-11) | `POST /jobs/{id}/submissions`, `GET /jobs/{id}/submissions`, `GET` / `PATCH /submissions/{id}`, `POST /submissions/{id}/request-approval`, `POST /submissions/{id}/withdraw` | Admin, Recruiter, Account Manager (request approval: Admin, Recruiter) |
+| Client portal submissions | `GET /client/submissions`, `POST /client/submissions/{id}/feedback` | Client (own company) |
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
 | Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |

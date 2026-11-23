@@ -25,7 +25,7 @@ Use **Viewing as** at the top right to switch role. The sidebar, the approval qu
 | Candidate ranking: Top 20, 0–100 score, strengths and gaps, hard-filter exclusions, recruiter verdicts, add resumes | `candidates.html` | Agents 6–7 | Recruiter, Account, Admin |
 | Engagement & LinkedIn: approved notes to send by hand (Q15), outcomes, resume and consent collection, completion rate | `linkedin-tasks.html` | Agents 8–9 | Recruiter, Account, Admin |
 | Candidate secure link: resume, details and two consents (public, expiring) | `collect.html` | Agent 9, checklist P1–P2 | Candidate |
-| Match report & client submission package | `match.html` | Agents 10–11 | Recruiter, Account, Admin |
+| Match report (score, flags, interview probability) and the nine-item client package; right to represent, then the submission gate | `match.html` | Agents 10–11 | Recruiter, Account, Admin |
 | Follow-ups: reminders for clients, candidates, interviews, offers, start dates | `followups.html` | Agent 12 | All staff |
 | Users & approvers, approval-gate policy, connectors, LLM cost per prompt, ranking weights, audit log | `admin.html` | §9 roles, Q14, §5.4 | Administrator |
 | Client portal: own company's roles and submissions, feedback | `client-portal.html` | Q8 | Client |

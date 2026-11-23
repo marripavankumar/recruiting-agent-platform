@@ -12,6 +12,7 @@ from recruiting.db import Connect, is_uuid
 from recruiting.records.memory import normalize_domain
 from recruiting.records.models import (
     Candidate,
+    ClientDecision,
     Company,
     ConsentBasis,
     ConsentStatus,
@@ -26,6 +27,8 @@ from recruiting.records.models import (
     Priority,
     RankedCandidate,
     Ranking,
+    Submission,
+    SubmissionStatus,
     Verdict,
 )
 from recruiting.records.rankings import (
@@ -666,3 +669,97 @@ class PostgresEngagements:
                 ),
             )  # fmt: skip
         return engagement
+
+
+_SUBMISSION = """id::text, job_id::text, candidate_id::text, client_company_id::text, status, match,
+    package, recipient, approval_request_id::text, right_to_represent_at, right_to_represent_by,
+    warnings, rejection_reason, sent_at, sent_content, follow_up_at, client_decision,
+    client_feedback, history, created_at, updated_at"""
+
+
+class PostgresSubmissions:
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    @staticmethod
+    def _row(row: tuple) -> Submission:
+        values = list(row)
+        values[4] = SubmissionStatus(values[4])
+        values[11] = list(values[11] or [])
+        values[16] = ClientDecision(values[16]) if values[16] else None
+        return Submission(*values)
+
+    def _query(self, where: str, params: tuple) -> list[Submission]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT {_SUBMISSION} FROM client_submission WHERE {where}"
+                " ORDER BY created_at DESC",
+                params,
+            ).fetchall()
+        return [self._row(r) for r in rows]
+
+    def get(self, submission_id: str) -> Submission | None:
+        if not is_uuid(submission_id):
+            return None
+        return next(iter(self._query("id = %s", (submission_id,))), None)
+
+    def by_approval(self, approval_request_id: str) -> Submission | None:
+        if not is_uuid(approval_request_id):
+            return None
+        return next(iter(self._query("approval_request_id = %s", (approval_request_id,))), None)
+
+    def list(
+        self,
+        job_id: str | None = None,
+        candidate_id: str | None = None,
+        client_company_id: str | None = None,
+        status: SubmissionStatus | None = None,
+    ) -> list[Submission]:
+        ids = (job_id, candidate_id, client_company_id)
+        if any(i is not None and not is_uuid(i) for i in ids):
+            return []
+        value = status.value if status else None
+        return self._query(
+            "(%s::uuid IS NULL OR job_id = %s::uuid)"
+            " AND (%s::uuid IS NULL OR candidate_id = %s::uuid)"
+            " AND (%s::uuid IS NULL OR client_company_id = %s::uuid)"
+            " AND (%s::text IS NULL OR status = %s)",
+            (job_id, job_id, candidate_id, candidate_id, client_company_id, client_company_id,
+             value, value),
+        )  # fmt: skip
+
+    def save(self, submission: Submission) -> Submission:
+        s = submission
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO client_submission (id, job_id, candidate_id, client_company_id,
+                    status, match, package, recipient, approval_request_id,
+                    right_to_represent_at, right_to_represent_by, warnings, rejection_reason,
+                    sent_at, sent_content, follow_up_at, client_decision, client_feedback,
+                    history, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, coalesce(%s, now()), coalesce(%s, now()))
+                ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status,
+                    match = EXCLUDED.match, package = EXCLUDED.package,
+                    recipient = EXCLUDED.recipient,
+                    approval_request_id = EXCLUDED.approval_request_id,
+                    right_to_represent_at = EXCLUDED.right_to_represent_at,
+                    right_to_represent_by = EXCLUDED.right_to_represent_by,
+                    warnings = EXCLUDED.warnings, rejection_reason = EXCLUDED.rejection_reason,
+                    sent_at = EXCLUDED.sent_at, sent_content = EXCLUDED.sent_content,
+                    follow_up_at = EXCLUDED.follow_up_at,
+                    client_decision = EXCLUDED.client_decision,
+                    client_feedback = EXCLUDED.client_feedback, history = EXCLUDED.history,
+                    updated_at = EXCLUDED.updated_at
+                """,
+                (
+                    s.id, s.job_id, s.candidate_id, s.client_company_id, s.status.value,
+                    Jsonb(s.match), Jsonb(s.package), s.recipient, s.approval_request_id,
+                    s.right_to_represent_at, s.right_to_represent_by, s.warnings,
+                    s.rejection_reason, s.sent_at, Jsonb(s.sent_content), s.follow_up_at,
+                    s.client_decision.value if s.client_decision else None, s.client_feedback,
+                    Jsonb(s.history), s.created_at, s.updated_at,
+                ),
+            )  # fmt: skip
+        return submission

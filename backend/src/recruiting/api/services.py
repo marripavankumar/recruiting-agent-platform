@@ -106,6 +106,7 @@ def build_services(settings: Settings) -> Services:
         PostgresEngagements,
         PostgresJobs,
         PostgresRankings,
+        PostgresSubmissions,
         PostgresUsageLedger,
         PostgresWeights,
     )
@@ -129,6 +130,7 @@ def build_services(settings: Settings) -> Services:
         rankings=PostgresRankings(connect),
         ranking_weights=PostgresWeights(connect),
         engagements=PostgresEngagements(connect),
+        submissions=PostgresSubmissions(connect),
         approvals=approvals,
     )
     return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)

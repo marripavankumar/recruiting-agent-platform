@@ -209,7 +209,47 @@ RESUME_PARSE = PromptTemplate(
 )
 
 
+# ----- Agent 10: resume matching review ------------------------------------------------------
+
+
+class MatchReview(BaseModel):
+    strengths: list[str] = Field(description="Up to 5 evidence-based strengths for this JD")
+    concerns: list[str] = Field(description="Up to 5 gaps or risks the recruiter should check")
+    key_projects: list[str] = Field(description="Up to 3 resume projects most relevant to the JD")
+    summary: str = Field(description="Candidate summary for the client, 2-3 sentences")
+    submission_notes: str = Field(
+        description="Notes to the hiring manager, under 90 words, facts from the resume only"
+    )
+
+
+MATCH_REVIEW = PromptTemplate(
+    name="match_review",
+    version=1,
+    effort="medium",
+    max_tokens=6000,
+    output=MatchReview,
+    system=(
+        "You review how well an engineering candidate fits a job for CBS LLC, a staffing "
+        "company. A recruiter edits and approves everything before a client sees it. Compare "
+        "the resume with the job description and the structured match provided. Use only facts "
+        "in the resume and JD; never invent employers, years, certifications or results. Name "
+        "missing must-have skills plainly in the concerns rather than hiding them. Do not "
+        "mention or infer age, gender, nationality, ethnicity, religion, marital status or "
+        "health. Write the summary and notes in a neutral, professional tone for a hiring "
+        "manager; plain text, no markdown. Do not state a match percentage: the platform adds it."
+    ),
+    user=(
+        "Job: $title ($job_code)\nClient industry: $industry\nLocation: $location\n"
+        "Must-have skills: $must\nNice-to-have skills: $nice\n\nJob description:\n$jd\n\n"
+        "Structured match (platform): $structured\n\nResume:\n$resume"
+    ),
+)
+
+
 def default_registry() -> PromptRegistry:
     return PromptRegistry(
-        [FIRST_CLIENT_EMAIL, REPLY_CLASSIFICATION, JD_EXTRACTION, JD_ANALYSIS, RESUME_PARSE]
-    )
+        [
+            FIRST_CLIENT_EMAIL, REPLY_CLASSIFICATION, JD_EXTRACTION, JD_ANALYSIS, RESUME_PARSE,
+            MATCH_REVIEW,
+        ]
+    )  # fmt: skip
