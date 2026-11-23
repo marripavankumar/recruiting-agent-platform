@@ -127,7 +127,8 @@ Main endpoints (all need sign-in except the last two):
 | Approval queue | `GET /approvals/pending`, `GET /approvals/{id}`, `POST /approvals/{id}/decision` | Staff, per gate policy |
 | Companies (Agents 1-3) | `GET /companies`, `GET /companies/{id}`, `POST /companies/import`, `POST /companies/hiring-signals`, `POST /companies/outreach-drafts` | View: Admin, BD, Sales, Account; run: Admin, BD |
 | Jobs (Agents 4-5) | `GET /jobs`, `GET /jobs/{id}`, `PATCH /jobs/{id}`, `GET /jobs/search?q=` | Staff; Clients see own jobs; edit: Admin, Account, Recruiter |
-| Administration | `/admin/users`, `/admin/gate-policies`, `GET /admin/llm-usage` | Administrator |
+| Candidates (Agents 6-7) | `POST /candidates`, `GET /candidates`, `GET /candidates/{id}`, `POST` / `GET /jobs/{id}/ranking`, `POST /jobs/{id}/ranking/{candidate_id}/review`, `POST /jobs/{id}/ranking/{candidate_id}/move` | Admin, Recruiter, Account |
+| Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
 | Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |
 | Unsubscribe | `GET` / `POST /unsubscribe?token=` | Public (signed link) |
 

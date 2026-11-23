@@ -27,6 +27,7 @@
     <a href="#gates" data-tab="gates">Approval gates</a>
     <a href="#connectors" data-tab="connectors">Connectors</a>
     <a href="#llm" data-tab="llm">LLM usage</a>
+    <a href="#ranking" data-tab="ranking">Ranking weights</a>
     <a href="#audit" data-tab="audit">Audit log</a>
   </div>
 
@@ -96,6 +97,19 @@
         </table>
       </div>
       <div class="card-foot" style="justify-content:flex-start"><span class="faint">A new prompt version gets its own row, so the cost and quality of each wording change can be compared.</span></div>
+    </div>
+  </section>
+
+  <section data-panel="ranking" style="display:none">
+    <div class="card">
+      <div class="card-head"><h2>Candidate ranking weights (Agent 7)</h2><span class="built">Built in backend</span></div>
+      <div class="card-body stack">
+        <p class="faint" style="margin:0">Each candidate gets 0–1 on every component; the score is the weighted average × 100. Weights need not add up to 100. Changes apply to the next ranking run; recruiter verdicts are kept.</p>
+        <div id="weights"></div>
+        <div class="meter" style="grid-template-columns:260px 1fr 60px"><span><b>Hard filter</b>: minimum share of must-have skills</span><input type="range" min="0" max="100" value="50" id="w-must" aria-label="Minimum must-have coverage"><b class="num" id="w-must-v">50%</b></div>
+        <p class="faint" style="margin:0">Also a hard filter: candidates who need visa sponsorship are excluded when the job asks for citizens or green-card holders. Names, photos and other protected attributes are never scoring inputs.</p>
+      </div>
+      <div class="card-foot"><button class="btn" id="w-reset">Reset to plan defaults</button><button class="btn primary" id="w-save">Save weights</button></div>
     </div>
   </section>
 
@@ -207,6 +221,21 @@ document.querySelectorAll("#tabs a").forEach((a) => a.addEventListener("click", 
 
 renderUsers();
 renderGates();
+
+const WEIGHTS = [["Skill match", 25], ["Industry match", 10], ["Years experience", 10], ["Project similarity", 10], ["Recent experience", 10],
+  ["Location", 8], ["Availability", 8], ["Education", 7], ["Resume quality", 7], ["Communication (reply speed, completeness, recruiter rating)", 5]];
+function renderWeights(values) {
+  document.getElementById("weights").innerHTML = WEIGHTS.map(([label], i) => `
+    <div class="meter" style="grid-template-columns:260px 1fr 60px"><span>${label}</span><input type="range" min="0" max="50" value="${values[i]}" data-w="${i}" aria-label="${label}"><b class="num" id="wv-${i}">${values[i]}</b></div>`).join("");
+  document.querySelectorAll("[data-w]").forEach((r) => r.oninput = () => { document.getElementById(`wv-${r.dataset.w}`).textContent = r.value; });
+}
+renderWeights(WEIGHTS.map((w) => w[1]));
+document.getElementById("w-must").oninput = (e) => { document.getElementById("w-must-v").textContent = `${e.target.value}%`; };
+document.getElementById("w-reset").onclick = () => { renderWeights(WEIGHTS.map((w) => w[1])); toast("Reset to the plan's starting weights"); };
+document.getElementById("w-save").onclick = () => {
+  const total = [...document.querySelectorAll("[data-w]")].reduce((sum, r) => sum + +r.value, 0);
+  toast(total ? "Weights saved and logged. They apply to the next ranking run." : "At least one weight must be above zero");
+};
 </script>
 </body>
 </html>

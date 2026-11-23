@@ -6,6 +6,7 @@ from typing import Any
 
 from psycopg.types.json import Jsonb
 
+from recruiting.agents.ranking import RankingWeights
 from recruiting.ai.llm import UsageRecord
 from recruiting.db import Connect, is_uuid
 from recruiting.records.memory import normalize_domain
@@ -21,6 +22,15 @@ from recruiting.records.models import (
     JobStatus,
     OutreachStatus,
     Priority,
+    RankedCandidate,
+    Ranking,
+    Verdict,
+)
+from recruiting.records.rankings import (
+    UnknownRankingEntry,
+    apply_move,
+    carry_over_reviews,
+    weights_dict,
 )
 
 _COMPANY = """id::text, name, domain, source, industry, revenue_usd, employees, country, locations,
@@ -314,7 +324,8 @@ class PostgresJobs:
 
 _CANDIDATE = """id::text, full_name, source, email, phone, linkedin_url, current_location,
     preferred_location, skills, projects, experience_years, availability, notice_period,
-    visa_status, work_authorization, expected_rate, resume_text, consent_status"""
+    visa_status, work_authorization, expected_rate, resume_text, consent_status, education,
+    industries, work_history, communication"""
 
 
 class PostgresCandidates:
@@ -328,28 +339,68 @@ class PostgresCandidates:
         values[9] = list(values[9] or [])
         values[10] = float(values[10]) if values[10] is not None else None
         values[17] = ConsentStatus(values[17])
+        values[19] = list(values[19] or [])
+        values[20] = list(values[20] or [])
+        values[21] = dict(values[21] or {})
         return Candidate(*values)
 
-    def add(self, candidate: Candidate) -> Candidate:
+    def save(self, candidate: Candidate) -> Candidate:
+        c = candidate
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO candidate (id, full_name, source, email, phone, linkedin_url,
                     current_location, preferred_location, skills, projects, experience_years,
                     availability, notice_period, visa_status, work_authorization, expected_rate,
-                    resume_text, consent_status)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    resume_text, consent_status, education, industries, work_history, communication)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name,
+                    email = EXCLUDED.email, phone = EXCLUDED.phone,
+                    linkedin_url = EXCLUDED.linkedin_url,
+                    current_location = EXCLUDED.current_location,
+                    preferred_location = EXCLUDED.preferred_location, skills = EXCLUDED.skills,
+                    projects = EXCLUDED.projects, experience_years = EXCLUDED.experience_years,
+                    availability = EXCLUDED.availability, notice_period = EXCLUDED.notice_period,
+                    visa_status = EXCLUDED.visa_status,
+                    work_authorization = EXCLUDED.work_authorization,
+                    expected_rate = EXCLUDED.expected_rate, resume_text = EXCLUDED.resume_text,
+                    consent_status = EXCLUDED.consent_status, education = EXCLUDED.education,
+                    industries = EXCLUDED.industries, work_history = EXCLUDED.work_history,
+                    communication = EXCLUDED.communication, updated_at = now()
                 """,
                 (
-                    candidate.id, candidate.full_name, candidate.source, candidate.email,
-                    candidate.phone, candidate.linkedin_url, candidate.current_location,
-                    candidate.preferred_location, candidate.skills, Jsonb(candidate.projects),
-                    candidate.experience_years, candidate.availability, candidate.notice_period,
-                    candidate.visa_status, candidate.work_authorization, candidate.expected_rate,
-                    candidate.resume_text, candidate.consent_status.value,
+                    c.id, c.full_name, c.source, c.email, c.phone, c.linkedin_url,
+                    c.current_location, c.preferred_location, c.skills, Jsonb(c.projects),
+                    c.experience_years, c.availability, c.notice_period, c.visa_status,
+                    c.work_authorization, c.expected_rate, c.resume_text, c.consent_status.value,
+                    c.education, c.industries, Jsonb(c.work_history), Jsonb(c.communication),
                 ),
             )  # fmt: skip
         return candidate
+
+    def add(self, candidate: Candidate) -> Candidate:
+        return self.save(candidate)
+
+    def find_duplicate(
+        self, email: str | None, phone_digits: str | None, linkedin_slug: str | None
+    ) -> Candidate | None:
+        with self._connect() as conn:
+            row = conn.execute(
+                f"""
+                SELECT {_CANDIDATE} FROM candidate
+                WHERE (%(email)s::text IS NOT NULL AND lower(email) = lower(%(email)s))
+                   OR (%(phone)s::text IS NOT NULL
+                       AND right(regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g'), 10)
+                           = %(phone)s)
+                   OR (%(slug)s::text IS NOT NULL
+                       AND lower(rtrim(split_part(linkedin_url, 'linkedin.com/in/', 2), '/'))
+                           = %(slug)s)
+                ORDER BY created_at LIMIT 1
+                """,
+                {"email": email, "phone": phone_digits, "slug": linkedin_slug},
+            ).fetchone()
+        return self._candidate(row) if row else None
 
     def get(self, candidate_id: str) -> Candidate | None:
         if not is_uuid(candidate_id):
@@ -366,6 +417,128 @@ class PostgresCandidates:
                 f"SELECT {_CANDIDATE} FROM candidate ORDER BY created_at DESC LIMIT %s", (limit,)
             ).fetchall()
         return [self._candidate(r) for r in rows]
+
+
+class PostgresRankings:
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    def save(self, ranking: Ranking) -> Ranking:
+        ranking = carry_over_reviews(self.get(ranking.job_id), ranking)
+        with self._connect() as conn:
+            conn.execute("DELETE FROM candidate_ranking WHERE job_id = %s", (ranking.job_id,))
+            conn.execute(
+                "INSERT INTO candidate_ranking (job_id, ranked_at, weights, searched)"
+                " VALUES (%s, %s, %s, %s)",
+                (ranking.job_id, ranking.ranked_at, Jsonb(ranking.weights), ranking.searched),
+            )
+            for e in ranking.candidates:
+                conn.execute(
+                    """
+                    INSERT INTO candidate_ranking_entry (job_id, candidate_id, score, components,
+                        strengths, gaps, rank, excluded_reason, verdict, note)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        ranking.job_id, e.candidate_id, e.score, Jsonb(e.components),
+                        Jsonb(e.strengths), Jsonb(e.gaps), e.rank, e.excluded_reason,
+                        e.verdict.value if e.verdict else None, e.note,
+                    ),
+                )  # fmt: skip
+        return ranking
+
+    def get(self, job_id: str) -> Ranking | None:
+        if not is_uuid(job_id):
+            return None
+        with self._connect() as conn:
+            head = conn.execute(
+                "SELECT ranked_at, weights, searched FROM candidate_ranking WHERE job_id = %s",
+                (job_id,),
+            ).fetchone()
+            if head is None:
+                return None
+            rows = conn.execute(
+                """
+                SELECT candidate_id::text, score, components, strengths, gaps, rank,
+                       excluded_reason, verdict, note
+                FROM candidate_ranking_entry WHERE job_id = %s
+                ORDER BY rank NULLS LAST, score DESC
+                """,
+                (job_id,),
+            ).fetchall()
+        entries = [
+            RankedCandidate(cid, score, dict(comp), list(st), list(gp), rank, excl,
+                            Verdict(verdict) if verdict else None, note)
+            for cid, score, comp, st, gp, rank, excl, verdict, note in rows
+        ]  # fmt: skip
+        return Ranking(job_id, head[0], dict(head[1]), entries, head[2])
+
+    def review(
+        self, job_id: str, candidate_id: str, verdict: Verdict, note: str | None, by: str
+    ) -> RankedCandidate:
+        if not (is_uuid(job_id) and is_uuid(candidate_id)):
+            raise UnknownRankingEntry(candidate_id)
+        with self._connect() as conn:
+            updated = conn.execute(
+                """
+                UPDATE candidate_ranking_entry
+                SET verdict = %s, note = %s, reviewed_by = %s, reviewed_at = now()
+                WHERE job_id = %s AND candidate_id = %s
+                """,
+                (verdict.value, note, by, job_id, candidate_id),
+            ).rowcount
+            if updated:
+                conn.execute(
+                    "INSERT INTO audit_log (actor, action, entity_type, entity_id, details)"
+                    " VALUES (%s, 'ranking.review', 'job', %s, %s)",
+                    (by, job_id, Jsonb({"candidate_id": candidate_id, "verdict": verdict.value})),
+                )
+        if not updated:
+            raise UnknownRankingEntry(candidate_id)
+        ranking = self.get(job_id)
+        return next(c for c in ranking.candidates if c.candidate_id == candidate_id)
+
+    def move(self, job_id: str, candidate_id: str, new_rank: int) -> Ranking:
+        ranking = self.get(job_id)
+        if ranking is None:
+            raise UnknownRankingEntry(job_id)
+        ranking = apply_move(ranking, candidate_id, new_rank)
+        with self._connect() as conn:
+            for e in ranking.candidates:
+                conn.execute(
+                    "UPDATE candidate_ranking_entry SET rank = %s"
+                    " WHERE job_id = %s AND candidate_id = %s",
+                    (e.rank, job_id, e.candidate_id),
+                )
+        return ranking
+
+
+class PostgresWeights:
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    def get(self) -> RankingWeights:
+        with self._connect() as conn:
+            row = conn.execute("SELECT weights FROM ranking_settings WHERE id").fetchone()
+        return RankingWeights(**row[0]) if row else RankingWeights()
+
+    def save(self, weights: RankingWeights, by: str) -> RankingWeights:
+        weights.validate()
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO ranking_settings (id, weights, updated_by) VALUES (true, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET weights = EXCLUDED.weights,
+                    updated_by = EXCLUDED.updated_by, updated_at = now()
+                """,
+                (Jsonb(weights_dict(weights)), by),
+            )
+            conn.execute(
+                "INSERT INTO audit_log (actor, action, entity_type, entity_id, details)"
+                " VALUES (%s, 'ranking_weights.update', 'ranking_settings', 'default', %s)",
+                (by, Jsonb(weights_dict(weights))),
+            )
+        return weights
 
 
 class PostgresUsageLedger:

@@ -163,3 +163,50 @@ class Candidate:
     expected_rate: str | None = None
     resume_text: str | None = None
     consent_status: ConsentStatus = ConsentStatus.NONE
+    # Added in Phase 4 (migration 0005).
+    education: str | None = None  # highest degree and field, e.g. "MS Mechanical Engineering"
+    industries: list[str] = field(default_factory=list)
+    # Most recent first: {"title", "company", "start_year", "end_year" (None = present)}
+    work_history: list[dict[str, Any]] = field(default_factory=list)
+    # Q9 inputs: {"reply_hours": float, "completeness": 0..1, "recruiter_rating": 1..5}
+    communication: dict[str, Any] = field(default_factory=dict)
+
+
+class Verdict(StrEnum):
+    """Recruiter review of a ranked candidate (Phase 4 exit criterion: >= 10 of 20 qualified)."""
+
+    QUALIFIED = "qualified"
+    NOT_QUALIFIED = "not_qualified"
+    EXCLUDED = "excluded"
+
+
+@dataclass
+class RankedCandidate:
+    candidate_id: str
+    score: int  # 0-100
+    components: dict[str, float]  # each BRD component, 0..1
+    strengths: list[str]
+    gaps: list[str]
+    rank: int | None = None  # None: excluded by a hard filter
+    excluded_reason: str | None = None
+    verdict: Verdict | None = None
+    note: str | None = None
+
+
+@dataclass
+class Ranking:
+    job_id: str
+    ranked_at: datetime
+    weights: dict[str, float]
+    candidates: list[RankedCandidate] = field(default_factory=list)  # ranked first, then excluded
+    searched: int = 0  # candidates considered by Agent 6
+
+    @property
+    def top(self) -> list[RankedCandidate]:
+        return [
+            c for c in self.candidates if c.rank is not None and c.verdict is not Verdict.EXCLUDED
+        ]
+
+    @property
+    def qualified_in_top_20(self) -> int:
+        return sum(1 for c in self.top[:20] if c.verdict is Verdict.QUALIFIED)

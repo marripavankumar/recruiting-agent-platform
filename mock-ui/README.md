@@ -22,11 +22,11 @@ Use **Viewing as** at the top right to switch role. The sidebar, the approval qu
 | Companies & outreach: list import, hiring signals and priority factors, contacts with CASL consent, drafting with skip reasons, email tracking and daily cap | `companies.html` | Agents 1–3 | BD, Sales, Account, Admin |
 | Client replies: reply categories, JD to job records, unsubscribes, unknown senders | `replies.html` | Agent 4 | BD, Account, Sales, Admin |
 | Job detail: extracted fields with confirm-to-review, search profile, semantic search, all jobs | `jobs.html` | Agents 4–5 | All staff |
-| Candidate ranking: Top 20, 0–100 score, reasons, score breakdown | `candidates.html` | Agents 6–7 | Recruiter, Account, Admin |
+| Candidate ranking: Top 20, 0–100 score, strengths and gaps, hard-filter exclusions, recruiter verdicts, add resumes | `candidates.html` | Agents 6–7 | Recruiter, Account, Admin |
 | LinkedIn tasks & resume collection (sent by hand, Q15) | `linkedin-tasks.html` | Agents 8–9 | Recruiter, Admin |
 | Match report & client submission package | `match.html` | Agents 10–11 | Recruiter, Account, Admin |
 | Follow-ups: reminders for clients, candidates, interviews, offers, start dates | `followups.html` | Agent 12 | All staff |
-| Users & approvers, approval-gate policy, connectors, LLM cost per prompt, audit log | `admin.html` | §9 roles, Q14, §5.4 | Administrator |
+| Users & approvers, approval-gate policy, connectors, LLM cost per prompt, ranking weights, audit log | `admin.html` | §9 roles, Q14, §5.4 | Administrator |
 | Client portal: own company's roles and submissions, feedback | `client-portal.html` | Q8 | Client |
 | Unsubscribe page behind the link in every email (public) | `unsubscribe.html` | Compliance E6–E7 | Anyone |
 | Build status: which screens are backed by working code | `build-status.html` | — | All staff |

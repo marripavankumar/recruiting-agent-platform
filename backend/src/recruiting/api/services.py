@@ -99,7 +99,9 @@ def build_services(settings: Settings) -> Services:
         PostgresCandidates,
         PostgresCompanies,
         PostgresJobs,
+        PostgresRankings,
         PostgresUsageLedger,
+        PostgresWeights,
     )
 
     connect = connection_factory(settings.database_url)
@@ -118,6 +120,8 @@ def build_services(settings: Settings) -> Services:
         jobs=PostgresJobs(connect),
         candidates=PostgresCandidates(connect),
         ledger=PostgresUsageLedger(connect),
+        rankings=PostgresRankings(connect),
+        ranking_weights=PostgresWeights(connect),
     )
     return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)
 

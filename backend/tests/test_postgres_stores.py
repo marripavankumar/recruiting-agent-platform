@@ -277,3 +277,61 @@ def test_delivery_log_tracking_and_cap_counts(engine, connect):
     log.record_reply(request.id, now)
     log.record_reply(request.id, now + timedelta(hours=1))  # first reply time is kept
     assert log.get(request.id).replied_at == now
+
+
+def test_candidates_rankings_and_weights(connect):
+    from datetime import UTC, datetime
+
+    from recruiting.agents.ranking import RankingWeights
+    from recruiting.records.memory import new_id
+    from recruiting.records.models import (
+        Candidate,
+        Company,
+        Job,
+        RankedCandidate,
+        Ranking,
+        Verdict,
+    )
+    from recruiting.records.postgres import (
+        PostgresCandidates,
+        PostgresCompanies,
+        PostgresJobs,
+        PostgresRankings,
+        PostgresWeights,
+    )
+
+    with connect() as conn:
+        for table in ("candidate_ranking", "candidate", "ranking_settings"):
+            conn.execute(f"DELETE FROM {table}")
+    candidates = PostgresCandidates(connect)
+    priya = Candidate(new_id(), "Priya", "ats", email="Priya@Mail.example", phone="+1 (313) 555-0101",
+                      linkedin_url="https://www.linkedin.com/in/priya-cae/", skills=["LS-DYNA"],
+                      industries=["Automotive"], work_history=[{"title": "CAE Engineer", "end_year": None}],
+                      communication={"recruiter_rating": 5})  # fmt: skip
+    candidates.save(priya)
+    loaded = candidates.get(priya.id)
+    assert loaded.industries == ["Automotive"] and loaded.communication == {"recruiter_rating": 5}
+    assert candidates.find_duplicate("priya@mail.EXAMPLE", None, None).id == priya.id
+    assert candidates.find_duplicate(None, "3135550101", None).id == priya.id
+    assert candidates.find_duplicate(None, None, "priya-cae").id == priya.id
+    assert candidates.find_duplicate("x@y.example", None, None) is None
+
+    company = PostgresCompanies(connect).save(
+        Company(new_id(), "Rank Co", f"{new_id()}.example", "test")
+    )
+    job = PostgresJobs(connect).add(
+        Job(new_id(), f"JOB-2099-{new_id()[:4]}", company.id, "CAE Engineer")
+    )
+    rankings = PostgresRankings(connect)
+    entry = RankedCandidate(priya.id, 91, {"skill_match": 1.0}, ["Has LS-DYNA"], [], rank=1)
+    rankings.save(Ranking(job.id, datetime.now(UTC), {"skill_match": 0.25}, [entry], searched=1))
+    rankings.review(job.id, priya.id, Verdict.QUALIFIED, "strong", "u-rec")
+    rerun = rankings.save(Ranking(job.id, datetime.now(UTC), {"skill_match": 0.25},
+                                  [RankedCandidate(priya.id, 93, {}, [], [], rank=1)], searched=1))  # fmt: skip
+    assert rerun.candidates[0].verdict is Verdict.QUALIFIED
+    assert rankings.get(job.id).qualified_in_top_20 == 1
+
+    weights = PostgresWeights(connect)
+    assert weights.get() == RankingWeights()
+    weights.save(RankingWeights(location=0.2), "u-admin")
+    assert weights.get().location == 0.2

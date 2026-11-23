@@ -159,5 +159,57 @@ JD_ANALYSIS = PromptTemplate(
 )
 
 
+# ----- Phase 4: resume parsing (feeds Agents 6, 7 and 10) ------------------------------------
+
+
+class WorkRole(BaseModel):
+    title: str
+    company: str | None
+    start_year: int | None
+    end_year: int | None = Field(description="null when the role is current")
+
+
+class ResumeProject(BaseModel):
+    title: str
+    description: str
+
+
+class ParsedResume(BaseModel):
+    full_name: str
+    email: str | None
+    phone: str | None
+    linkedin_url: str | None
+    current_location: str | None = Field(description="City, State/Province as written")
+    skills: list[str] = Field(description="Tools, software and methods, using standard names")
+    experience_years: float | None = Field(description="Total professional engineering years")
+    education: str | None = Field(
+        description="Highest degree and field, e.g. 'MS Mechanical Engineering'"
+    )
+    industries: list[str]
+    work_history: list[WorkRole] = Field(description="Most recent first")
+    projects: list[ResumeProject]
+    work_authorization: str | None = Field(description="Only if the resume states it")
+    availability: str | None = Field(description="Only if the resume states it")
+
+
+RESUME_PARSE = PromptTemplate(
+    name="resume_parse",
+    version=1,
+    effort="low",
+    max_tokens=8000,
+    output=ParsedResume,
+    system=(
+        "Extract structured data from an engineering resume for a staffing company's candidate "
+        "database. Copy facts as written; use null when the resume does not say. Use standard "
+        "tool names (LS-DYNA, ANSA, HyperMesh, SolidWorks, CATIA, Creo, NX, PLC, Rockwell, GD&T, "
+        "PFMEA, Six Sigma ...). Do not record age, date of birth, gender, marital status, "
+        "religion, nationality or photos: they must not influence candidate selection."
+    ),
+    user="Resume:\n$resume",
+)
+
+
 def default_registry() -> PromptRegistry:
-    return PromptRegistry([FIRST_CLIENT_EMAIL, REPLY_CLASSIFICATION, JD_EXTRACTION, JD_ANALYSIS])
+    return PromptRegistry(
+        [FIRST_CLIENT_EMAIL, REPLY_CLASSIFICATION, JD_EXTRACTION, JD_ANALYSIS, RESUME_PARSE]
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 import uuid
 from collections.abc import Iterable
 from dataclasses import replace
@@ -31,6 +32,21 @@ def normalize_domain(value: str) -> str:
             value = value[len(prefix) :]
     value = value.split("/", 1)[0].split("?", 1)[0]
     return value[4:] if value.startswith("www.") else value
+
+
+_LINKEDIN = re.compile(r"(https?://)?(www\.)?linkedin\.com/in/[\w%-]+/?", re.I)
+
+
+def normalize_phone(phone: str | None) -> str | None:
+    digits = re.sub(r"\D", "", phone or "")
+    return digits[-10:] if len(digits) >= 10 else None
+
+
+def normalize_linkedin(url: str | None) -> str | None:
+    if not url:
+        return None
+    match = _LINKEDIN.search(url)
+    return match.group(0).lower().split("linkedin.com/in/")[1].rstrip("/") if match else None
 
 
 class CompanyRepository(Protocol):
@@ -77,6 +93,16 @@ class JobRepository(Protocol):
 
 class CandidateRepository(Protocol):
     def add(self, candidate: Candidate) -> Candidate: ...
+
+    def save(self, candidate: Candidate) -> Candidate:
+        """Insert or update by id."""
+        ...
+
+    def find_duplicate(
+        self, email: str | None, phone_digits: str | None, linkedin_slug: str | None
+    ) -> Candidate | None:
+        """Existing candidate with the same email, last 10 phone digits or LinkedIn profile."""
+        ...
 
     def get(self, candidate_id: str) -> Candidate | None: ...
 
@@ -200,6 +226,22 @@ class InMemoryCandidates:
     def add(self, candidate: Candidate) -> Candidate:
         self._candidates[candidate.id] = copy.deepcopy(candidate)
         return candidate
+
+    def save(self, candidate: Candidate) -> Candidate:
+        self._candidates[candidate.id] = copy.deepcopy(candidate)
+        return candidate
+
+    def find_duplicate(
+        self, email: str | None, phone_digits: str | None, linkedin_slug: str | None
+    ) -> Candidate | None:
+        for c in self._candidates.values():
+            if (
+                (email and (c.email or "").lower() == email.lower())
+                or (phone_digits and normalize_phone(c.phone) == phone_digits)
+                or (linkedin_slug and normalize_linkedin(c.linkedin_url) == linkedin_slug)
+            ):
+                return copy.deepcopy(c)
+        return None
 
     def get(self, candidate_id: str) -> Candidate | None:
         candidate = self._candidates.get(candidate_id)

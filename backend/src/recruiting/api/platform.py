@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from recruiting.agents.candidate_search import CandidateSearchAgent, CandidateSource
 from recruiting.agents.client_outreach import ClientOutreachAgent, SenderProfile, WorkflowStarter
 from recruiting.agents.discovery import CompanyDiscoveryAgent, CompanySource
 from recruiting.agents.hiring_signals import (
@@ -17,6 +18,8 @@ from recruiting.agents.hiring_signals import (
 )
 from recruiting.agents.jd_analysis import JDAnalysisAgent
 from recruiting.agents.jd_intake import JDIntakeAgent
+from recruiting.agents.ranking import CandidateRankingAgent
+from recruiting.agents.resume_intake import ResumeIntake
 from recruiting.ai.llm import ClaudeProvider, LLMGateway, UsageLedger
 from recruiting.ai.prompts import default_registry
 from recruiting.ai.search import HashingEmbedder, InMemoryIndex, QdrantIndex, SemanticSearch
@@ -33,6 +36,12 @@ from recruiting.records.memory import (
     InMemoryCompanies,
     InMemoryJobs,
     JobRepository,
+)
+from recruiting.records.rankings import (
+    InMemoryRankings,
+    InMemoryWeights,
+    RankingStore,
+    WeightsStore,
 )
 
 logger = logging.getLogger(__name__)
@@ -52,6 +61,10 @@ class Platform:
     client_outreach: ClientOutreachAgent | None  # needs workflows
     jd_intake: JDIntakeAgent
     jd_analysis: JDAnalysisAgent
+    resume_intake: ResumeIntake
+    candidate_search: CandidateSearchAgent
+    rankings: RankingStore
+    ranking_weights: WeightsStore
     inbound_webhook_secret: str | None = None
 
 
@@ -87,6 +100,9 @@ def build_platform(
     llm_provider: Any = None,
     sources: list[CompanySource] | None = None,
     fetcher: CareerPageFetcher | None = None,
+    rankings: RankingStore | None = None,
+    ranking_weights: WeightsStore | None = None,
+    candidate_sources: list[CandidateSource] | None = None,
 ) -> Platform:
     companies = companies or InMemoryCompanies()
     jobs = jobs or InMemoryJobs()
@@ -107,6 +123,13 @@ def build_platform(
         raise RuntimeError("Set RAP_UNSUBSCRIBE_SECRET outside local")
     unsubscribe = UnsubscribeLinks(settings.unsubscribe_secret, settings.public_base_url)
     analysis = JDAnalysisAgent(search, gateway, _log_llm_error)
+    rankings = rankings or InMemoryRankings()
+    ranking_weights = ranking_weights or InMemoryWeights()
+    resume_intake = ResumeIntake(candidates, search, gateway, _log_llm_error)
+    ranking_agent = CandidateRankingAgent(ranking_weights.get, embedder=HashingEmbedder())
+    candidate_search = CandidateSearchAgent(
+        candidates, search, resume_intake, ranking_agent, candidate_sources or []
+    )
 
     outreach_agent = None
     if workflows is not None:
@@ -143,5 +166,9 @@ def build_platform(
             _log_llm_error,
         ),
         jd_analysis=analysis,
+        resume_intake=resume_intake,
+        candidate_search=candidate_search,
+        rankings=rankings,
+        ranking_weights=ranking_weights,
         inbound_webhook_secret=settings.inbound_webhook_secret,
     )

@@ -17,24 +17,47 @@
   <div class="page-head">
     <div>
       <div class="crumbs"><a href="jobs.html">Jobs</a> / <a href="jobs.html">JOB-2026-0142</a> / Ranking</div>
-      <h1>Top 20 candidates · CAE Engineer (Crash / LS-DYNA)</h1>
-      <p>Agent 6 searched 6 sources and found 64 profiles; Agent 7 scored them 0–100. Reasons are shown so you can check the ranking.</p>
+      <h1>Top 20 · CAE Engineer (Crash / LS-DYNA)</h1>
+      <p>Agent 6 searched the Candidate Database and licensed sources; Agent 7 applied the hard filters and scored the rest 0–100. Names are never used for scoring. <span class="built">Built in backend</span></p>
     </div>
     <div class="row">
-      <select aria-label="Source"><option>All sources</option><option>Internal ATS</option><option>Resume database</option><option>Dice</option><option>Indeed Resume</option><option>LinkedIn Recruiter (manual)</option></select>
-      <a class="btn primary" href="#" data-toast="Drafted outreach for 3 selected candidates. They are in the approval queue (mock)">Draft outreach for selected</a>
+      <button class="btn" id="btn-add">Add resumes</button>
+      <button class="btn" id="btn-rerank">Re-rank</button>
+      <a class="btn primary" href="#" data-toast="Outreach drafted for the selected candidates; they wait in the approval queue (mock)">Draft outreach for selected</a>
     </div>
   </div>
 
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Searched</div><div class="value num">64</div><div class="target">Candidate DB 51 · Dice 13 (written back)</div></div>
+    <div class="card kpi"><div class="label">Excluded by hard filters</div><div class="value num">3</div><div class="target">Must-have skills or work authorisation</div></div>
+    <div class="card kpi"><div class="label">Qualified in Top 20</div><div class="value num" id="qualified">0</div><div class="bar ok"><span id="qualified-bar" style="width:0%"></span></div><div class="target">Phase 4 exit criterion: ≥ 10 of 20</div></div>
+    <div class="card kpi"><div class="label">Reviewed by you</div><div class="value num" id="reviewed">0 / 8</div><div class="target">Verdicts survive re-ranking</div></div>
+  </div>
+
   <div class="split">
-    <div class="card">
-      <div class="table-wrap">
-        <table id="ranking">
-          <thead><tr><th><input type="checkbox" aria-label="Select all"></th><th>#</th><th>Candidate</th><th>Score</th><th>Why ranked here</th><th>Source</th><th>Status</th></tr></thead>
-          <tbody></tbody>
-        </table>
+    <div class="stack">
+      <div class="card">
+        <div class="table-wrap">
+          <table id="ranking">
+            <thead><tr><th><input type="checkbox" aria-label="Select all"></th><th>#</th><th>Candidate</th><th>Score</th><th>Top reason</th><th>Source</th><th>Your verdict</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="card-foot" style="justify-content:space-between"><span class="faint">Showing 8 of 20 · drag to re-order in the real app (stored as your ranking)</span><a class="btn sm" href="#">Show all 20</a></div>
       </div>
-      <div class="card-foot" style="justify-content:space-between"><span class="faint">Showing 8 of 20 · Recruiters marked 13 of the Top 20 as qualified (target ≥ 10)</span><a class="btn sm" href="#">Show all 20</a></div>
+      <div class="card">
+        <div class="card-head"><h2>Excluded by hard filters</h2><span class="faint">Not ranked; shown so nothing is hidden</span></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Candidate</th><th>Score if ranked</th><th>Reason</th></tr></thead>
+            <tbody>
+              <tr><td><b>Carlos Reyes</b><span class="sub">CAE Analyst · Monterrey, MX</span></td><td class="num">74</td><td>Needs visa sponsorship; job requires: US citizen or green card holder</td></tr>
+              <tr><td><b>Tom Baker</b><span class="sub">Design Engineer · Lansing, MI</span></td><td class="num">41</td><td>Has under 50% of the must-have skills</td></tr>
+              <tr><td><b>Neha Joshi</b><span class="sub">FEA Engineer · Columbus, OH</span></td><td class="num">66</td><td>Needs visa sponsorship (H-1B transfer); job requires: US citizen or green card holder</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div class="card" id="profile"></div>
@@ -43,19 +66,55 @@
 </main>
 </div>
 </div>
+
+<div class="modal-back" id="add-modal">
+  <div class="modal">
+    <div class="card-head"><h2>Add resumes to the Candidate Database</h2><button class="btn sm" data-close>Close</button></div>
+    <div class="card-body stack">
+      <div class="drop">Drop resumes here (PDF, Word or text) or paste below<br><span class="faint">Each resume is parsed, checked for duplicates by email, phone and LinkedIn profile, and indexed for search</span></div>
+      <textarea rows="5" placeholder="Paste resume text…" aria-label="Resume text"></textarea>
+      <div class="row">
+        <label class="faint">Source <select aria-label="Source"><option>Referral</option><option>Internal ATS export</option><option>Career fair</option><option>Dice (licensed)</option></select></label>
+        <label class="faint">Consent <select aria-label="Consent"><option>Not yet recorded</option><option>Granted (candidate applied or agreed)</option></select></label>
+      </div>
+    </div>
+    <div class="card-foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="btn-run-add">Add</button></div>
+  </div>
+</div>
+
 <script>
-const CANDS = [
-  { n: "Priya Natarajan", t: "Senior CAE Engineer · Novi, MI", s: 94, why: "9/10 must-haves; FMVSS 208/214 correlation on 2 programs; 20 miles away", src: "Internal ATS", st: ["ok", "Submitted for approval"], br: [96, 95, 90, 92, 85, 94, 97, 80, 88, 93], have: ["LS-DYNA", "ANSA", "FMVSS 208/214", "Correlation", "Primer", "Python"], miss: ["IIHS small overlap"], exp: "8 yrs", visa: "US citizen", rate: "$78/h", avail: "2 weeks" },
-  { n: "John Mercer", t: "CAE Crash Engineer · Auburn Hills, MI", s: 91, why: "Full-vehicle crash at a large OEM tier 1; LS-DYNA expert; no EV experience", src: "Resume database", st: ["warn", "LinkedIn request pending"], br: [93, 95, 92, 88, 80, 89, 92, 75, 84, 90], have: ["LS-DYNA", "HyperMesh", "FMVSS", "Correlation"], miss: ["EV battery", "Python"], exp: "7 yrs", visa: "Green card", rate: "$75/h", avail: "4 weeks" },
-  { n: "Wei Zhang", t: "Crash Safety Analyst · Dearborn, MI", s: 89, why: "IIHS small-overlap specialist; strong correlation; prefers remote", src: "Dice", st: ["info", "Interested · resume received"], br: [90, 95, 70, 90, 92, 91, 90, 85, 82, 88], have: ["LS-DYNA", "ANSA", "IIHS", "Correlation", "Python"], miss: ["Onsite 4 days"], exp: "9 yrs", visa: "H-1B (transfer)", rate: "$80/h", avail: "Immediate" },
-  { n: "Elena Vasquez", t: "FEA / Crash Engineer · Toledo, OH", s: 87, why: "Battery enclosure impact work; 6 years; 60 miles away", src: "Indeed Resume", st: ["warn", "LinkedIn request pending"], br: [86, 90, 78, 82, 85, 93, 88, 80, 86, 85], have: ["LS-DYNA", "Primer", "EV battery", "Correlation"], miss: ["FMVSS 214"], exp: "6 yrs", visa: "US citizen", rate: "$72/h", avail: "3 weeks" },
-  { n: "Marcus Odum", t: "CAE Engineer · Warren, MI", s: 84, why: "Subsystem crash (doors, seats); 5 years; local", src: "Internal ATS", st: ["", "Not contacted"], br: [82, 92, 95, 78, 80, 76, 85, 90, 80, 82], have: ["LS-DYNA", "HyperMesh", "FMVSS"], miss: ["Full-vehicle", "Correlation lead"], exp: "5 yrs", visa: "US citizen", rate: "$65/h", avail: "2 weeks" },
-  { n: "Hannah Brooks", t: "Simulation Engineer · Columbus, OH", s: 79, why: "Strong Abaqus and LS-DYNA; aerospace background, less automotive", src: "CareerBuilder", st: ["", "Not contacted"], br: [80, 60, 75, 85, 90, 72, 80, 85, 88, 86], have: ["LS-DYNA", "Abaqus", "Python"], miss: ["FMVSS", "Automotive"], exp: "7 yrs", visa: "US citizen", rate: "$74/h", avail: "4 weeks" },
-  { n: "Carlos Reyes", t: "CAE Analyst · Monterrey, MX", s: 74, why: "Good crash skills; would need relocation and work authorization", src: "Resume database", st: ["bad", "Declined"], br: [84, 90, 40, 80, 82, 78, 80, 60, 75, 80], have: ["LS-DYNA", "ANSA", "FMVSS"], miss: ["US work authorization"], exp: "6 yrs", visa: "Needs TN/H-1B", rate: "$60/h", avail: "8 weeks" },
-  { n: "Aisha Khan", t: "Junior CAE Engineer · Detroit, MI", s: 68, why: "Promising, but 3 years experience (needs 5+)", src: "ZipRecruiter", st: ["", "Not contacted"], br: [70, 85, 95, 50, 85, 60, 80, 95, 85, 80], have: ["LS-DYNA", "HyperMesh"], miss: ["5+ years", "Correlation"], exp: "3 yrs", visa: "US citizen", rate: "$52/h", avail: "Immediate" },
+const PARTS = [
+  ["skill_match", "Skill match", 25], ["industry_match", "Industry match", 10], ["years_experience", "Years experience", 10],
+  ["project_similarity", "Project similarity", 10], ["recent_experience", "Recent experience", 10], ["location", "Location", 8],
+  ["availability", "Availability", 8], ["education", "Education", 7], ["resume_quality", "Resume quality", 7], ["communication", "Communication", 5],
 ];
-const PARTS = ["Skill match", "Industry match", "Location", "Years experience", "Education", "Project similarity", "Recent experience", "Availability", "Communication", "Resume quality"];
+const CANDS = [
+  { n: "Priya Natarajan", t: "Senior CAE Engineer · Novi, MI", s: 94, src: "Internal ATS", c: [1, 1, 1, 0.9, 1, 0.8, 0.9, 1, 1, 1],
+    strengths: ["Has 3 of 3 must-have skills (LS-DYNA, ANSA, FMVSS)", "Also has Python", "Automotive industry experience", "8 years vs 5 required", "Same state (Novi, MI)", "Available 2 weeks"], gaps: [] },
+  { n: "John Mercer", t: "CAE Crash Engineer · Auburn Hills, MI", s: 90, src: "Resume database", c: [0.92, 1, 1, 0.8, 1, 0.8, 0.7, 1, 0.86, 0.5],
+    strengths: ["Has 3 of 3 must-have skills (LS-DYNA, ANSA, FMVSS)", "Automotive industry experience", "7 years vs 5 required", "Currently or recently a CAE Crash Engineer"], gaps: ["Communication not measured yet (neutral)"] },
+  { n: "Wei Zhang", t: "Crash Safety Analyst · Dearborn, MI", s: 87, src: "Dice (written back)", c: [1, 1, 1, 0.9, 1, 0.8, 1, 1, 0.71, 0.5],
+    strengths: ["Has 3 of 3 must-have skills (LS-DYNA, ANSA, FMVSS)", "Also has Python", "9 years vs 5 required", "Available immediately"], gaps: ["Confirm work authorisation"] },
+  { n: "Elena Vasquez", t: "FEA / Crash Engineer · Toledo, OH", s: 82, src: "Indeed Resume", c: [0.83, 1, 1, 0.9, 1, 0.2, 0.7, 1, 1, 0.7],
+    strengths: ["Has 2 of 3 must-have skills (LS-DYNA, ANSA)", "Automotive industry experience", "6 years vs 5 required"], gaps: ["Missing must-have: FMVSS", "Located in Toledo, OH, job in Troy, MI"] },
+  { n: "Marcus Odum", t: "CAE Engineer · Warren, MI", s: 80, src: "Internal ATS", c: [0.75, 1, 1, 0.6, 1, 0.8, 0.9, 1, 0.71, 0.5],
+    strengths: ["Has 3 of 3 must-have skills (LS-DYNA, ANSA, FMVSS)", "5 years vs 5 required", "Same state (Warren, MI)"], gaps: ["Communication not measured yet (neutral)"] },
+  { n: "Hannah Brooks", t: "Simulation Engineer · Columbus, OH", s: 71, src: "CareerBuilder", c: [0.75, 0.2, 1, 0.5, 0.7, 0.2, 0.7, 1, 0.86, 0.5],
+    strengths: ["Has 2 of 3 must-have skills (LS-DYNA, ANSA)", "7 years vs 5 required"], gaps: ["Missing must-have: FMVSS", "Aerospace rather than automotive", "Located in Columbus, OH, job in Troy, MI"] },
+  { n: "Aisha Khan", t: "Junior CAE Engineer · Detroit, MI", s: 69, src: "ZipRecruiter", c: [0.75, 1, 0.6, 0.5, 0.7, 0.8, 1, 1, 0.57, 0.5],
+    strengths: ["Has 3 of 3 must-have skills (LS-DYNA, ANSA, FMVSS)", "Same state (Detroit, MI)", "Available immediately"], gaps: ["3 years vs 5 required"] },
+  { n: "Sam Patel", t: "CAE Engineer · Remote (Chicago, IL)", s: 64, src: "Referral", c: [0.67, 1, 1, 0.5, 0.7, 0.2, 0.5, 0.5, 0.43, 0.5],
+    strengths: ["Has 2 of 3 must-have skills (LS-DYNA, FMVSS)", "Automotive industry experience"], gaps: ["Missing must-have: ANSA", "Availability unknown", "Located in Chicago, IL, job in Troy, MI"] },
+];
+const verdicts = {};
 let sel = 0;
+
+function counts() {
+  const q = Object.values(verdicts).filter((v) => v === "qualified").length;
+  document.getElementById("qualified").textContent = `${q} / 20`;
+  document.getElementById("qualified-bar").style.width = `${Math.min(q / 10, 1) * 100}%`;
+  document.getElementById("reviewed").textContent = `${Object.keys(verdicts).length} / ${CANDS.length}`;
+}
 
 function render() {
   document.querySelector("#ranking tbody").innerHTML = CANDS.map((c, i) => `
@@ -64,9 +123,9 @@ function render() {
       <td class="num">${i + 1}</td>
       <td><b>${c.n}</b><span class="sub">${c.t}</span></td>
       <td><span class="score" style="--v:${c.s}"><span>${c.s}</span></span></td>
-      <td style="max-width:300px">${c.why}</td>
+      <td style="max-width:280px">${c.strengths[0]}${c.gaps.length ? `<span class="sub">Gap: ${c.gaps[0]}</span>` : ""}</td>
       <td>${c.src}</td>
-      <td><span class="chip ${c.st[0]}">${c.st[1]}</span></td>
+      <td>${verdicts[i] ? `<span class="chip ${verdicts[i] === "qualified" ? "ok" : "bad"}">${verdicts[i] === "qualified" ? "Qualified" : "Not qualified"}</span>` : '<span class="faint">Not reviewed</span>'}</td>
     </tr>`).join("");
   document.querySelectorAll("#ranking tbody tr").forEach((tr) => tr.addEventListener("click", (e) => {
     if (e.target.tagName === "INPUT") return;
@@ -74,21 +133,34 @@ function render() {
   }));
   const c = CANDS[sel];
   document.getElementById("profile").innerHTML = `
-    <div class="card-head"><div class="row"><div class="avatar">${c.n.split(" ").map((x) => x[0]).join("")}</div><div><b>${c.n}</b><div class="faint">${c.t}</div></div></div><span class="score" style="--v:${c.s}"><span>${c.s}</span></span></div>
+    <div class="card-head"><div class="row"><div class="avatar">${c.n.split(" ").map((x) => x[0]).join("")}</div><div><b>${c.n}</b><div class="faint">${c.t} · ${c.src}</div></div></div><span class="score" style="--v:${c.s}"><span>${c.s}</span></span></div>
     <div class="card-body stack" style="gap:14px">
-      <dl class="kv"><dt>Experience</dt><dd>${c.exp}</dd><dt>Work authorization</dt><dd>${c.visa}</dd><dt>Expected rate</dt><dd>${c.rate}</dd><dt>Availability</dt><dd>${c.avail}</dd></dl>
-      <div><div class="faint">Skills vs JD</div>${c.have.map((s) => `<span class="tag have">✓ ${s}</span>`).join("")}${c.miss.map((s) => `<span class="tag miss">✕ ${s}</span>`).join("")}</div>
-      <div><div class="faint" style="margin-bottom:4px">Score breakdown</div>
-        ${PARTS.map((p, k) => `<div class="meter"><span>${p}</span><div class="bar ${c.br[k] >= 80 ? "ok" : c.br[k] < 65 ? "warn" : ""}" style="margin:0"><span style="width:${c.br[k]}%"></span></div><b class="num">${c.br[k]}</b></div>`).join("")}
+      <div><div class="faint">Why ranked here</div>${c.strengths.map((s) => `<div style="padding:2px 0">✓ ${s}</div>`).join("")}</div>
+      ${c.gaps.length ? `<div><div class="faint">Gaps to check</div>${c.gaps.map((g) => `<div style="padding:2px 0;color:var(--warn)">• ${g}</div>`).join("")}</div>` : ""}
+      <div><div class="faint" style="margin-bottom:4px">Score components · weight</div>
+        ${PARTS.map(([, label, w], k) => `<div class="meter"><span>${label} · ${w}%</span><div class="bar ${c.c[k] >= 0.8 ? "ok" : c.c[k] < 0.5 ? "warn" : ""}" style="margin:0"><span style="width:${c.c[k] * 100}%"></span></div><b class="num">${c.c[k].toFixed(2)}</b></div>`).join("")}
+        <p class="faint" style="margin:6px 0 0">0.50 means not known yet: neither a bonus nor a penalty.</p>
       </div>
     </div>
     <div class="card-foot">
-      <a class="btn" href="#" data-toast="Marked as not qualified; used to improve ranking (mock)">Not qualified</a>
-      <a class="btn" href="#" data-toast="LinkedIn note drafted and sent to the approval queue (mock)">Draft LinkedIn note</a>
-      <a class="btn primary" href="#" data-toast="Email drafted and sent to the approval queue (mock)">Draft email</a>
+      <button class="btn danger" data-verdict="not_qualified">Not qualified</button>
+      <button class="btn ok" data-verdict="qualified">Qualified</button>
+      <a class="btn" href="#" data-toast="LinkedIn note drafted; it waits in the approval queue (mock)">Draft LinkedIn note</a>
     </div>`;
+  document.querySelectorAll("[data-verdict]").forEach((b) => b.onclick = () => {
+    verdicts[sel] = b.dataset.verdict;
+    toast(b.dataset.verdict === "qualified" ? "Marked qualified. Feedback is stored to tune the weights." : "Marked not qualified, with your note in the real app.");
+    if (sel < CANDS.length - 1) sel += 1;
+    render(); counts();
+  });
 }
-render();
+
+const modal = document.getElementById("add-modal");
+document.getElementById("btn-add").onclick = () => modal.classList.add("open");
+modal.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => modal.classList.remove("open"));
+document.getElementById("btn-run-add").onclick = () => { modal.classList.remove("open"); toast("1 resume added: parsed, no duplicate found, indexed for search"); };
+document.getElementById("btn-rerank").onclick = () => toast("Re-ranked with the current weights. Your verdicts were kept.");
+render(); counts();
 </script>
 </body>
 </html>
