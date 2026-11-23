@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client replies · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="replies" data-default-role="account_manager">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Client replies</h1>
+      <p>Agent 4 reads every reply to client outreach, sorts it, and turns job descriptions into job records for you to confirm. <span class="built">Built in backend</span></p>
+    </div>
+    <div class="row">
+      <select id="f-cat" aria-label="Category"><option value="">All categories</option></select>
+    </div>
+  </div>
+
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Replies this month</div><div class="value num">41</div></div>
+    <div class="card kpi"><div class="label">Job descriptions received</div><div class="value num">31</div><div class="target">Target &gt;40 / month</div></div>
+    <div class="card kpi"><div class="label">Jobs waiting for field review</div><div class="value num">3</div></div>
+    <div class="card kpi"><div class="label">Unsubscribes honoured</div><div class="value num">3</div><div class="target">All channels, immediately</div></div>
+  </div>
+
+  <div class="split-rev">
+    <div class="card">
+      <div class="card-head"><h2>Inbox</h2><span class="faint">Linked to the email each reply answers</span></div>
+      <ul class="list" id="list"></ul>
+    </div>
+    <div class="card" id="detail"></div>
+  </div>
+
+</main>
+</div>
+</div>
+<script>
+const CATS = {
+  jd_received: ["ok", "JD received"], interested: ["info", "Interested"], jd_to_follow: ["info", "JD to follow"],
+  not_now: ["", "Not now"], not_interested: ["", "Not interested"], unsubscribe: ["bad", "Unsubscribe"],
+  out_of_office: ["", "Out of office"], other: ["warn", "Needs a person"],
+};
+const REPLIES = [
+  { id: "r1", from: "Ben Ortiz", email: "b.ortiz@bramwellpack.example", company: "Bramwell Packaging Co.", cat: "jd_received", by: "Claude", at: "21 Nov 09:12",
+    subject: "Re: Supporting your Q1 controls engineering hiring", body: "Hi Marcus,\n\nGood timing. JD for the Controls Engineer role attached. We need someone by mid-January.\n\nBen",
+    attachment: "Controls_Engineer_JD.pdf (2 pages)", summary: "Shared one JD, start mid-January",
+    jobs: [["JOB-2026-0139", "Controls Engineer (Rockwell PLC)", ["visa_requirements"]]], answers: "Supporting your Q1 controls engineering hiring (sent 18 Nov)" },
+  { id: "r2", from: "Sofia Marsh", email: "smarsh@kestrelmed.example", company: "Kestrel Medical Devices", cat: "jd_received", by: "Claude", at: "20 Nov 16:40",
+    subject: "Re: Quality engineering consultants", body: "Hello,\n\nPlease see two openings below. Both onsite in Minneapolis.\n\n1) Supplier Quality Engineer ...\n2) Validation Engineer ...",
+    attachment: "", summary: "Two positions in the email body",
+    jobs: [["JOB-2026-0137", "Supplier Quality Engineer", []], ["JOB-2026-0138", "Validation Engineer", ["salary"]]], answers: "Quality engineering consultants (sent 17 Nov)" },
+  { id: "r3", from: "Grace Whitfield", email: "g.whitfield@lakeshoreaero.example", company: "Lakeshore Aero Components", cat: "jd_to_follow", by: "Claude", at: "20 Nov 11:05",
+    subject: "Re: Engineering consultants for your stress team", body: "Thanks. I'll send over the stress analyst JD once our director signs off next week.", attachment: "",
+    summary: "Will send a stress analyst JD next week", jobs: [], answers: "Engineering consultants for your stress team (sent 19 Nov)" },
+  { id: "r4", from: "Mei Tanaka", email: "mei@ridgeway-robotics.example", company: "Ridgeway Industrial Robotics", cat: "unsubscribe", by: "rules", at: "15 Nov 08:30",
+    subject: "Re: Robotics engineers for 2027", body: "Please remove me from your list.", attachment: "", summary: "Asked to stop receiving emails", jobs: [], answers: "Robotics engineers for 2027 (sent 14 Nov)" },
+  { id: "r5", from: "Daniel Roy", email: "d.roy@tamarack-elec.example", company: "Tamarack Electronics", cat: "out_of_office", by: "rules", at: "21 Nov 07:02",
+    subject: "Automatic reply: Test engineering support", body: "I am out of the office until 1 December with limited access to email.", attachment: "", summary: "Away until 1 December", jobs: [], answers: "Test engineering support (sent 20 Nov)" },
+  { id: "r6", from: "unknown sender", email: "jobs@newco.example", company: "", cat: "jd_received", by: "Claude", at: "22 Nov 13:18",
+    subject: "Fwd: Mechanical Engineer opening", body: "Forwarding the JD as discussed at the trade show.", attachment: "Mechanical_Engineer.docx",
+    summary: "JD from a sender not in the Company Database", jobs: [], answers: "" },
+];
+let sel = "r1";
+
+function outcome(r) {
+  if (r.cat === "unsubscribe") return '<div class="notice ok">Opt-out recorded for all channels. Company set to Do not contact. No agent will contact this address again.</div>';
+  if (r.cat === "jd_received" && !r.company) return '<div class="notice warn">JD from a sender not linked to any company. Link it to a company to create the job record.</div><div class="row" style="margin-top:8px"><button class="btn sm" data-toast="Company picker opens (mock)">Link to company</button></div>';
+  if (r.cat === "jd_received") return `<div class="faint">Job records created (one per position)</div>${r.jobs.map(([code, title, review]) => `
+    <div class="row" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)"><span><a href="jobs.html">${code}</a> · ${title}</span>
+    ${review.length ? `<span class="chip warn">Check: ${review.map((f) => f.replace("_requirements", "").replace("_", " ")).join(", ")}</span>` : '<span class="chip ok">All fields confident</span>'}</div>`).join("")}
+    <p class="faint" style="margin:8px 0 0">Recruiter assigned in turn · Agent 5 built the search profile · searchable now</p>`;
+  if (r.cat === "jd_to_follow") return '<div class="notice">Company marked Replied. A reminder to chase the JD is set for next week (Agent 12, planned).</div>';
+  if (r.cat === "out_of_office") return '<div class="notice">Automatic reply: company status unchanged; follow-up waits until the contact is back.</div>';
+  return "";
+}
+
+function render() {
+  const cat = document.getElementById("f-cat").value;
+  const items = REPLIES.filter((r) => !cat || r.cat === cat);
+  if (!items.find((r) => r.id === sel) && items[0]) sel = items[0].id;
+  document.getElementById("list").innerHTML = items.map((r) => `
+    <li class="queue-item ${r.id === sel ? "selected" : ""}" data-id="${r.id}"><div class="grow">
+      <div class="row" style="justify-content:space-between"><span class="chip ${CATS[r.cat][0]}">${CATS[r.cat][1]}</span><span class="faint">${r.at}</span></div>
+      <div class="title" style="margin-top:6px">${r.from}${r.company ? " · " + r.company : ""}</div><div class="faint">${r.summary}</div></div></li>`).join("");
+  document.querySelectorAll("#list li").forEach((li) => li.onclick = () => { sel = li.dataset.id; render(); });
+  const r = REPLIES.find((x) => x.id === sel);
+  document.getElementById("detail").innerHTML = !r ? '<div class="card-body muted">No replies.</div>' : `
+    <div class="card-head"><div><span class="chip ${CATS[r.cat][0]}">${CATS[r.cat][1]}</span> <span class="faint">classified by ${r.by}</span></div><span class="faint">${r.at}</span></div>
+    <div class="card-body stack">
+      <dl class="kv"><dt>From</dt><dd>${r.from} &lt;${r.email}&gt;</dd><dt>Answers</dt><dd>${r.answers || '<span class="faint">No matching outreach email</span>'}</dd>${r.attachment ? `<dt>Attachment</dt><dd>${r.attachment}</dd>` : ""}</dl>
+      <div class="email"><div class="email-meta"><b>Subject</b><span>${r.subject}</span></div><div class="email-body">${r.body}</div></div>
+      ${outcome(r)}
+    </div>
+    <div class="card-foot"><button class="btn sm" data-toast="Category corrected and logged (mock)">Change category</button></div>`;
+}
+document.getElementById("f-cat").innerHTML += Object.entries(CATS).map(([k, v]) => `<option value="${k}">${v[1]}</option>`).join("");
+document.getElementById("f-cat").onchange = render;
+render();
+</script>
+</body>
+</html>

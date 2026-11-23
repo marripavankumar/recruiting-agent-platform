@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Approvals · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="approvals" data-default-role="bd_manager">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Approval queue</h1>
+      <p>Nothing is sent or submitted until a person approves it (BRD section 10). The approved version is locked: the send must match it exactly. <span class="built">Built in backend</span></p>
+    </div>
+    <div class="row">
+      <select id="gate-filter" aria-label="Filter by gate">
+        <option value="">All gates</option>
+        <option value="first_client_email">First client email</option>
+        <option value="linkedin_connection_request">LinkedIn connection request</option>
+        <option value="candidate_outreach_email">Candidate outreach email</option>
+        <option value="resume_submission">Resume submission</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="split-rev">
+    <div class="card">
+      <div class="card-head"><h2>Waiting for <span id="role-name">you</span></h2><span class="faint" id="queue-count"></span></div>
+      <ul class="list" id="queue"></ul>
+    </div>
+
+    <div class="card" id="detail"></div>
+  </div>
+
+</main>
+</div>
+</div>
+
+<script>
+const GATES = {
+  first_client_email: { label: "First client email", chip: "brand" },
+  linkedin_connection_request: { label: "LinkedIn request", chip: "info" },
+  candidate_outreach_email: { label: "Candidate email", chip: "violet" },
+  resume_submission: { label: "Resume submission", chip: "warn" },
+};
+
+const ITEMS = [
+  {
+    id: "a1", gate: "first_client_email", role: "bd_manager", age: "12 min",
+    to: "Rachel Lee <r.lee@northfield-axle.example>", context: "Northfield Axle Systems · Automotive · $1.2B revenue",
+    signal: "Posted 4 engineering roles in the last 14 days (CAE, Manufacturing, Quality)",
+    subject: "Engineering talent support for your CAE and manufacturing openings",
+    body: "Dear Ms Lee,\n\nI noticed Northfield Axle Systems is actively hiring engineering professionals, including CAE and Manufacturing Engineers at your Troy, MI site.\n\nCBS LLC specialises in highly qualified engineering consultants across Manufacturing Engineering, Mechanical Design, CAE, Quality, Controls, Electrical, Automation, Product Development and Industrial Engineering.\n\nIf you have open engineering positions, we would appreciate the opportunity to support your hiring. Please share the job descriptions and we will promptly identify qualified candidates.\n\nThank you.\n\nRegards,\nMarcus Hale\nCBS LLC\n\n--\nMarcus Hale, CBS LLC\n1200 Woodward Ave, Detroit, MI 48226 (sample address)\nTo stop receiving emails from CBS LLC, unsubscribe here: https://rap.cbs.example/unsubscribe?token=… or reply \"unsubscribe\".",
+    steps: ["BD Manager", "Sales Manager"],
+  },
+  {
+    id: "a2", gate: "first_client_email", role: "bd_manager", age: "35 min",
+    to: "Ben Ortiz <b.ortiz@bramwellpack.example>", context: "Bramwell Packaging Co. · Consumer Products · $640M revenue",
+    signal: "Controls Engineer opening (Rockwell PLC) posted 3 days ago",
+    subject: "Supporting your Q1 controls engineering hiring",
+    body: "Dear Mr Ortiz,\n\nI saw Bramwell Packaging is hiring a Controls Engineer with Rockwell PLC experience.\n\nCBS LLC places controls and automation engineers with manufacturing companies across the Midwest. We would be glad to support this search and any other engineering roles you have open.\n\nRegards,\nMarcus Hale\nCBS LLC\n\n--\nMarcus Hale, CBS LLC\n1200 Woodward Ave, Detroit, MI 48226 (sample address)\nTo stop receiving emails from CBS LLC, unsubscribe here: https://rap.cbs.example/unsubscribe?token=… or reply \"unsubscribe\".",
+    steps: ["BD Manager", "Sales Manager"],
+  },
+  {
+    id: "a3", gate: "first_client_email", role: "bd_manager", age: "1 h",
+    to: "Sofia Marsh <smarsh@kestrelmed.example>", context: "Kestrel Medical Devices · Medical Devices · $380M revenue",
+    signal: "Supplier Quality and Validation Engineer roles open",
+    subject: "Quality engineering consultants for Kestrel Medical",
+    body: "Dear Ms Marsh,\n\nKestrel Medical appears to be growing its quality team. CBS LLC provides Supplier Quality, Validation and Reliability Engineers with ISO 13485 and FDA experience.\n\nPlease share any job descriptions and we will respond within one business day.\n\nRegards,\nMarcus Hale\nCBS LLC\n\n--\nMarcus Hale, CBS LLC\n1200 Woodward Ave, Detroit, MI 48226 (sample address)\nTo stop receiving emails from CBS LLC, unsubscribe here: https://rap.cbs.example/unsubscribe?token=… or reply \"unsubscribe\".",
+    steps: ["BD Manager", "Sales Manager"],
+  },
+  {
+    id: "a4", gate: "first_client_email", role: "sales_manager", age: "2 h",
+    to: "Arjun Patel <apatel@orionheavy.example>", context: "Orion Heavy Equipment · Heavy Equipment · $2.4B revenue",
+    signal: "BD Manager approved; the gate policy adds a Sales Manager as second approver",
+    subject: "Engineering consultants for Orion's 2027 programs",
+    body: "Dear Mr Patel,\n\nCBS LLC supports engineering teams at heavy-equipment manufacturers with Manufacturing, Design and Test Engineers.\n\nWe would welcome the chance to support Orion's 2027 program launches.\n\nRegards,\nMarcus Hale\nCBS LLC\n\n--\nMarcus Hale, CBS LLC\n1200 Woodward Ave, Detroit, MI 48226 (sample address)\nTo stop receiving emails from CBS LLC, unsubscribe here: https://rap.cbs.example/unsubscribe?token=… or reply \"unsubscribe\".",
+    steps: ["BD Manager ✓ Marcus Hale", "Sales Manager"], secondStep: true,
+  },
+  {
+    id: "a5", gate: "linkedin_connection_request", role: "recruiter", age: "8 min",
+    to: "John Mercer · linkedin.com/in/john-mercer-cae", context: "Candidate rank #2 for JOB-2026-0142 · score 91",
+    signal: "Sent by the recruiter by hand in LinkedIn after approval (Q15)",
+    subject: "LinkedIn connection note (300 characters max)",
+    body: "Hello John,\n\nI came across your profile while searching for CAE Engineers with LS-DYNA crash experience. We have an opportunity with a leading automotive manufacturer in Troy, MI.\n\nWould you be interested in discussing it?\n\nRegards,\nDana, CBS LLC",
+    steps: ["Recruiter"],
+  },
+  {
+    id: "a6", gate: "linkedin_connection_request", role: "recruiter", age: "9 min",
+    to: "Elena Vasquez · linkedin.com/in/elena-vasquez-fea", context: "Candidate rank #4 for JOB-2026-0142 · score 87",
+    signal: "Sent by the recruiter by hand in LinkedIn after approval (Q15)",
+    subject: "LinkedIn connection note (300 characters max)",
+    body: "Hello Elena,\n\nYour FEA and crash simulation work stood out. We have a CAE opportunity with an automotive manufacturer in Michigan.\n\nWould you be open to a short conversation?\n\nRegards,\nDana, CBS LLC",
+    steps: ["Recruiter"],
+  },
+  {
+    id: "a7", gate: "candidate_outreach_email", role: "recruiter", age: "25 min",
+    to: "Raj Iyer <raj.iyer@mail.example>", context: "Candidate rank #1 for JOB-2026-0139 · from internal ATS",
+    signal: "Consent on file: applied to CBS in 2025 (lawful basis recorded)",
+    subject: "Controls Engineer opportunity (Rockwell PLC) – Grand Rapids, MI",
+    body: "Hi Raj,\n\nA packaging manufacturer in Grand Rapids is hiring a Controls Engineer with Rockwell ControlLogix and FactoryTalk experience. Based on your background I think it is a strong fit.\n\nCould you reply with your current resume, availability, expected rate and work authorization?\n\nThanks,\nDana Okafor\nCBS LLC\n\n--\nDana Okafor, CBS LLC\n1200 Woodward Ave, Detroit, MI 48226 (sample address)\nTo stop receiving emails from CBS LLC, unsubscribe here: https://rap.cbs.example/unsubscribe?token=… or reply \"unsubscribe\".",
+    steps: ["Recruiter"],
+  },
+  {
+    id: "a8", gate: "resume_submission", role: "recruiter", age: "40 min",
+    to: "Rachel Lee · Northfield Axle Systems (client portal + email)", context: "JOB-2026-0142 · CAE Engineer · match 92%",
+    signal: "Candidate confirmed consent to be submitted on 21 Nov 2026",
+    subject: "Submission: Priya Natarajan – CAE Engineer (Crash / LS-DYNA)",
+    body: "Candidate summary\nPriya Natarajan · 8 years CAE · LS-DYNA, ANSA, HyperMesh, Primer · FMVSS 208/214 load cases.\n\nMatch 92% · Available in 2 weeks · Rate $78/h C2C · US citizen · Novi, MI (onsite OK).\n\nKey projects\n• Full-vehicle frontal crash correlation for a midsize SUV program\n• Battery enclosure side-pole impact optimisation (-11% mass)\n\nAttached: resume (PDF), skill matrix, match report.",
+    steps: ["Recruiter"], link: "match.html",
+  },
+];
+
+let selected = null;
+let decided = {};
+
+function visible(role) {
+  const gate = document.getElementById("gate-filter").value;
+  return ITEMS.filter((i) => (role === "administrator" || i.role === role) && !decided[i.id] && (!gate || i.gate === gate));
+}
+
+function renderQueue(role) {
+  const items = visible(role);
+  document.getElementById("role-name").textContent = role === "administrator" ? "any role (Administrator view)" : ROLES[role].label;
+  document.getElementById("queue-count").textContent = `${items.length} pending`;
+  const list = document.getElementById("queue");
+  if (role === "client") {
+    list.innerHTML = `<li><div class="grow muted">Client users have no approval queue.</div></li>`;
+    document.getElementById("detail").innerHTML = "";
+    return;
+  }
+  if (!items.length) {
+    list.innerHTML = `<li><div class="grow muted">Nothing waiting. New drafts appear here as agents create them.</div></li>`;
+    document.getElementById("detail").innerHTML = `<div class="card-body muted">Select a request to review it.</div>`;
+    return;
+  }
+  if (!selected || !items.find((i) => i.id === selected)) selected = items[0].id;
+  list.innerHTML = items.map((i) => `
+    <li class="queue-item ${i.id === selected ? "selected" : ""}" data-id="${i.id}">
+      <div class="grow">
+        <div class="row" style="justify-content:space-between"><span class="chip ${GATES[i.gate].chip}">${GATES[i.gate].label}</span><span class="faint">${i.age}</span></div>
+        <div class="title" style="margin-top:6px">${i.subject}</div>
+        <div class="faint">${i.to}</div>
+      </div>
+    </li>`).join("");
+  list.querySelectorAll(".queue-item").forEach((li) => li.addEventListener("click", () => { selected = li.dataset.id; renderQueue(role); }));
+  renderDetail(items.find((i) => i.id === selected), role);
+}
+
+function stepsHtml(item) {
+  return `<div class="steps">${item.steps.map((s, n) => {
+    const done = s.includes("✓");
+    const now = !done && n === item.steps.findIndex((x) => !x.includes("✓"));
+    return `${n ? '<div class="step-line"></div>' : ""}<div class="step ${done ? "done" : now ? "now" : ""}"><span class="dot">${done ? "✓" : n + 1}</span>${s}</div>`;
+  }).join("")}<div class="step-line"></div><div class="step"><span class="dot">→</span>${item.gate === "linkedin_connection_request" ? "Task for recruiter" : item.gate === "resume_submission" ? "Submit to client" : "Send"}</div></div>`;
+}
+
+function renderDetail(item, role) {
+  const canEdit = !item.secondStep;
+  document.getElementById("detail").innerHTML = `
+    <div class="card-head">
+      <div><span class="chip ${GATES[item.gate].chip}">${GATES[item.gate].label}</span> <span class="faint" style="margin-left:6px">Request ${item.id.toUpperCase()}-7f3c · drafted by agent</span></div>
+      ${item.link ? `<a href="${item.link}">Open match report</a>` : ""}
+    </div>
+    <div class="card-body stack">
+      ${stepsHtml(item)}
+      <dl class="kv">
+        <dt>Recipient</dt><dd>${item.to}</dd>
+        <dt>Context</dt><dd>${item.context}</dd>
+        <dt>Why now</dt><dd>${item.signal}</dd>
+      </dl>
+      ${item.secondStep ? '<div class="notice">You are the second approver. The first approver\'s version is final: approve or reject it. Only the first approver can edit.</div>' : ""}
+      <div class="email" id="preview">
+        <div class="email-meta"><b>To</b><span>${item.to}</span><b>Subject</b><span>${item.subject}</span></div>
+        <div class="email-body">${item.body}</div>
+      </div>
+      <div id="editor" style="display:none" class="stack">
+        <input id="edit-subject" value="${item.subject.replace(/"/g, "&quot;")}" aria-label="Subject">
+        <textarea id="edit-body" rows="14" aria-label="Body">${item.body}</textarea>
+      </div>
+      <div id="reject-box" style="display:none">
+        <label class="faint" for="reason">Reason for rejecting (required, kept in the audit log)</label>
+        <textarea id="reason" rows="3" placeholder="e.g. Contact left the company; use the new Director of Engineering"></textarea>
+      </div>
+    </div>
+    <div class="card-foot">
+      <button class="btn danger" id="btn-reject">Reject</button>
+      ${canEdit ? '<button class="btn" id="btn-edit">Edit</button>' : ""}
+      <button class="btn ok" id="btn-approve">Approve${item.steps.length > 1 && !item.secondStep ? " (Sales Manager next)" : item.gate === "resume_submission" ? " and submit" : item.gate === "linkedin_connection_request" ? " and add to my LinkedIn tasks" : " and send"}</button>
+    </div>`;
+
+  let mode = "view";
+  const $ = (id) => document.getElementById(id);
+  if (canEdit) $("btn-edit").onclick = () => {
+    mode = mode === "edit" ? "view" : "edit";
+    $("editor").style.display = mode === "edit" ? "flex" : "none";
+    $("preview").style.display = mode === "edit" ? "none" : "block";
+    $("btn-edit").textContent = mode === "edit" ? "Cancel edit" : "Edit";
+    $("btn-approve").textContent = mode === "edit" ? "Save edits and approve" : $("btn-approve").textContent;
+  };
+  $("btn-reject").onclick = () => {
+    if ($("reject-box").style.display === "none") { $("reject-box").style.display = "block"; $("reason").focus(); return; }
+    if (!$("reason").value.trim()) { toast("A rejection needs a reason"); return; }
+    decided[item.id] = "rejected"; toast("Rejected. The agent was told why; nothing was sent."); renderQueue(role);
+  };
+  $("btn-approve").onclick = () => {
+    const edited = mode === "edit";
+    decided[item.id] = "approved";
+    const what = item.gate === "linkedin_connection_request" ? "Added to your LinkedIn tasks" : item.gate === "resume_submission" ? "Submitted to the client" : item.secondStep ? "Approved by both approvers and sent" : item.steps.length > 1 ? "Approved. It now waits for the Sales Manager; nothing is sent yet" : "Approved and sent";
+    toast(`${edited ? "Edited and approved. " : ""}${what}.`);
+    renderQueue(role);
+  };
+}
+
+document.addEventListener("rolechange", (e) => renderQueue(e.detail));
+document.getElementById("gate-filter").addEventListener("change", () => renderQueue(currentRole));
+</script>
+</body>
+</html>

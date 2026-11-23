@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Users &amp; approvers · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="admin" data-default-role="administrator">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Users &amp; approvers</h1>
+      <p>Sign-in comes from your identity provider; roles are set here. Every change is written to the audit log.</p>
+    </div>
+    <div class="row"><button class="btn primary" id="btn-add">Add user</button></div>
+  </div>
+
+  <div class="tabs" id="tabs">
+    <a href="#users" class="active" data-tab="users">Users</a>
+    <a href="#gates" data-tab="gates">Approval gates</a>
+    <a href="#connectors" data-tab="connectors">Connectors</a>
+    <a href="#llm" data-tab="llm">LLM usage</a>
+    <a href="#audit" data-tab="audit">Audit log</a>
+  </div>
+
+  <section data-panel="users">
+    <div class="card" id="add-card" style="display:none;margin-bottom:16px">
+      <div class="card-head"><h2>Add user</h2></div>
+      <div class="card-body row">
+        <input id="new-email" placeholder="Work email" aria-label="Email" style="min-width:220px">
+        <input id="new-name" placeholder="Display name" aria-label="Display name">
+        <select id="new-role" aria-label="Role"><option value="recruiter">Recruiter</option><option value="bd_manager">BD Manager</option><option value="account_manager">Account Manager</option><option value="sales_manager">Sales Manager</option><option value="administrator">Administrator</option><option value="client">Client</option></select>
+        <select id="new-company" aria-label="Client company" style="display:none"><option value="">Client company…</option><option>Northfield Axle Systems</option><option>Bramwell Packaging Co.</option><option>Kestrel Medical Devices</option><option>Orion Heavy Equipment</option></select>
+        <button class="btn primary" id="btn-create">Create</button>
+      </div>
+      <div class="card-body faint" style="padding-top:0">Client users must belong to one client company and see only that company's jobs and submissions.</div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>User</th><th>Role</th><th>Client company</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
+          <tbody id="users"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section data-panel="gates" style="display:none">
+    <div class="notice" style="margin-bottom:16px">Changes apply immediately to every running server. Pending requests follow the new approvers from their next step; approvals already given stay valid.</div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Gate (BRD section 10)</th><th>First approver</th><th>Second approver (optional)</th><th>Last changed</th><th></th></tr></thead>
+          <tbody id="gates"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section data-panel="connectors" style="display:none">
+    <div class="grid cols-3">
+      <div class="card"><div class="card-head"><h2>LLM</h2><span class="chip ok">Active</span></div><div class="card-body"><b>Claude Opus 5.5</b><div class="faint">Through the LLM gateway: versioned prompts, structured output, refusal fallback, cost per prompt. Set to “none” and every agent uses its rule-based fallback.</div></div></div>
+      <div class="card"><div class="card-head"><h2>Resume parser</h2><span class="chip ok">Active</span></div><div class="card-body"><b>Affinda</b><div class="faint">Alternatives: Textkernel, Sovren</div></div></div>
+      <div class="card"><div class="card-head"><h2>Email</h2><span class="chip ok">Microsoft 365</span></div><div class="card-body"><b>bd@cbs.example</b><div class="faint">Gmail also available. Daily cap 100 emails; outreach is off in local and dev, allow-listed in test.</div></div></div>
+      <div class="card"><div class="card-head"><h2>Document storage</h2><span class="chip warn">Not set</span></div><div class="card-body"><b>SharePoint / OneDrive / S3</b><div class="faint">Resumes and submission packages</div></div></div>
+      <div class="card"><div class="card-head"><h2>Company data</h2><span class="chip ok">Active</span></div><div class="card-body"><b>Apollo · Crunchbase</b><div class="faint">Licensed sources only</div></div></div>
+      <div class="card"><div class="card-head"><h2>Secrets</h2><span class="chip ok">Active</span></div><div class="card-body"><b>Cloud vault</b><div class="faint">Azure Key Vault, AWS Secrets Manager, GCP Secret Manager or Vault</div></div></div>
+    </div>
+  </section>
+
+  <section data-panel="llm" style="display:none">
+    <div class="grid cols-3" style="margin-bottom:16px">
+      <div class="card kpi"><div class="label">LLM cost this month</div><div class="value num">$41.68</div><div class="target">Claude Opus 5.5 · $4 / $20 per million tokens in / out</div></div>
+      <div class="card kpi"><div class="label">Calls this month</div><div class="value num">3,912</div></div>
+      <div class="card kpi"><div class="label">Fell back to rules</div><div class="value num">0.4%</div><div class="target">API errors or refusals; work continued</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Cost by prompt version</h2><span class="built">Built in backend</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Prompt</th><th>Used by</th><th>Calls</th><th>Input tokens</th><th>Output tokens</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td><code>first_client_email@1</code></td><td>Agent 3</td><td class="num">1,204</td><td class="num">1.08M</td><td class="num">0.42M</td><td class="num">$12.72</td></tr>
+            <tr><td><code>reply_classification@1</code></td><td>Agent 4</td><td class="num">1,866</td><td class="num">0.93M</td><td class="num">0.07M</td><td class="num">$5.12</td></tr>
+            <tr><td><code>jd_extraction@1</code></td><td>Agent 4</td><td class="num">421</td><td class="num">1.26M</td><td class="num">0.38M</td><td class="num">$12.64</td></tr>
+            <tr><td><code>jd_analysis@1</code></td><td>Agent 5</td><td class="num">421</td><td class="num">1.05M</td><td class="num">0.35M</td><td class="num">$11.20</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-foot" style="justify-content:flex-start"><span class="faint">A new prompt version gets its own row, so the cost and quality of each wording change can be compared.</span></div>
+    </div>
+  </section>
+
+  <section data-panel="audit" style="display:none">
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>When</th><th>Who</th><th>Action</th><th>Item</th></tr></thead>
+          <tbody>
+            <tr><td>23 Nov 10:44</td><td>Dana Okafor</td><td><span class="chip ok">approval.approve</span></td><td>LinkedIn request · Elena Vasquez</td></tr>
+            <tr><td>23 Nov 10:12</td><td>Marcus Hale</td><td><span class="chip ok">approval.edit_and_approve</span></td><td>First client email · Lakeshore Aero</td></tr>
+            <tr><td>23 Nov 09:58</td><td>outreach_service</td><td><span class="chip info">outreach.sent</span></td><td>First client email · Lakeshore Aero</td></tr>
+            <tr><td>22 Nov 17:30</td><td>Priya Raman</td><td><span class="chip">gate_policy.update</span></td><td>First client email: added Sales Manager as second approver</td></tr>
+            <tr><td>22 Nov 16:02</td><td>Marcus Hale</td><td><span class="chip bad">approval.reject</span></td><td>First client email · Silverline Energy: “No engineering hiring”</td></tr>
+            <tr><td>22 Nov 11:20</td><td>Priya Raman</td><td><span class="chip">user.create</span></td><td>Sam Wu · Recruiter</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+</div>
+<script>
+const ROLE_LABEL = { administrator: "Administrator", bd_manager: "BD Manager", recruiter: "Recruiter", account_manager: "Account Manager", sales_manager: "Sales Manager", client: "Client" };
+const USERS = [
+  { id: 1, name: "Priya Raman", email: "priya.raman@cbs.example", role: "administrator", company: "", active: true, last: "Today 08:55", me: true },
+  { id: 2, name: "Marcus Hale", email: "marcus.hale@cbs.example", role: "bd_manager", company: "", active: true, last: "Today 09:40" },
+  { id: 3, name: "Dana Okafor", email: "dana.okafor@cbs.example", role: "recruiter", company: "", active: true, last: "Today 10:44" },
+  { id: 4, name: "Sam Wu", email: "sam.wu@cbs.example", role: "recruiter", company: "", active: true, last: "Yesterday" },
+  { id: 5, name: "Leah Kim", email: "leah.kim@cbs.example", role: "account_manager", company: "", active: true, last: "Today 08:10" },
+  { id: 6, name: "Tom Becker", email: "tom.becker@cbs.example", role: "sales_manager", company: "", active: true, last: "21 Nov" },
+  { id: 7, name: "Rachel Lee", email: "r.lee@northfield-axle.example", role: "client", company: "Northfield Axle Systems", active: true, last: "Today 07:30" },
+  { id: 8, name: "Jordan Pike", email: "jordan.pike@cbs.example", role: "recruiter", company: "", active: false, last: "2 Oct" },
+];
+const GATE_ROWS = [
+  { gate: "First client email", first: "bd_manager", second: "sales_manager", changed: "22 Nov · Priya Raman" },
+  { gate: "LinkedIn connection request", first: "recruiter", second: "", changed: "Default (Q14)" },
+  { gate: "Candidate outreach email", first: "recruiter", second: "", changed: "Default (Q14)" },
+  { gate: "Resume submission to client", first: "recruiter", second: "", changed: "Default (Q14)" },
+];
+const STAFF_ROLES = ["administrator", "bd_manager", "recruiter", "account_manager", "sales_manager"];
+const opts = (sel, allowEmpty) => (allowEmpty ? `<option value="" ${!sel ? "selected" : ""}>None</option>` : "") + STAFF_ROLES.map((r) => `<option value="${r}" ${r === sel ? "selected" : ""}>${ROLE_LABEL[r]}</option>`).join("");
+
+function renderUsers() {
+  document.getElementById("users").innerHTML = USERS.map((u) => `
+    <tr>
+      <td><b>${u.name}</b>${u.me ? ' <span class="chip brand">You</span>' : ""}<span class="sub">${u.email}</span></td>
+      <td>${ROLE_LABEL[u.role]}</td>
+      <td>${u.company || '<span class="faint">—</span>'}</td>
+      <td>${u.active ? '<span class="chip ok">Active</span>' : '<span class="chip">Deactivated</span>'}</td>
+      <td>${u.last}</td>
+      <td><button class="btn sm" data-toggle="${u.id}">${u.active ? "Deactivate" : "Reactivate"}</button></td>
+    </tr>`).join("");
+  document.querySelectorAll("[data-toggle]").forEach((b) => b.onclick = () => {
+    const u = USERS.find((x) => x.id === +b.dataset.toggle);
+    if (u.me) { toast("You cannot deactivate or demote your own account. Ask another Administrator."); return; }
+    u.active = !u.active; renderUsers();
+    toast(u.active ? `${u.name} can sign in again` : `${u.name} can no longer sign in`);
+  });
+}
+
+function renderGates() {
+  document.getElementById("gates").innerHTML = GATE_ROWS.map((g, i) => `
+    <tr>
+      <td><b>${g.gate}</b></td>
+      <td><select data-first="${i}" aria-label="First approver">${opts(g.first)}</select></td>
+      <td><select data-second="${i}" aria-label="Second approver">${opts(g.second, true)}</select></td>
+      <td class="faint">${g.changed}</td>
+      <td><button class="btn sm primary" data-save="${i}">Save</button></td>
+    </tr>`).join("");
+  document.querySelectorAll("[data-save]").forEach((b) => b.onclick = () => {
+    const i = +b.dataset.save;
+    GATE_ROWS[i].first = document.querySelector(`[data-first="${i}"]`).value;
+    GATE_ROWS[i].second = document.querySelector(`[data-second="${i}"]`).value;
+    GATE_ROWS[i].changed = "Just now · Priya Raman";
+    renderGates();
+    toast(`${GATE_ROWS[i].gate}: approvers saved`);
+  });
+}
+
+document.getElementById("btn-add").onclick = () => {
+  const c = document.getElementById("add-card");
+  c.style.display = c.style.display === "none" ? "block" : "none";
+};
+document.getElementById("new-role").onchange = (e) => {
+  document.getElementById("new-company").style.display = e.target.value === "client" ? "" : "none";
+};
+document.getElementById("btn-create").onclick = () => {
+  const email = document.getElementById("new-email").value.trim();
+  const name = document.getElementById("new-name").value.trim();
+  const role = document.getElementById("new-role").value;
+  const company = role === "client" ? document.getElementById("new-company").value : "";
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || !name) { toast("Enter a valid email and a name"); return; }
+  if (role === "client" && !company) { toast("Client users need a client company"); return; }
+  if (USERS.some((u) => u.email.toLowerCase() === email.toLowerCase())) { toast("A user with this email already exists"); return; }
+  USERS.push({ id: Date.now(), name, email, role, company, active: true, last: "Never" });
+  renderUsers();
+  document.getElementById("add-card").style.display = "none";
+  toast(`${name} added as ${ROLE_LABEL[role]}`);
+};
+
+document.querySelectorAll("#tabs a").forEach((a) => a.addEventListener("click", (e) => {
+  e.preventDefault();
+  document.querySelectorAll("#tabs a").forEach((x) => x.classList.toggle("active", x === a));
+  document.querySelectorAll("[data-panel]").forEach((p) => { p.style.display = p.dataset.panel === a.dataset.tab ? "" : "none"; });
+}));
+
+renderUsers();
+renderGates();
+</script>
+</body>
+</html>

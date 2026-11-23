@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="dashboard" data-default-role="bd_manager">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Good morning</h1>
+      <p>November 2026 · month to date. Targets come from the BRD success metrics (section 12).</p>
+    </div>
+    <div class="row">
+      <select aria-label="Period"><option>This month</option><option>Last 30 days</option><option>This quarter</option></select>
+      <a class="btn" href="#" data-toast="Exports the KPI report as CSV (mock)">Export</a>
+    </div>
+  </div>
+
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Target companies identified</div><div class="value num">412</div><div class="target">Target 500+ / month</div><div class="bar"><span style="width:82%"></span></div></div>
+    <div class="card kpi"><div class="label">Approved client emails sent (this week)</div><div class="value num">236</div><div class="target">Target 200–500 / week</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Client response rate</div><div class="value num">17.4%</div><div class="target">Target &gt;15% · <span style="color:var(--ok)">on track</span></div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">New job descriptions received</div><div class="value num">31</div><div class="target">Target &gt;40 / month</div><div class="bar warn"><span style="width:77%"></span></div></div>
+    <div class="card kpi"><div class="label">Qualified candidates per JD</div><div class="value num">14.2</div><div class="target">Target 10–20</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Candidate response rate</div><div class="value num">33%</div><div class="target">Target &gt;30%</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">JD to first submission (median)</div><div class="value num">19.5 h</div><div class="target">Target &lt;24 h</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Resume-to-interview / interview-to-offer</div><div class="value num">27% · 18%</div><div class="target">Targets &gt;25% · &gt;20%</div><div class="bar warn"><span style="width:90%"></span></div></div>
+  </div>
+
+  <div class="split">
+    <div class="stack">
+      <div class="card">
+        <div class="card-head"><h2>Pipeline this month</h2><span class="faint">From discovery to placement</span></div>
+        <div class="card-body funnel">
+          <div class="funnel-row"><span>Companies found</span><div class="track"><span style="width:100%"></span></div><b class="num">412</b></div>
+          <div class="funnel-row"><span>Hiring signals</span><div class="track"><span style="width:68%"></span></div><b class="num">281</b></div>
+          <div class="funnel-row"><span>Emails approved &amp; sent</span><div class="track"><span style="width:57%"></span></div><b class="num">236</b></div>
+          <div class="funnel-row"><span>Client replies</span><div class="track"><span style="width:10%"></span></div><b class="num">41</b></div>
+          <div class="funnel-row"><span>Job descriptions</span><div class="track"><span style="width:7.5%"></span></div><b class="num">31</b></div>
+          <div class="funnel-row"><span>Submissions</span><div class="track"><span style="width:16%"></span></div><b class="num">66</b></div>
+          <div class="funnel-row"><span>Interviews</span><div class="track"><span style="width:4.4%"></span></div><b class="num">18</b></div>
+          <div class="funnel-row"><span>Offers</span><div class="track"><span style="width:1%"></span></div><b class="num">3</b></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Open jobs needing attention</h2><a href="jobs.html">All jobs</a></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Job</th><th>Client</th><th>Priority</th><th>Stage</th><th>Age</th></tr></thead>
+            <tbody>
+              <tr><td><a href="jobs.html">CAE Engineer (Crash / LS-DYNA)</a><span class="sub">JOB-2026-0142</span></td><td>Northfield Axle Systems</td><td><span class="chip bad">Urgent</span></td><td><span class="chip warn">2 submissions awaiting approval</span></td><td class="num">14 h</td></tr>
+              <tr><td><a href="jobs.html">Controls Engineer (Rockwell PLC)</a><span class="sub">JOB-2026-0139</span></td><td>Bramwell Packaging Co.</td><td><span class="chip warn">High</span></td><td><span class="chip info">Ranking done · 18 candidates</span></td><td class="num">1 d</td></tr>
+              <tr><td><a href="jobs.html">Supplier Quality Engineer</a><span class="sub">JOB-2026-0137</span></td><td>Kestrel Medical Devices</td><td><span class="chip warn">High</span></td><td><span class="chip">Waiting on candidate replies</span></td><td class="num">2 d</td></tr>
+              <tr><td><a href="jobs.html">Manufacturing Process Engineer</a><span class="sub">JOB-2026-0131</span></td><td>Orion Heavy Equipment</td><td><span class="chip">Medium</span></td><td><span class="chip ok">Interview scheduled</span></td><td class="num">5 d</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="card-head"><h2>Waiting for your approval</h2><a href="approvals.html">Open queue</a></div>
+        <ul class="list">
+          <li><span class="chip brand">First client email</span><div class="grow"><div class="title">Engineering talent support</div><div class="faint">To Rachel Lee · Northfield Axle Systems · drafted by Agent 3</div></div></li>
+          <li><span class="chip brand">First client email</span><div class="grow"><div class="title">Supporting your Q1 controls hiring</div><div class="faint">To Ben Ortiz · Bramwell Packaging Co.</div></div></li>
+          <li><span class="chip brand">First client email</span><div class="grow"><div class="title">Quality engineering consultants</div><div class="faint">To Sofia Marsh · Kestrel Medical Devices</div></div></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h2>Agent activity</h2><span class="chip ok">All agents healthy</span></div>
+        <ul class="list">
+          <li><div class="avatar">A1</div><div class="grow"><div class="title">Company Discovery</div><div class="faint">Found 18 new companies in Michigan and Ohio · 12 min ago</div></div></li>
+          <li><div class="avatar">A4</div><div class="grow"><div class="title">JD Intake</div><div class="faint">Extracted a JD from a reply by Kestrel Medical Devices · 40 min ago</div></div></li>
+          <li><div class="avatar">A7</div><div class="grow"><div class="title">Candidate Ranking</div><div class="faint">Ranked 64 profiles for JOB-2026-0139 · Top 20 ready · 1 h ago</div></div></li>
+          <li><div class="avatar">A12</div><div class="grow"><div class="title">Follow-up</div><div class="faint">7 reminders due today · 2 overdue</div></div></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+</body>
+</html>

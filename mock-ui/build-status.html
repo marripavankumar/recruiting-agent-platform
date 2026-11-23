@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Build status · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="status" data-default-role="administrator">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Build status</h1>
+      <p>Which mock screens are backed by working code, as of 23 Nov 2026. Source: docs/02_Implementation_Plan.md.</p>
+    </div>
+  </div>
+
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Phase 1 · Core platform</div><div class="value num">70%</div><div class="bar ok"><span style="width:70%"></span></div></div>
+    <div class="card kpi"><div class="label">Phase 2 · Client acquisition</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div></div>
+    <div class="card kpi"><div class="label">Phase 3 · JD intake &amp; analysis</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div></div>
+    <div class="card kpi"><div class="label">Phases 4–8</div><div class="value num">0%</div><div class="bar"><span style="width:0%"></span></div><div class="target">Next: candidate search and ranking</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2>Screens</h2><span class="faint">Tests: 89 pass locally · PostgreSQL tests run in CI</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Screen</th><th>Backend</th><th>API</th><th>Still open</th></tr></thead>
+        <tbody>
+          <tr><td><a href="approvals.html">Approvals</a></td><td><span class="built">Built</span></td><td><code>/approvals/pending</code>, <code>/approvals/{id}/decision</code></td><td>—</td></tr>
+          <tr><td><a href="companies.html">Companies &amp; outreach</a></td><td><span class="built">Built</span></td><td><code>/companies</code>, <code>/companies/import</code>, <code>/companies/hiring-signals</code>, <code>/companies/outreach-drafts</code></td><td>Licensed data-provider adapters (Apollo, ZoomInfo, Crunchbase, D&amp;B), open tracking</td></tr>
+          <tr><td><a href="replies.html">Client replies</a></td><td><span class="built">Built</span></td><td><code>POST /inbound/email</code></td><td>PDF / DOCX attachment text, mail-routing workflow in n8n</td></tr>
+          <tr><td><a href="jobs.html">Jobs</a></td><td><span class="built">Built</span></td><td><code>/jobs</code>, <code>PATCH /jobs/{id}</code>, <code>/jobs/search</code></td><td>Accuracy measurement on real CBS JDs</td></tr>
+          <tr><td><a href="admin.html">Users &amp; approvers</a></td><td><span class="built">Built</span></td><td><code>/admin/users</code>, <code>/admin/gate-policies</code>, <code>/admin/llm-usage</code></td><td>Connector settings screen (now set by configuration)</td></tr>
+          <tr><td><a href="unsubscribe.html">Unsubscribe (public)</a></td><td><span class="built">Built</span></td><td><code>GET</code> / <code>POST /unsubscribe</code></td><td>—</td></tr>
+          <tr><td><a href="client-portal.html">Client portal</a></td><td><span class="built">Partly</span></td><td><code>/jobs</code> (own company only)</td><td>Submissions and feedback (Phase 6)</td></tr>
+          <tr><td><a href="index.html">Dashboard</a></td><td><span class="planned">Planned · Phase 8</span></td><td>—</td><td>KPI endpoint and dashboard</td></tr>
+          <tr><td><a href="candidates.html">Candidate ranking</a></td><td><span class="planned">Planned · Phase 4</span></td><td>—</td><td>Agents 6–7</td></tr>
+          <tr><td><a href="linkedin-tasks.html">LinkedIn tasks</a></td><td><span class="planned">Partly · Phase 5</span></td><td>Manual LinkedIn channel queues approved requests</td><td>Task list API, Agent 9 resume collection</td></tr>
+          <tr><td><a href="match.html">Match &amp; submission</a></td><td><span class="planned">Planned · Phase 6</span></td><td>—</td><td>Agents 10–11</td></tr>
+          <tr><td><a href="followups.html">Follow-ups</a></td><td><span class="planned">Planned · Phase 7</span></td><td>—</td><td>Agent 12</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="grid cols-2">
+    <div class="card">
+      <div class="card-head"><h2>Safeguards in code</h2></div>
+      <ul class="list">
+        <li>Nothing is sent or submitted without an approval; the send must match the approved text exactly</li>
+        <li>Each approval delivers at most once, even after a retry or restart</li>
+        <li>Opt-outs block every agent and channel; unsubscribe links are signed</li>
+        <li>Canadian contacts need a recorded CASL consent basis before any email</li>
+        <li>Outreach is off in local and dev, allow-listed in test, capped per day</li>
+        <li>LinkedIn requests are sent by the recruiter by hand, never automated</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Try the real API locally</h2></div>
+      <div class="card-body stack">
+        <p class="muted" style="margin:0">No database or API key needed:</p>
+        <pre class="mono" style="margin:0;white-space:pre-wrap;background:var(--surface-2);padding:10px;border-radius:8px">cd backend
+RAP_STORAGE=memory RAP_LLM_PROVIDER=none RAP_DEMO_USERS=true \
+  uv run uvicorn recruiting.api.main:app --reload</pre>
+        <p class="faint" style="margin:0">Open http://localhost:8000/docs and send the header <code>X-Dev-User-Email: bd.manager@cbs.example</code> (or administrator@, recruiter@, account.manager@, sales.manager@).</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+</body>
+</html>

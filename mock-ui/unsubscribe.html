@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unsubscribe · CBS LLC</title>
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .wrap { max-width: 520px; margin: 10vh auto; padding: 0 16px; }
+  .wrap h1 { font-size: 22px; margin: 0 0 8px; }
+</style>
+</head>
+<body>
+<div class="mock-banner">Mock UI: the public page behind the unsubscribe link in every outreach email. No sign-in needed.</div>
+<div class="wrap">
+  <div class="card">
+    <div class="card-body stack" id="step-ask">
+      <h1>Unsubscribe</h1>
+      <p class="muted" style="margin:0">Stop all emails from CBS LLC to <b>r.lee@northfield-axle.example</b>?</p>
+      <div><button class="btn primary" id="btn-unsub">Unsubscribe</button></div>
+      <p class="faint" style="margin:0">One click is needed so that mail scanners following links cannot unsubscribe you by accident. Mail apps that support one-click unsubscribe skip this page.</p>
+    </div>
+    <div class="card-body stack" id="step-done" style="display:none">
+      <h1>You are unsubscribed</h1>
+      <p class="muted" style="margin:0">CBS LLC will not email this address again. This applies to every channel, including LinkedIn messages from our recruiters.</p>
+    </div>
+  </div>
+  <p class="faint" style="text-align:center;margin-top:14px">CBS LLC · 1200 Woodward Ave, Detroit, MI 48226 (sample address)</p>
+</div>
+<script>
+document.getElementById("btn-unsub").onclick = () => {
+  document.getElementById("step-ask").style.display = "none";
+  document.getElementById("step-done").style.display = "";
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Follow-ups · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="followups" data-default-role="recruiter">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Follow-ups</h1>
+      <p>Agent 12 keeps a next reminder date on every open item: clients, candidates, interviews, offers, feedback and start dates.</p>
+    </div>
+    <div class="row">
+      <select aria-label="Type"><option>All types</option><option>Client</option><option>Candidate</option><option>Interview</option><option>Offer</option><option>Feedback</option><option>Start date</option></select>
+      <select aria-label="Owner"><option>Mine</option><option>Team</option></select>
+    </div>
+  </div>
+
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Overdue</div><div class="value num" style="color:var(--bad)">2</div></div>
+    <div class="card kpi"><div class="label">Due today</div><div class="value num">7</div></div>
+    <div class="card kpi"><div class="label">This week</div><div class="value num">19</div></div>
+    <div class="card kpi"><div class="label">Open items without a reminder</div><div class="value num" style="color:var(--ok)">0</div><div class="target">Phase 7 exit criterion</div></div>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Due</th><th>Type</th><th>Item</th><th>Suggested action</th><th>Owner</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><span class="chip bad">2 days overdue</span></td><td><span class="chip">Feedback</span></td><td><b>Interview feedback · Wei Zhang</b><span class="sub">Kestrel Medical Devices · interviewed 19 Nov</span></td><td>Draft a polite feedback request to Sofia Marsh</td><td>Leah Kim</td><td><a class="btn sm" href="#" data-toast="Draft added to the approval queue (mock)">Draft</a></td></tr>
+          <tr><td><span class="chip bad">1 day overdue</span></td><td><span class="chip">Candidate</span></td><td><b>Missing details · Raj Iyer</b><span class="sub">JOB-2026-0139 · 5 of 8 details missing</span></td><td>Send reminder for resume, rate and notice period</td><td>Dana Okafor</td><td><a class="btn sm" href="#" data-toast="Draft added to the approval queue (mock)">Draft</a></td></tr>
+          <tr><td><span class="chip warn">Today 14:00</span></td><td><span class="chip violet">Interview</span></td><td><b>Interview · Kevin Doyle</b><span class="sub">Northfield Axle Systems · JOB-2026-0128 · technical round (video)</span></td><td>Confirm with candidate 2 hours before; share prep notes</td><td>Dana Okafor</td><td><a class="btn sm" href="#" data-toast="Marked done (mock)">Done</a></td></tr>
+          <tr><td><span class="chip warn">Today</span></td><td><span class="chip brand">Client</span></td><td><b>No reply · Grace Whitfield</b><span class="sub">Lakeshore Aero Components · first email sent 19 Nov</span></td><td>Follow-up email #1 (needs approval)</td><td>Marcus Hale</td><td><a class="btn sm" href="#" data-toast="Draft added to the approval queue (mock)">Draft</a></td></tr>
+          <tr><td>Tomorrow</td><td><span class="chip ok">Offer</span></td><td><b>Offer decision · Luis Moreno</b><span class="sub">Orion Heavy Equipment · offer sent 20 Nov</span></td><td>Call candidate about offer decision</td><td>Leah Kim</td><td><a class="btn sm" href="#" data-toast="Snoozed 1 day (mock)">Snooze</a></td></tr>
+          <tr><td>26 Nov</td><td><span class="chip">LinkedIn</span></td><td><b>No reply · John Mercer</b><span class="sub">Connection note sent by hand 23 Nov</span></td><td>Check LinkedIn; if no reply, move to next candidate</td><td>Dana Okafor</td><td><a class="btn sm" href="#" data-toast="Snoozed 1 day (mock)">Snooze</a></td></tr>
+          <tr><td>9 Dec</td><td><span class="chip info">Start date</span></td><td><b>Start · Luis Moreno</b><span class="sub">Orion Heavy Equipment · Peoria, IL</span></td><td>Day-1 check-in with consultant and manager</td><td>Leah Kim</td><td><a class="btn sm" href="#" data-toast="Snoozed 1 day (mock)">Snooze</a></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+</body>
+</html>

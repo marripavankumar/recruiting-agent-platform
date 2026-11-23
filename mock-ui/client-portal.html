@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client portal · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="portal" data-default-role="client">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Northfield Axle Systems</h1>
+      <p>Your open roles and the candidates CBS LLC has submitted. You see only your company's information. (Shown as it looks once the recruiter approves the pending submissions.)</p>
+    </div>
+    <div class="row">
+      <a class="btn primary" href="#" data-toast="Upload or paste a job description; your CBS account manager is notified (mock)">Share a new job description</a>
+    </div>
+  </div>
+
+  <div class="grid cols-3" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Open roles with CBS</div><div class="value num">2</div></div>
+    <div class="card kpi"><div class="label">Candidates submitted</div><div class="value num">3</div><div class="target">First one 14 h after your JD</div></div>
+    <div class="card kpi"><div class="label">Waiting for your feedback</div><div class="value num" id="waiting">2</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2>Submitted candidates</h2><span class="faint">CAE Engineer (Crash / LS-DYNA) · JOB-2026-0142</span></div>
+    <ul class="list">
+      <li data-sub>
+        <div class="avatar">PN</div>
+        <div class="grow">
+          <div class="row" style="justify-content:space-between"><span class="title">Priya Natarajan · Senior CAE Engineer</span><span class="chip ok">Match 92%</span></div>
+          <div class="faint">8 years crash CAE · LS-DYNA, ANSA · FMVSS 208/214 · EV battery enclosures · Available in 2 weeks · $78/h · US citizen · Novi, MI</div>
+          <div class="row" style="margin-top:8px" data-actions>
+            <a class="btn sm" href="#" data-toast="Opens the resume and skill matrix (mock)">Resume &amp; skill matrix</a>
+            <button class="btn sm ok" data-fb="Interview requested. Your account manager will schedule it.">Request interview</button>
+            <button class="btn sm danger" data-fb="Thanks, we've noted it's not a fit.">Not a fit</button>
+          </div>
+        </div>
+      </li>
+      <li data-sub>
+        <div class="avatar">WZ</div>
+        <div class="grow">
+          <div class="row" style="justify-content:space-between"><span class="title">Wei Zhang · Crash Safety Analyst</span><span class="chip ok">Match 89%</span></div>
+          <div class="faint">9 years · IIHS small overlap specialist · LS-DYNA, ANSA, Python · Available now · $80/h · H-1B transfer · Dearborn, MI</div>
+          <div class="row" style="margin-top:8px" data-actions>
+            <a class="btn sm" href="#" data-toast="Opens the resume and skill matrix (mock)">Resume &amp; skill matrix</a>
+            <button class="btn sm ok" data-fb="Interview requested. Your account manager will schedule it.">Request interview</button>
+            <button class="btn sm danger" data-fb="Thanks, we've noted it's not a fit.">Not a fit</button>
+          </div>
+        </div>
+      </li>
+      <li>
+        <div class="avatar">KD</div>
+        <div class="grow">
+          <div class="row" style="justify-content:space-between"><span class="title">Kevin Doyle · Manufacturing Engineer</span><span class="chip violet">Interview today 14:00</span></div>
+          <div class="faint">Manufacturing Engineer · JOB-2026-0128 · Submitted 12 Nov</div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Your open roles</h2></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>Location</th><th>Shared</th><th>Submitted</th><th>Status</th><th>Your CBS contact</th></tr></thead>
+        <tbody>
+          <tr><td><b>CAE Engineer (Crash / LS-DYNA)</b><span class="sub">JOB-2026-0142</span></td><td>Troy, MI</td><td>22 Nov</td><td class="num">2</td><td><span class="chip ok">Active search</span></td><td>Leah Kim</td></tr>
+          <tr><td><b>Manufacturing Engineer</b><span class="sub">JOB-2026-0128</span></td><td>Troy, MI</td><td>10 Nov</td><td class="num">1</td><td><span class="chip violet">Interviewing</span></td><td>Leah Kim</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+<script>
+document.querySelectorAll("[data-fb]").forEach((b) => b.addEventListener("click", () => {
+  const actions = b.closest("[data-actions]");
+  actions.innerHTML = `<span class="chip ${b.classList.contains("ok") ? "ok" : ""}">${b.classList.contains("ok") ? "Interview requested" : "Marked not a fit"}</span>`;
+  toast(b.dataset.fb);
+  const left = document.querySelectorAll("[data-sub] [data-fb]").length / 2;
+  document.getElementById("waiting").textContent = left;
+}));
+</script>
+</body>
+</html>

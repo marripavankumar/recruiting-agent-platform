@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Companies · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="companies" data-default-role="bd_manager">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>Companies &amp; client outreach</h1>
+      <p>Agent 1 finds companies, Agent 2 scores hiring signals from career pages, Agent 3 drafts the first email for BD Manager approval. <span class="built">Built in backend</span></p>
+    </div>
+    <div class="row" data-roles="administrator bd_manager">
+      <button class="btn" id="btn-import">Import company list</button>
+      <button class="btn" id="btn-signals">Check hiring signals</button>
+      <button class="btn primary" id="btn-draft">Draft first emails</button>
+    </div>
+  </div>
+
+  <div id="run-report"></div>
+
+  <div class="tabs" id="tabs">
+    <a href="#companies" class="active" data-tab="companies">Prospective companies <span class="faint" id="count"></span></a>
+    <a href="#outreach" data-tab="outreach">Outreach tracking</a>
+    <a href="#criteria" data-tab="criteria">Search criteria &amp; scoring</a>
+  </div>
+
+  <section data-panel="companies">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-body row">
+        <select id="f-industry" aria-label="Industry"><option value="">All industries</option></select>
+        <select id="f-priority" aria-label="Priority"><option value="0">Any priority</option><option value="70">Priority ≥ 70 (drafting threshold)</option><option value="40">Priority ≥ 40</option></select>
+        <select id="f-status" aria-label="Status"><option value="">Any status</option><option value="not_contacted">Not contacted</option><option value="contacted">Contacted</option><option value="replied">Replied</option><option value="client">Client</option><option value="do_not_contact">Do not contact</option></select>
+        <span style="flex:1"></span>
+        <span class="faint">Sources: industry-database exports (CSV import), company career pages. LinkedIn is never scraped.</span>
+      </div>
+    </div>
+
+    <div class="split">
+      <div class="card">
+        <div class="table-wrap">
+          <table id="table">
+            <thead><tr><th>Company</th><th>Industry</th><th>Revenue</th><th>Location</th><th>Open target roles</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="card-foot" style="justify-content:space-between"><span class="faint">De-duplicated by web domain · sorted by priority</span><span class="faint">Opted-out contacts are never emailed by any agent</span></div>
+      </div>
+      <div class="card" id="detail"></div>
+    </div>
+  </section>
+
+  <section data-panel="outreach" style="display:none">
+    <div class="grid cols-4" style="margin-bottom:16px">
+      <div class="card kpi"><div class="label">Sent (approved) this week</div><div class="value num">236</div><div class="target">Target 200–500 / week</div></div>
+      <div class="card kpi"><div class="label">Daily email cap left today</div><div class="value num">64 / 100</div><div class="target">Protects the sending domain; extra approved emails wait until tomorrow</div></div>
+      <div class="card kpi"><div class="label">Replied</div><div class="value num">17.4%</div><div class="target">41 replies · target &gt;15%</div></div>
+      <div class="card kpi"><div class="label">Unsubscribed</div><div class="value num">3</div><div class="target">Honoured across every channel within seconds</div></div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Recipient</th><th>Subject</th><th>Approved by</th><th>Delivery</th><th>Reply</th><th>Next step</th></tr></thead>
+          <tbody>
+            <tr><td>Ben Ortiz<span class="sub">Bramwell Packaging Co.</span></td><td>Supporting your Q1 controls engineering hiring</td><td>Marcus Hale</td><td><span class="chip ok">Sent 18 Nov · Microsoft 365</span></td><td><a href="replies.html"><span class="chip ok">JD received</span></a></td><td>JOB-2026-0139 created</td></tr>
+            <tr><td>Sofia Marsh<span class="sub">Kestrel Medical Devices</span></td><td>Quality engineering consultants</td><td>Marcus Hale</td><td><span class="chip ok">Sent 17 Nov</span></td><td><a href="replies.html"><span class="chip ok">JD received</span></a></td><td>JOB-2026-0137 created</td></tr>
+            <tr><td>Grace Whitfield<span class="sub">Lakeshore Aero Components</span></td><td>Engineering consultants for your stress team</td><td>Marcus Hale</td><td><span class="chip ok">Sent 19 Nov</span></td><td><span class="chip">No reply</span></td><td>Follow-up 26 Nov (Agent 12, planned)</td></tr>
+            <tr><td>Arjun Patel<span class="sub">Orion Heavy Equipment</span></td><td>Engineering consultants for Orion's 2027 programs</td><td>Marcus Hale (1 of 2)</td><td><span class="chip warn">Waiting for second approver (Sales Manager)</span></td><td>—</td><td>Sends once approved; if today's cap is used up, it sends tomorrow</td></tr>
+            <tr><td>Mei Tanaka<span class="sub">Ridgeway Industrial Robotics</span></td><td>Robotics engineers for 2027</td><td>Marcus Hale</td><td><span class="chip ok">Sent 14 Nov</span></td><td><a href="replies.html"><span class="chip bad">Unsubscribe</span></a></td><td>Do not contact (all channels)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section data-panel="criteria" style="display:none">
+    <div class="grid cols-2">
+      <div class="card">
+        <div class="card-head"><h2>Company Discovery (Agent 1)</h2><span class="chip ok">Daily run</span></div>
+        <div class="card-body">
+          <dl class="kv">
+            <dt>Revenue</dt><dd>&gt; $100 million</dd>
+            <dt>Countries</dt><dd>USA, Canada · Mexico in a later phase (Q3)</dd>
+            <dt>Industries (Q1)</dt><dd><span class="tag">Manufacturing</span><span class="tag">Automotive</span><span class="tag">Medical Devices</span><span class="tag">Industrial Equipment</span><span class="tag">Aerospace</span><span class="tag">Energy</span><span class="tag">Consumer Products</span><span class="tag">Electronics</span><span class="tag">Heavy Equipment</span><span class="tag">Defense</span><span class="tag">Life Sciences</span><span class="tag">Industrial Automation</span><span class="tag">Oil &amp; Gas</span><span class="tag">Semiconductor</span></dd>
+            <dt>Contact roles</dt><dd>Hiring Manager, Engineering Manager, Director of Engineering, Talent Acquisition, HR Manager, Recruiter (mapped from job titles)</dd>
+            <dt>Duplicates</dt><dd>Merged by web domain; newer data fills gaps, never clears known values</dd>
+          </dl>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Priority score (Agent 2, Q10)</h2></div>
+        <div class="card-body">
+          <div class="meter"><span>Recency · 40%</span><div class="bar" style="margin:0"><span style="width:40%"></span></div><b class="num">0.40</b></div>
+          <div class="meter"><span>Volume · 35%</span><div class="bar" style="margin:0"><span style="width:35%"></span></div><b class="num">0.35</b></div>
+          <div class="meter"><span>Role fit · 25%</span><div class="bar" style="margin:0"><span style="width:25%"></span></div><b class="num">0.25</b></div>
+          <p class="faint" style="margin:10px 0 0">Recency: newest posting ≤ 7 days scores full, 60 days scores zero. Volume: up to 5 open target roles. Role fit: share of the 10 roles named in BRD Agent 2. Postings unseen for 21 days expire. Agent 3 drafts for companies scoring ≥ 70.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+</div>
+</div>
+
+<div class="modal-back" id="import-modal">
+  <div class="modal">
+    <div class="card-head"><h2>Import company list (Agent 1)</h2><button class="btn sm" data-close>Close</button></div>
+    <div class="card-body stack">
+      <div class="drop">Drop a CSV export here (Apollo, ZoomInfo, Dun &amp; Bradstreet, trade-association lists)<br><span class="faint">One row per contact; rows with the same domain are merged</span></div>
+      <div class="faint mono">company, domain, industry, revenue_usd, employees, country, location, career_page_url, contact_name, contact_title, contact_email, …</div>
+      <div class="row">
+        <label class="faint">Source name <input value="apollo-export-2026-11" aria-label="Source name"></label>
+        <label class="faint">Min revenue <select aria-label="Minimum revenue"><option>$100M</option><option>$500M</option><option>$1B</option></select></label>
+        <label class="faint"><input type="checkbox" checked> USA</label>
+        <label class="faint"><input type="checkbox" checked> Canada</label>
+        <label class="faint"><input type="checkbox" disabled> Mexico (later phase)</label>
+      </div>
+    </div>
+    <div class="card-foot"><button class="btn" data-close>Cancel</button><button class="btn primary" id="btn-run-import">Import</button></div>
+  </div>
+</div>
+
+<script>
+const COMPANIES = [
+  { id: "c1", name: "Northfield Axle Systems", domain: "northfield-axle.example", industry: "Automotive", revenue: "$1.2B", country: "US", loc: "Troy, MI", score: 92, status: "contacted", source: "apollo-export-2026-11",
+    factors: [1, 0.8, 1], contacts: [["Rachel Lee", "Engineering Manager", "engineering_manager", "r.lee@northfield-axle.example", "not_required"], ["Sam Ito", "Talent Acquisition Partner", "talent_acquisition", "s.ito@northfield-axle.example", "not_required"]],
+    postings: [["Senior CAE Engineer – Crash", "CAE Engineer", "20 Nov"], ["Manufacturing Engineer II", "Manufacturing Engineer", "18 Nov"], ["Supplier Quality Engineer", "Supplier Quality Engineer", "15 Nov"], ["Quality Engineer", "Quality Engineer", "12 Nov"]] },
+  { id: "c2", name: "Bramwell Packaging Co.", domain: "bramwellpack.example", industry: "Consumer Products", revenue: "$640M", country: "US", loc: "Grand Rapids, MI", score: 81, status: "client", source: "zoominfo-q4",
+    factors: [1, 0.4, 0.6], contacts: [["Ben Ortiz", "Director of Engineering", "director_of_engineering", "b.ortiz@bramwellpack.example", "not_required"]],
+    postings: [["Controls Engineer (Rockwell PLC)", "Controls Engineer", "19 Nov"], ["Automation Engineer", "Automation Engineer", "11 Nov"]] },
+  { id: "c3", name: "Kestrel Medical Devices", domain: "kestrelmed.example", industry: "Medical Devices", revenue: "$380M", country: "US", loc: "Minneapolis, MN", score: 77, status: "client", source: "apollo-export-2026-11",
+    factors: [0.85, 0.6, 0.5], contacts: [["Sofia Marsh", "Talent Acquisition Manager", "talent_acquisition", "smarsh@kestrelmed.example", "not_required"]],
+    postings: [["Supplier Quality Engineer", "Supplier Quality Engineer", "14 Nov"], ["Validation Engineer", "Validation Engineer", "10 Nov"], ["Quality Engineer", "Quality Engineer", "9 Nov"]] },
+  { id: "c4", name: "Maple Robotics", domain: "maple-robotics.example", industry: "Industrial Automation", revenue: "$250M", country: "CA", loc: "Waterloo, ON", score: 74, status: "not_contacted", source: "apollo-export-2026-11",
+    factors: [0.9, 0.6, 0.33], contacts: [["Jo Roy", "Director of Engineering", "director_of_engineering", "jo@maple-robotics.example", "none"]],
+    postings: [["Robotics Engineer", "Robotics Engineer", "17 Nov"], ["PLC Engineer", "PLC Engineer", "13 Nov"], ["Mechanical Engineer", "Mechanical Engineer", "8 Nov"]] },
+  { id: "c5", name: "Lakeshore Aero Components", domain: "lakeshoreaero.example", industry: "Aerospace", revenue: "$910M", country: "US", loc: "Wichita, KS", score: 72, status: "contacted", source: "dnb-list",
+    factors: [0.8, 0.6, 0.67], contacts: [["Grace Whitfield", "HR Manager", "hr_manager", "g.whitfield@lakeshoreaero.example", "not_required"]],
+    postings: [["Design Engineer", "Design Engineer", "16 Nov"], ["Stress Analyst (FEA)", "FEA Engineer", "12 Nov"], ["Mechanical Engineer", "Mechanical Engineer", "6 Nov"]] },
+  { id: "c6", name: "Tamarack Electronics", domain: "tamarack-elec.example", industry: "Electronics", revenue: "$520M", country: "CA", loc: "Waterloo, ON", score: 71, status: "not_contacted", source: "zoominfo-q4",
+    factors: [0.75, 0.4, 0.5], contacts: [["Daniel Roy", "Engineering Manager", "engineering_manager", "d.roy@tamarack-elec.example", "implied_conspicuous_publication"]],
+    postings: [["Test Engineer", "Test Engineer", "14 Nov"], ["Electrical Engineer", "Electrical Engineer", "7 Nov"]] },
+  { id: "c7", name: "Ridgeway Industrial Robotics", domain: "ridgeway-robotics.example", industry: "Industrial Automation", revenue: "$260M", country: "US", loc: "Pittsburgh, PA", score: 70, status: "do_not_contact", source: "dnb-list",
+    factors: [0.7, 0.4, 0.5], contacts: [["Mei Tanaka", "Talent Acquisition", "talent_acquisition", "mei@ridgeway-robotics.example", "not_required"]],
+    postings: [["Robotics Engineer", "Robotics Engineer", "12 Nov"], ["PLC Engineer", "PLC Engineer", "9 Nov"]] },
+  { id: "c8", name: "Silverline Energy Systems", domain: "silverline-energy.example", industry: "Energy", revenue: "$1.7B", country: "US", loc: "Houston, TX", score: 0, status: "not_contacted", source: "dnb-list",
+    factors: [0, 0, 0], contacts: [], postings: [] },
+];
+const STATUS = {
+  not_contacted: ["", "Not contacted"], contacted: ["warn", "Contacted · awaiting reply"], replied: ["info", "Replied"],
+  client: ["ok", "Client"], do_not_contact: ["bad", "Do not contact"],
+};
+const CONSENT = {
+  none: ["bad", "No CASL consent recorded"], not_required: ["", "US: consent basis not required"],
+  implied_conspicuous_publication: ["ok", "CASL: published business address"], express: ["ok", "CASL: express"],
+};
+let selected = "c1";
+
+function render() {
+  const ind = document.getElementById("f-industry").value;
+  const min = +document.getElementById("f-priority").value;
+  const st = document.getElementById("f-status").value;
+  const rows = COMPANIES.filter((c) => (!ind || c.industry === ind) && c.score >= min && (!st || c.status === st));
+  document.getElementById("count").textContent = rows.length;
+  document.querySelector("#table tbody").innerHTML = rows.map((c) => `
+    <tr data-id="${c.id}" style="cursor:pointer;${c.id === selected ? "background:var(--brand-2)" : ""}">
+      <td><b>${c.name}</b><span class="sub">${c.domain}</span></td><td>${c.industry}</td><td class="num">${c.revenue}</td><td>${c.loc}</td>
+      <td>${c.postings.length ? c.postings.length + '<span class="sub">' + [...new Set(c.postings.map((p) => p[1]))].slice(0, 2).join(", ") + "</span>" : '<span class="faint">None found</span>'}</td>
+      <td><span class="score" style="--v:${c.score}"><span>${c.score}</span></span></td>
+      <td><span class="chip ${STATUS[c.status][0]}">${STATUS[c.status][1]}</span></td></tr>`).join("");
+  document.querySelectorAll("#table tbody tr").forEach((tr) => tr.onclick = () => { selected = tr.dataset.id; render(); });
+  const c = COMPANIES.find((x) => x.id === selected) || rows[0];
+  if (!c) { document.getElementById("detail").innerHTML = '<div class="card-body muted">No companies match.</div>'; return; }
+  const names = ["Recency", "Volume", "Role fit"];
+  document.getElementById("detail").innerHTML = `
+    <div class="card-head"><div><b>${c.name}</b><div class="faint">${c.domain} · source ${c.source}</div></div><span class="chip ${STATUS[c.status][0]}">${STATUS[c.status][1]}</span></div>
+    <div class="card-body stack" style="gap:14px">
+      <div><div class="faint" style="margin-bottom:4px">Priority ${c.score} · factors</div>
+        ${c.factors.map((f, i) => `<div class="meter"><span>${names[i]}</span><div class="bar ${f >= 0.8 ? "ok" : ""}" style="margin:0"><span style="width:${f * 100}%"></span></div><b class="num">${f.toFixed(2)}</b></div>`).join("")}</div>
+      <div><div class="faint">Contacts</div>${c.contacts.length ? c.contacts.map((p) => `
+        <div style="padding:8px 0;border-bottom:1px solid var(--border)"><b>${p[0]}</b> <span class="chip">${p[2].replace(/_/g, " ")}</span><div class="faint">${p[1]} · ${p[3]}</div>
+        <span class="chip ${CONSENT[p[4]][0]}" style="margin-top:4px">${CONSENT[p[4]][1]}</span></div>`).join("") : '<div class="muted">No contacts found yet</div>'}</div>
+      <div><div class="faint">Open postings (career page)</div>${c.postings.length ? c.postings.map((p) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span>${p[0]}</span><span class="faint">→ ${p[1]} · ${p[2]}</span></div>`).join("") : '<div class="muted">None. The company stays on the watch list.</div>'}</div>
+      ${c.country === "CA" && c.contacts.some((p) => p[4] === "none") ? '<div class="notice warn">Canadian contact without a recorded CASL consent basis: Agent 3 will not draft until one is recorded.</div>' : ""}
+    </div>`;
+}
+
+function report(title, items) {
+  document.getElementById("run-report").innerHTML = `<div class="card" style="margin-bottom:16px"><div class="card-head"><h2>${title}</h2><button class="btn sm" onclick="this.closest('.card').remove()">Dismiss</button></div><div class="card-body row">${items.map(([k, v, cls]) => `<span class="chip ${cls || ""}">${k}: <b>${v}</b></span>`).join("")}</div></div>`;
+}
+
+const inds = [...new Set(COMPANIES.map((c) => c.industry))].sort();
+document.getElementById("f-industry").innerHTML += inds.map((i) => `<option>${i}</option>`).join("");
+["f-industry", "f-priority", "f-status"].forEach((id) => document.getElementById(id).onchange = render);
+const modal = document.getElementById("import-modal");
+document.getElementById("btn-import").onclick = () => modal.classList.add("open");
+modal.querySelectorAll("[data-close]").forEach((b) => b.onclick = () => modal.classList.remove("open"));
+document.getElementById("btn-run-import").onclick = () => {
+  modal.classList.remove("open");
+  report("Import finished · apollo-export-2026-11", [["Rows seen", 1240], ["New companies", 212, "ok"], ["Updated", 61], ["Contacts added", 388, "ok"], ["Skipped: revenue", 734], ["Skipped: country", 233]]);
+};
+document.getElementById("btn-signals").onclick = () => report("Hiring signals checked", [["Companies", 412], ["Career pages unavailable or blocked by robots.txt", 37, "warn"], ["Postings found", 2116], ["Target roles", 904, "ok"], ["New", 133, "ok"], ["Expired", 58]]);
+document.getElementById("btn-draft").onclick = () => {
+  report("First emails drafted · waiting in the BD Manager's queue", [["Drafted", 1, "ok"], ["Skipped: CASL consent missing", 1, "warn"], ["Skipped: already contacted", 2], ["Skipped: opted out", 0]]);
+  toast("Drafted for Tamarack Electronics. Maple Robotics skipped: no CASL consent recorded.");
+};
+document.querySelectorAll("#tabs a").forEach((a) => a.addEventListener("click", (e) => {
+  e.preventDefault();
+  document.querySelectorAll("#tabs a").forEach((x) => x.classList.toggle("active", x === a));
+  document.querySelectorAll("[data-panel]").forEach((p) => { p.style.display = p.dataset.panel === a.dataset.tab ? "" : "none"; });
+}));
+render();
+</script>
+</body>
+</html>
