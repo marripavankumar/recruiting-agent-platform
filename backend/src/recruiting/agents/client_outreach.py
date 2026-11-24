@@ -109,26 +109,60 @@ class ClientOutreachAgent:
         self._min_priority = min_priority
         self._on_error = on_error or (lambda _key, _exc: None)
 
-    def choose_contact(self, company: Company) -> tuple[Contact | None, str | None]:
-        contacts = [c for c in self._companies.contacts(company.id) if c.email]
-        if not contacts:
-            return None, "no_contact_email"
-        contacts = [c for c in contacts if c.email_valid]  # S6: hard bounces are skipped
-        if not contacts:
-            return None, "no_valid_contact_email"
-        contacts = [c for c in contacts if not self._opt_outs.is_opted_out(c.email or "")]
-        if not contacts:
-            return None, "opted_out"
+    def contact_problem(self, company: Company, contact: Contact) -> str | None:
+        """Why this contact may not receive a first email, or None if they may."""
+        if not contact.email:
+            return "no_contact_email"
+        if not contact.email_valid:  # S6: hard bounces are skipped
+            return "no_valid_contact_email"
+        if self._opt_outs.is_opted_out(contact.email):
+            return "opted_out"
         # CASL: Canadian recipients need a recorded consent basis before any commercial email.
-        contacts = [
-            c
-            for c in contacts
-            if (c.country or company.country) != "CA" or c.consent_basis != ConsentBasis.NONE
-        ]
-        if not contacts:
-            return None, "casl_consent_missing"
+        if (
+            contact.country or company.country
+        ) == "CA" and contact.consent_basis == ConsentBasis.NONE:
+            return "casl_consent_missing"
+        return None
+
+    def eligible_contacts(self, company: Company) -> tuple[list[Contact], str | None]:
+        """Contacts who may be emailed, best first; or the reason none may."""
+        contacts = self._companies.contacts(company.id)
+        eligible, last_reason = [], "no_contact_email"
+        # Report the reason that removed the last candidates, as choose_contact always has.
+        for reason in ("no_contact_email", "no_valid_contact_email", "opted_out",
+                       "casl_consent_missing"):  # fmt: skip
+            contacts = [c for c in contacts if self.contact_problem(company, c) != reason]
+            if not contacts:
+                return [], reason
+            last_reason = reason
         rank = {role: i for i, role in enumerate(CONTACT_PREFERENCE)}
-        return min(contacts, key=lambda c: rank.get(c.role, len(rank))), None
+        eligible = sorted(contacts, key=lambda c: rank.get(c.role, len(rank)))
+        return eligible, None if eligible else last_reason
+
+    def choose_contact(self, company: Company) -> tuple[Contact | None, str | None]:
+        eligible, reason = self.eligible_contacts(company)
+        return (eligible[0], None) if eligible else (None, reason)
+
+    def start_draft(
+        self, company: Company, contact: Contact, subject: str, body: str, requested_by: str
+    ) -> str:
+        """Add the compliance footer and put the email in the BD Manager's approval queue."""
+        footer = compliance_footer(
+            self._sender.name,
+            self._sender.postal_address,
+            self._unsubscribe.url(contact.email or ""),
+        )
+        request_id = self._workflows.start(
+            gate=GateType.FIRST_CLIENT_EMAIL,
+            subject_id=contact.id,
+            channel=Channel.EMAIL,
+            recipient=contact.email or "",
+            content={"subject": subject.strip(), "body": body.rstrip() + footer},
+            requested_by=requested_by,
+        )
+        # "contacted" = outreach in progress, so the next run does not draft again.
+        self._companies.set_outreach_status(company.id, OutreachStatus.CONTACTED)
+        return request_id
 
     def draft(self, company: Company, contact: Contact) -> dict[str, str]:
         roles = sorted(

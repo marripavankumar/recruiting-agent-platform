@@ -28,7 +28,7 @@ from datetime import UTC, datetime, timedelta
 from email import message_from_bytes, message_from_string, policy
 from email.message import EmailMessage, Message
 from email.utils import parseaddr, parsedate_to_datetime
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import httpx
 
@@ -382,6 +382,8 @@ class MailboxReport:
     own_messages: int = 0
     unreadable_bounces: int = 0
     failed: int = 0
+    by_agent: int = 0  # filed by the intake deep agent
+    agent_fallbacks: int = 0  # the agent did not file it; deterministic routing did
 
 
 class MailboxReader:
@@ -393,7 +395,9 @@ class MailboxReader:
         own_addresses: tuple[str, ...] = (),
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         batch: int = 50,
+        agents: Any = None,  # AgentRunner: the intake deep agent files each email
     ) -> None:
+        self._agents = agents
         self._mailbox = mailbox
         self._platform = platform
         self._processed = processed
@@ -470,8 +474,18 @@ class MailboxReader:
             attachments_text="\n\n".join(texts),
             auto_reply=parsed.auto_reply,
         )
-        result = route_email(self._platform, email)
         if parsed.auto_reply:
-            report.auto_replies += 1
+            report.auto_replies += 1  # decided by headers: no model needed
+        elif self._agents is not None:
+            run = self._agents.start("intake", parsed.message_id, "mailbox", subject=email)
+            filed = [a for a in run.actions
+                     if a["tool"] in ("file_client_reply", "handle_candidate_reply")]  # fmt: skip
+            if filed:
+                report.routed += 1
+                report.by_agent += 1
+                return f"agent:{filed[0].get('category') or filed[0].get('intent', '')}"
+            # The agent failed or did not file it: the deterministic agents take over.
+            report.agent_fallbacks += 1
+        result = route_email(self._platform, email)
         report.routed += 1
         return f"{result['handled_by']}:{result.get('category', '')}"

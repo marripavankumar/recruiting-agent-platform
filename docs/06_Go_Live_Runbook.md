@@ -52,6 +52,7 @@ each morning. It raises these alerts:
 | Email failure rate | Above 5% of emails in 30 days | Check the provider's status and the sending domain (SPF, DKIM, DMARC); lower the daily cap; review failed recipients. A failed send is never retried automatically: create a new approval if it should go again. |
 | Approvals waiting | Oldest pending request older than 48 hours | Remind the approver role for that gate, or change the approver in `/admin/gate-policies`. |
 | Overdue follow-ups | Any | Owners work through `GET /follow-ups`; check the hourly scheduler is running. |
+| Agent run failed or waiting for a decision for more than a day | Any | `GET /agents/runs?status=failed` and `?status=waiting_for_human`. A failed intake run is already covered by the deterministic agents; for others read `error` and start a new run. Waiting runs need the recruiter's decision (`POST /agents/runs/{id}/decisions`). |
 | Scheduled job never ran, overdue or failed | Twice the job's interval, or any failure | Check the scheduler process is up and can reach the database (its log names the failing job). A failed job is retried after 5 minutes; sweeps can also be run by hand from the endpoints in the environment plan. |
 | Messages waiting to retry delivery (S24) | Any | Normal for a few minutes while the email provider recovers. If the count grows, check the provider status and the 5-minute retry job. After 5 attempts a message fails; sending it needs a new approval. |
 

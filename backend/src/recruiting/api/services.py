@@ -27,6 +27,7 @@ from recruiting.outreach import (
 )
 
 if TYPE_CHECKING:
+    from recruiting.agentic.runs import AgentRunner
     from recruiting.api.platform import Platform
     from recruiting.mailbox import MailboxReader
     from recruiting.scheduler import JobStateStore
@@ -51,6 +52,8 @@ class Services:
     job_state: JobStateStore | None = None
     # Reads the outreach mailbox (scheduled). None: replies arrive only through the webhook.
     mailbox: MailboxReader | None = None
+    # Deep agents (RAP_AGENTS_ENABLED). None: the deterministic agents do the work.
+    agents: AgentRunner | None = None
 
 
 def demo_users() -> list[CurrentUser]:
@@ -103,10 +106,11 @@ def build_services(settings: Settings) -> Services:
         from recruiting.scheduler import InMemoryJobState
 
         job_state = InMemoryJobState() if settings.run_scheduler else None
-        reader = build_mailbox_reader(settings, platform, InMemoryProcessed())
+        agents = build_agent_runner(settings, platform, MemorySaver(), None)
+        reader = build_mailbox_reader(settings, platform, InMemoryProcessed(), agents)
         return Services(
             approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state,
-            reader,
+            reader, agents,
         )  # fmt: skip
 
     from recruiting.approvals.postgres import PostgresApprovalStore, PostgresPolicyStore
@@ -151,17 +155,47 @@ def build_services(settings: Settings) -> Services:
         follow_up_cadence=PostgresCadence(connect),
         approvals=approvals,
     )
+    from recruiting.agentic.runs import PostgresAgentRuns
     from recruiting.mailbox import PostgresProcessed
     from recruiting.scheduler import PostgresJobState
 
+    agents = None
+    if settings.agents_enabled:
+        agents = build_agent_runner(
+            settings, platform, workflow_checkpointer(settings.database_url),
+            PostgresAgentRuns(connect),
+        )  # fmt: skip
     return Services(
         approvals, opt_outs, users, authenticator, workflows, outreach, platform,
         PostgresJobState(connect),
-        build_mailbox_reader(settings, platform, PostgresProcessed(connect)),
+        build_mailbox_reader(settings, platform, PostgresProcessed(connect), agents),
+        agents,
     )  # fmt: skip
 
 
-def build_mailbox_reader(settings: Settings, platform: Platform, processed: Any):
+def build_agent_runner(settings: Settings, platform: Platform, checkpointer: Any, runs: Any):
+    """The deep-agent runner, or None when RAP_AGENTS_ENABLED is off."""
+    if not settings.agents_enabled:
+        return None
+    if settings.llm_provider != "claude":
+        raise RuntimeError("RAP_AGENTS_ENABLED needs RAP_LLM_PROVIDER=claude")
+    from recruiting.agentic.model import build_chat_model
+    from recruiting.agentic.runs import AgentRunner, InMemoryAgentRuns
+
+    return AgentRunner(
+        platform,
+        build_chat_model(settings.llm_model, settings.agent_effort),
+        runs or InMemoryAgentRuns(),
+        checkpointer,
+        ledger=platform.gateway.ledger if platform.gateway else None,
+        model_name=settings.llm_model,
+        daily_limit=settings.agent_daily_run_limit,
+    )
+
+
+def build_mailbox_reader(
+    settings: Settings, platform: Platform, processed: Any, agents: Any = None
+):
     """The reader for the first email provider's mailbox, or None when RAP_READ_MAILBOX is off."""
     if not settings.read_mailbox:
         return None
@@ -182,7 +216,7 @@ def build_mailbox_reader(settings: Settings, platform: Platform, processed: Any)
     else:
         raise RuntimeError(f"Unknown email provider {provider}; use m365 or gmail")
     own = tuple(a for a in (settings.email_sender, address) if a)
-    return MailboxReader(mailbox, platform, processed, own_addresses=own)
+    return MailboxReader(mailbox, platform, processed, own_addresses=own, agents=agents)
 
 
 def build_email_channels(settings: Settings) -> list[ChannelAdapter]:

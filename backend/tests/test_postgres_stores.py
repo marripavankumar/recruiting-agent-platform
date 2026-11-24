@@ -582,3 +582,43 @@ def test_inbound_messages_are_claimed_once(connect):
     assert first.claim("<m-3@x>", now) == 1  # a worker crashes while handling it
     assert second.claim("<m-3@x>", now + timedelta(minutes=5)) == 0
     assert second.claim("<m-3@x>", now + timedelta(minutes=16)) == 2  # stuck: taken over
+
+
+def test_agent_runs_store(connect):
+    import uuid as _uuid
+    from datetime import UTC, datetime, timedelta
+
+    from recruiting.agentic.runs import AgentRun, PostgresAgentRuns, RunStatus
+
+    with connect() as conn:
+        conn.execute("DELETE FROM agent_run")
+    store = PostgresAgentRuns(connect)
+    now = datetime(2026, 11, 24, 12, 0, tzinfo=UTC)
+    run = AgentRun(str(_uuid.uuid4()), "recruiting", "job-1", RunStatus.RUNNING, "u-rec", now, now)
+    store.save(run)
+    run.status = RunStatus.WAITING
+    run.actions = [{"tool": "search_and_rank", "at": now, "ranked": 3}]
+    run.pending = [
+        {
+            "interrupt_id": "i1",
+            "action_requests": [{"name": "widen_search", "args": {"location": "state"}}],
+        }
+    ]
+    store.save(run)
+    loaded = store.get(run.id)
+    assert loaded.status is RunStatus.WAITING and loaded.actions[0]["ranked"] == 3
+    assert loaded.pending[0]["action_requests"][0]["name"] == "widen_search"
+    other = AgentRun(
+        str(_uuid.uuid4()),
+        "follow_up",
+        None,
+        RunStatus.DONE,
+        "scheduler",
+        now + timedelta(minutes=1),
+        now,
+    )
+    store.save(other)
+    assert [r.id for r in store.list()] == [other.id, run.id]  # newest first
+    assert [r.id for r in store.list(agent="recruiting", subject_id="job-1")] == [run.id]
+    assert [r.id for r in store.list(status=RunStatus.WAITING)] == [run.id]
+    assert store.list(since=now + timedelta(seconds=30)) == [store.get(other.id)]

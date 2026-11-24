@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     brand_name: str = "CBS LLC"
     brand_color: str = "#1F3A93"
     brand_logo_path: str | None = None  # PNG or JPEG
+    # Deep agents (LangGraph + deepagents) drive the workflow when on; needs llm_provider=claude.
+    # Off: every agent runs its deterministic code path, as before.
+    agents_enabled: bool = False
+    agent_effort: Literal["low", "medium", "high", "xhigh", "max"] = "high"
+    agent_daily_run_limit: int = 200
     # Read replies, JDs and bounce notices from the outreach mailbox (the first email provider)
     # every 2 minutes. Needs gmail.modify (Gmail) or Mail.ReadWrite (Microsoft 365).
     read_mailbox: bool = False

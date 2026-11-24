@@ -5,7 +5,10 @@ Jobs (each one is idempotent, so a late or repeated run does no harm):
 - outreach_retry: deliveries waiting to retry, every 5 minutes (S24);
 - hiring_signals: career pages due for a re-check, daily (S4);
 - mailbox: replies, JDs and bounce notices from the outreach mailbox, every 2 minutes
-  (when RAP_READ_MAILBOX is on).
+  (when RAP_READ_MAILBOX is on);
+- with deep agents on (RAP_AGENTS_ENABLED): recruiting_agents every 30 minutes (one run per
+  open job that had none for 6 hours), follow_up_agent hourly, business_development_agent
+  daily.
 
 Run it as its own process next to the API: `python -m recruiting.scheduler`, with the same
 RAP_* settings. Any number of replicas may run: each job run is claimed in the shared
@@ -215,15 +218,48 @@ class Scheduler:
 def default_jobs(services: Services) -> list[Job]:
     jobs = []
     platform = services.platform
+    agents = services.agents
     if platform is not None:
-        jobs.append(Job("follow_ups", timedelta(hours=1), platform.follow_ups.run))
+        # With agents on, the follow-up agent drafts the due messages; the sweep only tracks.
+        sweep = (lambda: platform.follow_ups.run(auto_draft=False)) if agents else (
+            platform.follow_ups.run)  # fmt: skip
+        jobs.append(Job("follow_ups", timedelta(hours=1), sweep))
     if services.outreach is not None:
         jobs.append(Job("outreach_retry", timedelta(minutes=5), services.outreach.retry_due))
     if platform is not None:
         jobs.append(Job("hiring_signals", timedelta(days=1), platform.signals.run_due))
     if services.mailbox is not None:
         jobs.append(Job("mailbox", timedelta(minutes=2), services.mailbox.run))
+    if agents is not None:
+        jobs.append(
+            Job("recruiting_agents", timedelta(minutes=30), lambda: _run_recruiting_agents(agents))
+        )
+        jobs.append(
+            Job(
+                "follow_up_agent",
+                timedelta(hours=1),
+                lambda: _agent_report(agents.start("follow_up", None, "scheduler")),
+            )
+        )
+        jobs.append(Job("business_development_agent", timedelta(days=1),
+                        lambda: _agent_report(agents.start("business_development", None,
+                                                           "scheduler"))))  # fmt: skip
     return jobs
+
+
+def _agent_report(run: Any) -> dict[str, int]:
+    return {"runs": 1, "failed": int(run.status.value == "failed"),
+            "waiting": int(run.status.value == "waiting_for_human"),
+            "actions": len(run.actions)}  # fmt: skip
+
+
+def _run_recruiting_agents(agents: Any, limit: int = 5) -> dict[str, int]:
+    """Start the recruiting coordinator for open jobs that have had no run for 6 hours."""
+    totals = {"runs": 0, "failed": 0, "waiting": 0, "actions": 0}
+    for job_id in agents.jobs_to_work(limit=limit):
+        for key, value in _agent_report(agents.start("recruiting", job_id, "scheduler")).items():
+            totals[key] += value
+    return totals
 
 
 def status(state: JobStateStore | None, now: datetime) -> tuple[list[dict[str, Any]], list[str]]:

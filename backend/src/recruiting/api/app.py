@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 
 from recruiting.api import (
     admin,
+    agents,
     approvals,
     candidates,
     companies,
@@ -54,5 +55,6 @@ def create_app(
     app.include_router(submissions.router)
     app.include_router(followups.router)
     app.include_router(reports.router)
+    app.include_router(agents.router)
     app.include_router(inbound.router)
     return app
