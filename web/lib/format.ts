@@ -86,3 +86,9 @@ export function statusChip(status: string): string {
   if (["running", "contacted", "interested", "replied"].includes(status)) return "chip info";
   return "chip";
 }
+
+// Ranking components with Administrator-set weights (Agent 7), in the BRD's order.
+export const WEIGHT_KEYS = [
+  "skill_match", "industry_match", "years_experience", "project_similarity", "recent_experience",
+  "location", "availability", "education", "resume_quality", "communication",
+];

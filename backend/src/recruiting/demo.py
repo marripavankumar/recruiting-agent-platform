@@ -102,6 +102,13 @@ PEOPLE = [
 ]
 
 
+LINKEDIN_ONLY = (
+    "Elena Ruiz\nDearborn, MI | linkedin.com/in/elena-ruiz-quality\n"
+    "Supplier Quality Engineer with 9 years of experience in PFMEA, PPAP, APQP and 8D.\n"
+    "B.S. Industrial Engineering"
+)
+
+
 def _resume(name: str, email: str, years: int, skills: str, city: str) -> str:
     return (
         f"{name}\n{city} | {email} | (313) 555-01{years:02d}\n"
@@ -112,12 +119,17 @@ def _resume(name: str, email: str, years: int, skills: str, city: str) -> str:
 
 def seed(services: Services, outbox: DemoOutbox) -> None:
     """Run the demo pipeline through the API. Called once at start-up."""
+    from dataclasses import replace
+
     from fastapi.testclient import TestClient
 
     from recruiting.api.app import create_app
     from recruiting.api.services import demo_users
+    from recruiting.identity import DevHeaderAuthenticator
 
-    client = TestClient(create_app(services))
+    # The seed signs in as the demo users through an in-process app of its own, so it works
+    # whatever sign-in the deployment uses (dev headers or OIDC). Same stores, same rules.
+    client = TestClient(create_app(replace(services, authenticator=DevHeaderAuthenticator())))
     by_role = {u.role: u.email for u in demo_users()}
 
     def call(method: str, path: str, role: Role | None, **kwargs):
@@ -166,19 +178,29 @@ def seed(services: Services, outbox: DemoOutbox) -> None:
 
     # Agents 6-7: candidates added and ranked; the recruiter marks the top five as qualified.
     resumes = [{"resume_text": _resume(*p), "source": "ats"} for p in PEOPLE]
+    resumes.append({"resume_text": LINKEDIN_ONLY, "source": "linkedin"})
     call("POST", "/candidates", rec, json={"resumes": resumes})
     ranking = call("POST", f"/jobs/{job_id}/ranking", rec)
     ranked = [c for c in ranking["candidates"] if c["rank"] is not None]
-    for c in ranked[:5]:
+    by_email = [c for c in ranked if c["full_name"] != "Elena Ruiz"]
+    for c in by_email[:5]:
         call("POST", f"/jobs/{job_id}/ranking/{c['candidate_id']}/review", rec,
              json={"verdict": "qualified"})  # fmt: skip
 
     # Agent 8: outreach to the top five. Three approved and sent, two wait for the recruiter.
-    ids = [c["candidate_id"] for c in ranked[:5]]
+    ids = [c["candidate_id"] for c in by_email[:5]]
     out = call("POST", f"/jobs/{job_id}/outreach", rec,
                json={"candidate_ids": ids, "channels": ["email"]})["drafted"]  # fmt: skip
     for d in out[:3]:
         approve(d["approval_request_id"], rec)
+
+    # Q15: a LinkedIn-only candidate. The approved note waits for the recruiter to send by hand.
+    elena = next((c["candidate_id"] for c in ranked if c["full_name"] == "Elena Ruiz"), None)
+    if elena is not None:
+        note = call("POST", f"/jobs/{job_id}/outreach", rec,
+                    json={"candidate_ids": [elena], "channels": ["linkedin"]})["drafted"]  # fmt: skip
+        for d in note:
+            approve(d["approval_request_id"], rec)
 
     # Agent 9: the first contacted candidate replies; details request approved and completed.
     contacted = {m.recipient for m in outbox.sent}

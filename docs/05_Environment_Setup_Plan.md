@@ -121,6 +121,8 @@ curl -H "X-Dev-User-Email: bd.manager@cbs.example" http://localhost:8000/approva
 # RAP_DEMO_DATA=true implies demo users, rule-based agents and an in-memory outbox (nothing is sent).
 RAP_DEMO_DATA=true uvicorn recruiting.api.main:app --port 8000
 cd ../web && npm install && npm run dev                # http://localhost:3000, see web/README.md
+# Company sign-in instead of demo users: RAP_WEB_AUTH=oidc with RAP_OIDC_ISSUER, RAP_OIDC_CLIENT_ID and
+# RAP_WEB_BASE_URL on the web app, and RAP_AUTH_PROVIDER=oidc with RAP_OIDC_AUDIENCE = that client id on the API.
 
 # With PostgreSQL (RAP_STORAGE=postgres), add users first:
 #   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"

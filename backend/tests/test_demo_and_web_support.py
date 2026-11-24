@@ -60,6 +60,30 @@ def test_reply_is_read_before_anyone_opens_the_job(demo):
     assert EngagementStatus.COMPLETE in statuses  # details requested, approved and filled in
 
 
+def test_demo_has_a_linkedin_note_to_send_by_hand(demo):
+    _, client = demo
+    [task] = client.get("/linkedin-tasks", headers=h("recruiter@cbs.example")).json()
+    assert task["candidate_name"] == "Elena Ruiz"
+    assert task["profile_url"].endswith("elena-ruiz-quality")
+
+
+def test_demo_seed_works_when_the_api_uses_oidc():
+    """The seed signs in through its own in-process app, so OIDC deployments can use it."""
+    settings = Settings(
+        demo_data=True,
+        auth_provider="oidc",
+        oidc_issuer="https://idp.example",
+        oidc_audience="rap-web",
+        oidc_jwks_url="https://idp.example/jwks",
+        _env_file=None,
+    )
+    services = build_services(settings)
+    assert len(services.platform.jobs.list()) == 2
+    client = TestClient(create_app(services))
+    # The real app still refuses dev headers: only bearer tokens are accepted.
+    assert client.get("/me", headers=h("recruiter@cbs.example")).status_code == 401
+
+
 def test_demo_data_only_for_local_memory_runs():
     with pytest.raises(RuntimeError, match="only for local in-memory runs"):
         build_services(Settings(demo_data=True, environment="dev", _env_file=None))

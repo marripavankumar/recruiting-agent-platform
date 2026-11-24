@@ -18,6 +18,7 @@ export class ApiError extends Error {
 type Options = {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
+  form?: FormData; // multipart upload (resume files)
   query?: Record<string, string | number | boolean | undefined | null>;
 };
 
@@ -51,7 +52,7 @@ export async function api<T = unknown>(path: string, options: Options = {}): Pro
         ...headers,
         ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
       },
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body: options.form ?? (options.body !== undefined ? JSON.stringify(options.body) : undefined),
       cache: "no-store",
     });
   } catch {

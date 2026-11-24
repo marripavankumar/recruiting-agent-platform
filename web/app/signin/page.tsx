@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { signIn } from "@/app/actions";
 import { type Search, param } from "@/app/components";
+import { oidcConfig } from "@/lib/oidc";
 import { DEMO_USERS, authMode } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -41,10 +42,17 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<S
               </fieldset>
               <button className="btn primary" type="submit">Sign in</button>
             </form>
+          ) : oidcConfig() ? (
+            <div className="stack">
+              <p className="muted" style={{ margin: 0 }}>Sign in with your company account.</p>
+              <a className="btn primary" href="/auth/login" style={{ justifyContent: "center" }}>
+                Sign in
+              </a>
+            </div>
           ) : (
             <p className="muted" style={{ margin: 0 }}>
-              Company sign-in (OpenID Connect) is not configured for this deployment yet. Ask the
-              Administrator.
+              Company sign-in is not configured for this deployment. The Administrator sets
+              RAP_OIDC_ISSUER, RAP_OIDC_CLIENT_ID and RAP_WEB_BASE_URL.
             </p>
           )}
         </div>

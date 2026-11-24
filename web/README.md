@@ -33,7 +33,12 @@ Sign in as any demo role. The demo leaves work waiting for every role:
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `RAP_API_URL` | `http://localhost:8000` | Where the FastAPI backend runs |
-| `RAP_WEB_AUTH` | `dev` outside production, `oidc` in production | `dev`: choose a demo user, which the API accepts only when `RAP_ENVIRONMENT=local`. `oidc`: company sign-in, which isn't built yet, so sign-in is refused |
+| `RAP_WEB_AUTH` | `dev` outside production, `oidc` in production | `dev`: choose a demo user, which the API accepts only when `RAP_ENVIRONMENT=local`. `oidc`: company sign-in |
+| `RAP_OIDC_ISSUER`, `RAP_OIDC_CLIENT_ID` | none | The identity provider (Microsoft Entra ID, Google, Okta, Keycloak, Cognito) and this app's client id. Register the redirect URI `{RAP_WEB_BASE_URL}/auth/callback` |
+| `RAP_OIDC_CLIENT_SECRET` | none | Only for confidential clients; PKCE is always used |
+| `RAP_WEB_BASE_URL` | none | The app's public address, e.g. `https://rap.cbs.example` |
+
+**Company sign-in (OIDC).** Authorization code flow with PKCE, state and nonce. The ID token is kept in an httpOnly cookie and sent to the API as a bearer token, and the API verifies its signature, issuer, audience and expiry on every request. So set the API's `RAP_AUTH_PROVIDER=oidc`, `RAP_OIDC_ISSUER`, `RAP_OIDC_JWKS_URL`, and `RAP_OIDC_AUDIENCE` = the web app's client id. Users must also exist in the platform (Administration, Users & roles): the provider proves who they are, and the platform decides their role. Sign-out also ends the provider session where it supports RP-initiated logout.
 
 ## Screens
 
@@ -44,9 +49,12 @@ Sign in as any demo role. The demo leaves work waiting for every role:
 | Jobs; job details with field confirmation, ranked candidates with verdicts and outreach, engagement, submissions | `/jobs`, `/jobs/{id}` | Staff (actions per role) |
 | Follow-ups: draft, snooze, done | `/follow-ups` | Staff |
 | AI agents: start runs, decide on what a run is waiting for | `/agents` | Staff (per agent) |
+| Companies and outreach: import a CSV list, check hiring signals, draft first emails; company profile with open roles, contacts and CASL consent | `/companies`, `/companies/{id}` | View: Admin, BD, Sales, Account; run: Admin, BD |
+| Candidates: search, upload résumés (PDF, Word, text) or paste one, profile, erasure (S23, Administrator) | `/candidates`, `/candidates/{id}` | Admin, Recruiter, Account Manager |
+| LinkedIn tasks: approved notes to send by hand (Q15), mark sent | `/linkedin-tasks` | Admin, Recruiter |
+| Widened search when too few qualify (S12); outcomes for LinkedIn and phone contact | on the job page | Recruiter |
+| Administration: users and roles, approval gates, ranking weights, follow-up cadence, AI usage, access log | `/admin` | Administrator |
 | Client portal: submissions sent, interview, hold or reject | `/portal` | Client |
-
-Next increment: companies and outreach, LinkedIn tasks, candidates and résumé upload, the Administrator screens (users, gate policies, ranking weights, cadence), and OIDC sign-in.
 
 ## Checks
 

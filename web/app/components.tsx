@@ -17,8 +17,9 @@ export function Notice({ search }: { search: Search }) {
   const error = param(search, "error");
   if (!ok && !error) return null;
   return (
-    <div className={error ? "notice warn" : "notice ok"} role={error ? "alert" : "status"} style={{ marginBottom: 16 }}>
-      {error ?? ok}
+    <div className="stack" style={{ gap: 8, marginBottom: 16 }}>
+      {ok && <div className="notice ok" role="status">{ok}</div>}
+      {error && <div className="notice warn" role="alert">{error}</div>}
     </div>
   );
 }

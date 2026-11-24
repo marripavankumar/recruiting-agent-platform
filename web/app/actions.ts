@@ -7,7 +7,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { API_URL, ApiError, api } from "@/lib/api";
-import { SESSION_COOKIE, authMode } from "@/lib/session";
+import { WEIGHT_KEYS } from "@/lib/format";
+import { discover, oidcConfig } from "@/lib/oidc";
+import { SESSION_COOKIE, TOKEN_COOKIE, authMode, secureCookies } from "@/lib/session";
 
 type Body = Record<string, unknown>;
 
@@ -60,7 +62,7 @@ export async function signIn(form: FormData): Promise<void> {
   (await cookies()).set(SESSION_COOKIE, email, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookies(),
     path: "/",
     maxAge: 60 * 60 * 12,
   });
@@ -68,8 +70,23 @@ export async function signIn(form: FormData): Promise<void> {
 }
 
 export async function signOut(): Promise<void> {
-  (await cookies()).delete(SESSION_COOKIE);
-  redirect("/signin");
+  const jar = await cookies();
+  const token = jar.get(TOKEN_COOKIE)?.value;
+  jar.delete(SESSION_COOKIE);
+  jar.delete(TOKEN_COOKIE);
+  const config = oidcConfig();
+  let target = "/signin";
+  if (authMode() === "oidc" && config && token) {
+    // Also end the provider session where it supports RP-initiated logout.
+    const end = await discover(config).then((d) => d.end_session_endpoint).catch(() => undefined);
+    if (end) {
+      const url = new URL(end);
+      url.searchParams.set("id_token_hint", token);
+      url.searchParams.set("post_logout_redirect_uri", config.postLogoutUri);
+      target = url.toString();
+    }
+  }
+  redirect(target);
 }
 
 // ----- approvals (BRD section 10) -----------------------------------------------------------
@@ -228,5 +245,189 @@ export async function decideAgentRun(form: FormData): Promise<void> {
       method: "POST",
       body: { decisions: [{ type, message: text(form, "message") }] },
     }),
+  );
+}
+
+// ----- companies and client outreach (Agents 1-3) -------------------------------------------
+
+/** Like act(), but the success message is built from the API's answer. */
+async function actWith<T>(form: FormData, call: () => Promise<T>, message: (result: T) => string): Promise<never> {
+  let target: string;
+  try {
+    target = backTo(form, { ok: message(await call()) });
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    target = backTo(form, { error: error.message });
+  }
+  redirect(target);
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+const reasons = (counts: Record<string, number>) =>
+  Object.entries(counts).map(([why, n]) => `${n} ${why.replace(/_/g, " ")}`).join(", ");
+const ids = (form: FormData, key: string) => form.getAll(key).filter((v): v is string => typeof v === "string" && v !== "");
+
+export async function importCompanies(form: FormData): Promise<void> {
+  const file = form.get("file");
+  let csv = text(form, "csv") ?? "";
+  if (file instanceof File && file.size > 0) csv = await file.text();
+  if (!csv.trim()) redirect(backTo(form, { error: "Choose a CSV file or paste the rows" }));
+  type Report = { seen: number; created: number; updated: number; merged: number; contacts_added: number; skipped: Record<string, number> };
+  await actWith(
+    form,
+    () => api<Report>("/companies/import", { method: "POST", body: { source_name: text(form, "source_name") ?? "upload", csv } }),
+    (r) =>
+      `${plural(r.seen, "row")}: ${plural(r.created, "new company")}, ${r.updated} updated, ${r.merged} merged, ` +
+      `${plural(r.contacts_added, "contact")} added` + (Object.keys(r.skipped).length ? `; skipped ${reasons(r.skipped)}` : ""),
+  );
+}
+
+export async function checkHiringSignals(form: FormData): Promise<void> {
+  const chosen = ids(form, "company_id");
+  type Report = { companies_checked: number; pages_unavailable: number; target_postings: number; new_postings: number; expired: number };
+  await actWith(
+    form,
+    () => api<Report>("/companies/hiring-signals", { method: "POST", body: { company_ids: chosen.length ? chosen : null } }),
+    (r) =>
+      `${plural(r.companies_checked, "career page")} read: ${r.target_postings} target roles open, ${r.new_postings} new, ${r.expired} expired` +
+      (r.pages_unavailable ? `, ${r.pages_unavailable} unavailable` : ""),
+  );
+}
+
+export async function draftClientEmails(form: FormData): Promise<void> {
+  const chosen = ids(form, "company_id");
+  type Report = { drafted: unknown[]; skipped: Record<string, string[]> };
+  await actWith(
+    form,
+    () => api<Report>("/companies/outreach-drafts", { method: "POST", body: { company_ids: chosen.length ? chosen : null } }),
+    (r) => {
+      const skipped = Object.fromEntries(Object.entries(r.skipped).map(([k, v]) => [k, v.length]));
+      return `${plural(r.drafted.length, "first email")} drafted for approval` +
+        (Object.keys(skipped).length ? `; skipped ${reasons(skipped)}` : "");
+    },
+  );
+}
+
+// ----- LinkedIn (Q15) and engagement outcomes -----------------------------------------------
+
+export async function markLinkedInSent(form: FormData): Promise<void> {
+  const id = text(form, "approval_request_id")!;
+  await act(form, "Marked as sent in LinkedIn", () =>
+    api(`/linkedin-tasks/${encodeURIComponent(id)}/sent`, { method: "POST" }),
+  );
+}
+
+export async function recordOutcome(form: FormData): Promise<void> {
+  const id = text(form, "engagement_id")!;
+  const outcome = text(form, "outcome") ?? "";
+  await act(form, `Recorded: ${outcome.replace(/_/g, " ")}`, () =>
+    api(`/engagements/${encodeURIComponent(id)}/outcome`, { method: "POST", body: { outcome } }),
+  );
+}
+
+// ----- candidates (Agents 6-7) --------------------------------------------------------------
+
+export async function uploadResumes(form: FormData): Promise<void> {
+  const upload = new FormData();
+  for (const file of form.getAll("files")) if (file instanceof File && file.size > 0) upload.append("files", file, file.name);
+  if (!upload.has("files")) redirect(backTo(form, { error: "Choose at least one resume file" }));
+  upload.append("source", text(form, "source") ?? "manual");
+  upload.append("consent", text(form, "consent") ?? "none");
+  type Report = { created: number; updated: number; errors: { filename: string; error: string }[] };
+  let target: string;
+  try {
+    const r = await api<Report>("/candidates/upload", { method: "POST", form: upload });
+    const ok = `${plural(r.created, "new candidate")}, ${r.updated} updated`;
+    const failed = r.errors.map((e) => (e.error.startsWith(e.filename) ? e.error : `${e.filename}: ${e.error}`)).join("; ");
+    target = backTo(form, failed ? { ok, error: failed } : { ok });
+  } catch (error) {
+    if (!(error instanceof ApiError)) throw error;
+    target = backTo(form, { error: error.message });
+  }
+  redirect(target);
+}
+
+export async function addResumeText(form: FormData): Promise<void> {
+  const resume = text(form, "resume_text");
+  if (!resume) redirect(backTo(form, { error: "Paste the resume text" }));
+  type Report = { created: number; updated: number };
+  await actWith(
+    form,
+    () => api<Report>("/candidates", { method: "POST", body: { resumes: [{ resume_text: resume, source: text(form, "source") ?? "manual" }] } }),
+    (r) => (r.created ? "Candidate added" : "Existing candidate updated (same email, phone or LinkedIn)"),
+  );
+}
+
+export async function widenSearch(form: FormData): Promise<void> {
+  const job = text(form, "job_id")!;
+  await act(form, "Widened search done: the ranking is updated", () =>
+    api(`/jobs/${encodeURIComponent(job)}/ranking/widen`, {
+      method: "POST",
+      body: {
+        title_variants: ids(form, "title_variant"),
+        location: text(form, "location") ?? null,
+        include_nice_to_have: form.get("include_nice_to_have") === "on",
+      },
+    }),
+  );
+}
+
+export async function eraseCandidate(form: FormData): Promise<void> {
+  const id = text(form, "candidate_id")!;
+  await act(form, "Personal data erased; the candidate will not be contacted again", () =>
+    api(`/candidates/${encodeURIComponent(id)}/erase`, { method: "POST", body: { reason: text(form, "reason") } }),
+  );
+}
+
+// ----- administration -----------------------------------------------------------------------
+
+export async function createUser(form: FormData): Promise<void> {
+  await act(form, "User added", () =>
+    api("/admin/users", {
+      method: "POST",
+      body: {
+        email: text(form, "email"),
+        display_name: text(form, "display_name"),
+        role: text(form, "role"),
+        client_company_id: text(form, "client_company_id") ?? null,
+      },
+    }),
+  );
+}
+
+export async function updateUser(form: FormData): Promise<void> {
+  const id = text(form, "user_id")!;
+  const body: Body = {};
+  if (text(form, "role")) body.role = text(form, "role");
+  if (text(form, "active")) body.active = text(form, "active") === "true";
+  await act(form, "User updated", () => api(`/admin/users/${encodeURIComponent(id)}`, { method: "PATCH", body }));
+}
+
+export async function setGatePolicy(form: FormData): Promise<void> {
+  const gate = text(form, "gate")!;
+  await act(form, "Approval policy saved: it applies to new requests now", () =>
+    api(`/admin/gate-policies/${encodeURIComponent(gate)}`, {
+      method: "PUT",
+      body: { first_approver_role: text(form, "first_approver_role"), second_approver_role: text(form, "second_approver_role") ?? null },
+    }),
+  );
+}
+
+export async function setRankingWeights(form: FormData): Promise<void> {
+  const body: Body = {};
+  for (const key of [...WEIGHT_KEYS, "min_must_have_coverage"]) body[key] = Number(text(form, key) ?? "0");
+  await act(form, "Ranking weights saved: they apply to the next ranking", () =>
+    api("/admin/ranking-weights", { method: "PUT", body }),
+  );
+}
+
+export async function setCadence(form: FormData): Promise<void> {
+  const kind = text(form, "kind")!;
+  const days = (text(form, "days") ?? "").split(/[\s,]+/).filter(Boolean).map(Number);
+  if (days.length === 0 || days.some((d) => !Number.isInteger(d))) {
+    redirect(backTo(form, { error: "Days must be whole numbers, for example 3, 7, 14" }));
+  }
+  await act(form, "Cadence saved", () =>
+    api(`/admin/follow-up-cadence/${encodeURIComponent(kind)}`, { method: "PUT", body: { days } }),
   );
 }

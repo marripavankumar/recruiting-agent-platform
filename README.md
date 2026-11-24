@@ -69,4 +69,4 @@ To run locally, see [section 6 of the environment plan](docs/05_Environment_Setu
 
 ## Next step
 
-Finish the web app (companies and outreach, LinkedIn tasks, candidates, Administrator screens, OIDC sign-in) so every role can run UAT; run a supervised trial of the deep agents with the real model; and close the Phase 0 items that need CBS LLC: legal review of the [compliance checklist](docs/03_Compliance_Checklist.md) (including Q15), the Q12 [timing study](docs/04_KPI_Baseline_Timing_Study.md), licences and the first cloud environment.
+Connect the web app to CBS LLC's identity provider and run UAT with every role; run a supervised trial of the deep agents with the real model; and close the Phase 0 items that need CBS LLC: legal review of the [compliance checklist](docs/03_Compliance_Checklist.md) (including Q15), the Q12 [timing study](docs/04_KPI_Baseline_Timing_Study.md), licences and the first cloud environment.

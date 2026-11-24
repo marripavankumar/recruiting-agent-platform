@@ -4,10 +4,12 @@ import {
   draftCandidateOutreach,
   prepareSubmission,
   rankJob,
+  recordOutcome,
   requestDetails,
   requestSubmissionApproval,
   reviewCandidate,
   updateJob,
+  widenSearch,
 } from "@/app/actions";
 import { Back, Empty, type Search, Notice, PageHead, Score, Status, Tabs, param } from "@/app/components";
 import { api, apiOrNull } from "@/lib/api";
@@ -173,11 +175,39 @@ async function Candidates({ job, back }: { job: Job; back: string }) {
         <div className="notice warn">The Account Manager has not confirmed the title, location or visa yet. Check them before contacting candidates.</div>
       )}
       {ranking?.shortfall && (
-        <div className="notice warn">
-          Only {ranking.shortfall.qualified} of {ranking.shortfall.target} qualified candidates (S12).
-          {ranking.shortfall.suggestions.title_variants.length > 0 &&
-            ` Try a widened search: ${ranking.shortfall.suggestions.title_variants.join(", ")}.`}
-        </div>
+        <form action={widenSearch} className="card">
+          <Back to={back} />
+          <input type="hidden" name="job_id" value={job.id} />
+          <div className="card-head">
+            <h2>Only {ranking.shortfall.qualified} of {ranking.shortfall.target} qualified candidates</h2>
+            <span className="chip warn">S12</span>
+          </div>
+          <div className="card-body stack" style={{ gap: 10 }}>
+            <span className="muted">
+              {ranking.shortfall.widened ? "The search was already widened once. " : ""}
+              Choose how to widen the search; it runs as soon as you confirm.
+            </span>
+            {ranking.shortfall.suggestions.title_variants.length > 0 && (
+              <fieldset className="row" style={{ border: 0, padding: 0, margin: 0 }}>
+                <legend className="faint" style={{ marginBottom: 4 }}>Also search these titles</legend>
+                {ranking.shortfall.suggestions.title_variants.map((t) => (
+                  <label key={t} className="row"><input type="checkbox" name="title_variant" value={t} defaultChecked /> {t}</label>
+                ))}
+              </fieldset>
+            )}
+            <div className="row">
+              <label className="row"><span className="faint">Location</span>
+                <select name="location" defaultValue="">
+                  <option value="">Keep the job&apos;s location</option>
+                  <option value="state">Anywhere in the state</option>
+                  <option value="anywhere">Any location</option>
+                </select>
+              </label>
+              <label className="row"><input type="checkbox" name="include_nice_to_have" /> Also look for candidates with the nice-to-have skills</label>
+            </div>
+          </div>
+          <div className="card-foot"><button className="btn primary" type="submit">Widen the search</button></div>
+        </form>
       )}
       {ranking && (
         <section className="card">
@@ -263,7 +293,23 @@ async function EngagementTab({ job, back }: { job: Job; back: string }) {
                   <td>{e.consent_recorded ? <span className="chip ok">Recorded</span> : <span className="chip">Not yet</span>}</td>
                   <td>{when(e.updated_at)}</td>
                   <td>
-                    {["interested", "replied", "contacted"].includes(e.status) && (
+                    {["contacted", "accepted", "replied"].includes(e.status) && (
+                      // What happened in LinkedIn or by phone (email replies are read automatically).
+                      <form action={recordOutcome} className="row" style={{ marginBottom: 6 }}>
+                        <Back to={back} />
+                        <input type="hidden" name="engagement_id" value={e.id} />
+                        <label className="sr-only" htmlFor={`outcome-${e.id}`}>Outcome for {e.candidate_name}</label>
+                        <select id={`outcome-${e.id}`} name="outcome" defaultValue="interested">
+                          <option value="accepted">Accepted the connection</option>
+                          <option value="replied">Replied</option>
+                          <option value="interested">Interested (sends the details request)</option>
+                          <option value="not_interested">Not interested</option>
+                          <option value="do_not_contact">Do not contact</option>
+                        </select>
+                        <button className="btn sm">Record</button>
+                      </form>
+                    )}
+                    {["interested", "replied", "contacted", "accepted"].includes(e.status) && (
                       <form action={requestDetails}>
                         <Back to={back} />
                         <input type="hidden" name="engagement_id" value={e.id} />
