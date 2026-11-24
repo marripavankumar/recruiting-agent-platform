@@ -127,7 +127,7 @@ Main endpoints (all need sign-in except the last two):
 | Approval queue | `GET /approvals/pending`, `GET /approvals/{id}`, `POST /approvals/{id}/decision` | Staff, per gate policy |
 | Companies (Agents 1-3) | `GET /companies`, `GET /companies/{id}`, `POST /companies/import`, `POST /companies/hiring-signals`, `POST /companies/outreach-drafts` | View: Admin, BD, Sales, Account; run: Admin, BD |
 | Jobs (Agents 4-5) | `GET /jobs`, `GET /jobs/{id}`, `PATCH /jobs/{id}`, `GET /jobs/search?q=` | Staff; Clients see own jobs; edit: Admin, Account, Recruiter |
-| Candidates (Agents 6-7) | `POST /candidates`, `GET /candidates`, `GET /candidates/{id}`, `POST` / `GET /jobs/{id}/ranking`, `POST /jobs/{id}/ranking/{candidate_id}/review`, `POST /jobs/{id}/ranking/{candidate_id}/move` | Admin, Recruiter, Account |
+| Candidates (Agents 6-7) | `POST /candidates` (text), `POST /candidates/upload` (PDF, .docx or text files, multipart), `GET /candidates`, `GET /candidates/{id}`, `POST` / `GET /jobs/{id}/ranking`, `POST /jobs/{id}/ranking/{candidate_id}/review`, `POST /jobs/{id}/ranking/{candidate_id}/move` | Admin, Recruiter, Account |
 | Engagement (Agents 8-9) | `POST /jobs/{id}/outreach`, `GET /jobs/{id}/engagements`, `POST /engagements/{id}/outcome`, `POST /engagements/{id}/request-details`, `GET /linkedin-tasks`, `POST /linkedin-tasks/{approval_id}/sent` | Admin, Recruiter (Account: view) |
 | Matching and submission (Agents 10-11) | `POST /jobs/{id}/submissions`, `GET /jobs/{id}/submissions`, `GET` / `PATCH /submissions/{id}`, `POST /submissions/{id}/request-approval`, `POST /submissions/{id}/withdraw` | Admin, Recruiter, Account Manager (request approval: Admin, Recruiter) |
 | Client portal submissions | `GET /client/submissions`, `POST /client/submissions/{id}/feedback` | Client (own company) |
@@ -138,7 +138,7 @@ Main endpoints (all need sign-in except the last two):
 | Candidate erasure (S23) | `POST /candidates/{id}/erase` | Admin |
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
-| Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |
+| Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret`; attachments as `attachments: [{filename, content_base64}]` (PDF, .docx, text, up to 10 MB each, 10 per email) or pre-extracted `attachments_text`; unreadable files come back in `attachment_errors` | Mail-routing workflow |
 | Bounce notices (S6) | `POST /inbound/bounce` with header `X-RAP-Webhook-Secret`; body `recipient`, `reason`, `hard`, optional `approval_request_id` | Mail-routing workflow |
 | Unsubscribe | `GET` / `POST /unsubscribe?token=` | Public (signed link) |
 

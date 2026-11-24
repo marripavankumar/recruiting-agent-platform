@@ -8,14 +8,15 @@ from __future__ import annotations
 
 from dataclasses import asdict
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 
 from recruiting.agents.candidate_search import Widening, shortfall
 from recruiting.agents.ranking import RankingWeights
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
+from recruiting.documents import MAX_BYTES, DocumentError, extract_text
 from recruiting.domain import Role
 from recruiting.records.models import ConsentStatus, Ranking, Verdict
 from recruiting.records.rankings import UnknownRankingEntry
@@ -122,6 +123,39 @@ def add_candidates(body: ResumesIn, user: UserDep, services: ServicesDep) -> dic
             }
             for r in results
         ],
+    }
+
+
+@router.post("/candidates/upload")
+def upload_resumes(
+    user: UserDep,
+    services: ServicesDep,
+    files: Annotated[list[UploadFile], File()],
+    source: Annotated[str, Form(max_length=80)] = "manual",
+    consent: Annotated[ConsentStatus, Form()] = ConsentStatus.NONE,
+) -> dict:
+    """Resume files (PDF, Word .docx, text) into the Candidate Database; errors per file."""
+    require_role(user, TALENT)
+    if len(files) > 20:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Upload at most 20 files")
+    platform = require_platform(services)
+    added, errors = [], []
+    for upload in files:
+        name = upload.filename or "resume"
+        try:
+            doc = extract_text(name, upload.file.read(MAX_BYTES + 1))
+        except DocumentError as exc:
+            errors.append({"filename": name, "error": str(exc)})
+            continue
+        result = platform.resume_intake.add(doc.text, source, consent)
+        added.append({"filename": name, "kind": doc.kind, "id": result.candidate.id,
+                      "full_name": result.candidate.full_name, "created": result.created,
+                      "parsed_by": result.parsed_by})  # fmt: skip
+    return {
+        "created": sum(a["created"] for a in added),
+        "updated": sum(not a["created"] for a in added),
+        "candidates": added,
+        "errors": errors,
     }
 
 

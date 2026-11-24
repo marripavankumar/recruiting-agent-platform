@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import hmac
 import html
 from dataclasses import asdict
@@ -15,17 +17,42 @@ from recruiting.agents.bounces import BounceError
 from recruiting.agents.jd_intake import InboundEmail
 from recruiting.api.deps import ServicesDep, require_platform
 from recruiting.api.platform import Platform
+from recruiting.documents import DocumentError, extract_text
 
 router = APIRouter(tags=["inbound"])
+
+
+class AttachmentIn(BaseModel):
+    """A raw attachment (PDF, Word .docx or text); the platform extracts the text."""
+
+    filename: str = Field(default="attachment", max_length=255)
+    content_base64: str = Field(min_length=1, max_length=14_000_000)  # about 10 MB decoded
 
 
 class InboundEmailIn(BaseModel):
     from_address: str = Field(min_length=3, max_length=320)
     subject: str = Field(default="", max_length=1000)
     body: str = Field(default="", max_length=500_000)
+    # Text the mail-routing workflow already extracted, and/or the raw files.
     attachments_text: str = Field(default="", max_length=2_000_000)
+    attachments: list[AttachmentIn] = Field(default_factory=list, max_length=10)
     message_id: str = Field(min_length=1, max_length=500)
     received_at: datetime | None = None
+
+
+def _attachment_text(attachments: list[AttachmentIn]) -> tuple[str, list[dict[str, str]]]:
+    """Text of each readable attachment, labelled with its file name; errors per file."""
+    parts, errors = [], []
+    for item in attachments:
+        try:
+            data = base64.b64decode(item.content_base64, validate=True)
+            doc = extract_text(item.filename, data)
+        except (binascii.Error, ValueError) as exc:
+            message = str(exc) if isinstance(exc, DocumentError) else "Not valid base64 content."
+            errors.append({"filename": item.filename, "error": message})
+            continue
+        parts.append(f"--- {doc.filename} ---\n{doc.text}")
+    return "\n\n".join(parts), errors
 
 
 @router.post("/inbound/email")
@@ -37,22 +64,29 @@ def receive_email(
     """Called by the mail-routing workflow (n8n) for each reply to the outreach mailbox."""
     platform = require_platform(services)
     _check_secret(platform, x_rap_webhook_secret)
+    extracted, attachment_errors = _attachment_text(body.attachments)
     email = InboundEmail(
         from_address=body.from_address.strip(),
         subject=body.subject,
         body=body.body,
-        attachments_text=body.attachments_text,
+        attachments_text="\n\n".join(t for t in (body.attachments_text, extracted) if t.strip()),
         message_id=body.message_id,
         received_at=body.received_at or datetime.now(UTC),
     )
     # Replies from known candidates go to Agent 9; everything else to Agent 4.
     candidate = platform.candidates.find_duplicate(email.from_address.lower(), None, None)
+    # Unreadable files are reported so the mail-routing workflow can flag them to a person.
     if candidate is not None:
         return {
             "handled_by": "agent-9",
             **asdict(platform.resume_collection.process_reply(email, candidate)),
+            "attachment_errors": attachment_errors,
         }
-    return {"handled_by": "agent-4", **asdict(platform.jd_intake.process(email))}
+    return {
+        "handled_by": "agent-4",
+        **asdict(platform.jd_intake.process(email)),
+        "attachment_errors": attachment_errors,
+    }
 
 
 class BounceIn(BaseModel):

@@ -8,14 +8,15 @@ from __future__ import annotations
 
 import html
 from dataclasses import asdict
-from typing import Literal
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Form, HTTPException, status
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from recruiting.agents.resume_collection import LABELS, CollectedDetails, CollectionError
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
+from recruiting.documents import MAX_BYTES, DocumentError, extract_text
 from recruiting.domain import Role
 from recruiting.records.models import DETAIL_ITEMS, Engagement
 
@@ -170,9 +171,12 @@ def collect_page(token: str, services: ServicesDep) -> HTMLResponse:
 <p class="muted">Hi {html.escape(candidate.full_name.split()[0])}, please share the details
 below so your recruiter can put you forward. Fields already filled in come from your
 earlier messages.</p>
-<form method="post">
-<label for="resume_text">{LABELS["resume"]} (paste the text)</label>
-<textarea id="resume_text" name="resume_text" rows="8"></textarea>
+<form method="post" enctype="multipart/form-data">
+<label for="resume_file">{LABELS["resume"]} (PDF or Word .docx, up to 10 MB)</label>
+<input type="file" id="resume_file" name="resume_file"
+ accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain">
+<label for="resume_text">Or paste the text of your resume</label>
+<textarea id="resume_text" name="resume_text" rows="6"></textarea>
 {fields}
 <label class="check"><input type="checkbox" name="consent_store" value="yes" required>
 I agree that CBS LLC may store my resume and details to find suitable roles for me.</label>
@@ -199,7 +203,16 @@ def collect_submit(
     preferred_location: str = Form(default="", max_length=300),
     consent_store: str = Form(default=""),
     consent_submit: str = Form(default=""),
+    resume_file: Annotated[UploadFile | None, File()] = None,
 ) -> HTMLResponse:
+    file_problem = None
+    if resume_file is not None and resume_file.filename:
+        try:
+            # Read one byte past the limit so an oversized file is refused, not cut short.
+            doc = extract_text(resume_file.filename, resume_file.file.read(MAX_BYTES + 1))
+            resume_text = doc.text  # the file wins over pasted text
+        except DocumentError as exc:
+            file_problem = str(exc)  # keep the other details; the resume stays missing
     details = CollectedDetails(
         resume_text=resume_text or None,
         availability=availability, visa_status=visa_status, current_location=current_location,
@@ -211,10 +224,15 @@ def collect_submit(
         engagement = require_platform(services).resume_collection.submit(token, details)
     except CollectionError as exc:
         return _error_page(str(exc))
+    problem = (
+        f"<p><strong>We could not read your file:</strong> {html.escape(file_problem)}</p>"
+        if file_problem
+        else ""
+    )
     if engagement.missing:
         items = "".join(f"<li>{html.escape(LABELS[i])}</li>" for i in engagement.missing)
         body = (
-            f"<h1>Thank you</h1><p>We still need:</p><ul>{items}</ul>"
+            f"<h1>Thank you</h1>{problem}<p>We still need:</p><ul>{items}</ul>"
             "<p>You can use the same link again.</p>"
         )
     else:

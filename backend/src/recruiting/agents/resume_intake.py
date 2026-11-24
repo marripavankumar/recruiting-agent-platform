@@ -33,6 +33,18 @@ _DEGREE = re.compile(
 )
 
 
+# "|", bullet, middle dot, en dash, em dash or tab between the name and the contact details.
+_SEPARATORS = re.compile(r"\s*(?:\||•|·|–|—|\t)\s*")
+
+
+def name_from_first_line(line: str) -> str:
+    """Resume headers often read "Name | email | phone": keep the part before the contacts."""
+    first = _SEPARATORS.split(line, maxsplit=1)[0].strip()
+    if _EMAIL.search(first) or _PHONE.search(first):
+        return "Unknown"
+    return first[:120] or "Unknown"
+
+
 def parse_by_rules(text: str) -> ParsedResume:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     email = _EMAIL.search(text)
@@ -41,7 +53,7 @@ def parse_by_rules(text: str) -> ParsedResume:
     years = [float(m) for m in _YEARS.findall(text)]
     degree = _DEGREE.search(text)
     return ParsedResume(
-        full_name=lines[0][:120] if lines else "Unknown",
+        full_name=name_from_first_line(lines[0]) if lines else "Unknown",
         email=email.group(0) if email else None,
         phone=phone.group(0).strip() if phone else None,
         linkedin_url=linkedin.group(0) if linkedin else None,
