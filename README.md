@@ -13,19 +13,19 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | [docs/05_Environment_Setup_Plan.md](docs/05_Environment_Setup_Plan.md) | Cloud-agnostic hosting, environments, CI/CD, sending domains, local setup |
 | [docs/source/Business_Requirements_Document.docx](docs/source/Business_Requirements_Document.docx) | Original BRD (Word) |
 
-## Implementation status (as of 2026-11-22)
+## Implementation status (as of 2026-11-24)
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 80% |
-| 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | In progress | 25% |
-| 2 | Client acquisition | Agents 1–3 | 7–12 | Not started | 0% |
-| 3 | JD intake and analysis | Agents 4–5 | 11–15 | Not started | 0% |
-| 4 | Candidate search and ranking | Agents 6–7 | 14–19 | Not started | 0% |
-| 5 | Candidate engagement | Agents 8–9 | 18–22 | Not started | 0% |
-| 6 | Matching and client submission | Agents 10–11 | 21–25 | Not started | 0% |
-| 7 | Follow-up | Agent 12 | 24–27 | Not started | 0% |
-| 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | Not started | 0% |
+| 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | In progress | 75% |
+| 2 | Client acquisition | Agents 1–3 | 7–12 | In progress | 60% |
+| 3 | JD intake and analysis | Agents 4–5 | 11–15 | In progress | 70% |
+| 4 | Candidate search and ranking | Agents 6–7 | 14–19 | In progress | 60% |
+| 5 | Candidate engagement | Agents 8–9 | 18–22 | In progress | 60% |
+| 6 | Matching and client submission | Agents 10–11 | 21–25 | In progress | 70% |
+| 7 | Follow-up | Agent 12 | 24–27 | In progress | 70% |
+| 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | In progress | 45% |
 | 9 | Future enhancements | Future Enhancements | After go-live | Not started | 0% |
 
 Full details, exit criteria and status notes are in the [implementation plan](docs/02_Implementation_Plan.md#implementation-phases-and-current-status).
@@ -58,7 +58,9 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 
 | Path | Contents |
 | --- | --- |
-| [backend/](backend/) | Python 3.12, FastAPI, LangGraph: approval-gate engine, Outreach Service, opt-out registry, connector registry |
+| [backend/](backend/) | Python 3.12, FastAPI, LangGraph: the 12 agents and the deep-agent layer, approval-gate engine, Outreach Service, opt-out registry, connectors, scheduler, mailbox reader |
+| [web/](web/) | Next.js web app and client portal: dashboard, approval queue, jobs and candidates, follow-ups, AI agents, client portal |
+| [mock-ui/](mock-ui/) | Static clickable mock-up: the reference for screens not built in the web app yet |
 | [db/migrations/](db/migrations/) | PostgreSQL schema |
 | [infra/](infra/) | Local Docker Compose stack (PostgreSQL, Qdrant, n8n); per-cloud Terraform modules to come |
 | [docs/](docs/) | BRD, plan, checklists |
@@ -67,4 +69,4 @@ To run locally, see [section 6 of the environment plan](docs/05_Environment_Setu
 
 ## Next step
 
-Complete Phase 0: run the timing study for the Q12 baseline using the [template](docs/04_KPI_Baseline_Timing_Study.md), get legal review and sign-off on the [compliance checklist](docs/03_Compliance_Checklist.md) (including Q15, LinkedIn connection requests), and set up environments. Details are in [Phase 0 of the plan](docs/02_Implementation_Plan.md#4-phase-0--discovery-and-setup-weeks-13).
+Finish the web app (companies and outreach, LinkedIn tasks, candidates, Administrator screens, OIDC sign-in) so every role can run UAT; run a supervised trial of the deep agents with the real model; and close the Phase 0 items that need CBS LLC: legal review of the [compliance checklist](docs/03_Compliance_Checklist.md) (including Q15), the Q12 [timing study](docs/04_KPI_Baseline_Timing_Study.md), licences and the first cloud environment.

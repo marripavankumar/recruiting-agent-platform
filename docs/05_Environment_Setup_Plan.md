@@ -117,6 +117,11 @@ RAP_STORAGE=memory RAP_LLM_PROVIDER=none RAP_DEMO_USERS=true RAP_RUN_SCHEDULER=t
 # Open http://localhost:8000/docs. Sign in by sending a header, e.g.
 curl -H "X-Dev-User-Email: bd.manager@cbs.example" http://localhost:8000/approvals/pending
 
+# The web app (Node.js 24+), against a fictional pipeline with work waiting for every role.
+# RAP_DEMO_DATA=true implies demo users, rule-based agents and an in-memory outbox (nothing is sent).
+RAP_DEMO_DATA=true uvicorn recruiting.api.main:app --port 8000
+cd ../web && npm install && npm run dev                # http://localhost:3000, see web/README.md
+
 # With PostgreSQL (RAP_STORAGE=postgres), add users first:
 #   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"
 ```
