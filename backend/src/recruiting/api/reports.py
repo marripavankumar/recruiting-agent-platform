@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import timedelta
 
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
@@ -38,7 +39,15 @@ def operations(request: Request, user: UserDep, services: ServicesDep) -> dict:
     platform = require_platform(services)
     entries = platform.gateway.ledger.entries() if platform.gateway else []
     denied = len(request.app.state.access_log.recent(500))
-    jobs, job_alerts = scheduler_status(services.job_state, platform.reporting.now())
+    now = platform.reporting.now()
+    jobs, job_alerts = scheduler_status(services.job_state, now)
+    if services.mailbox is not None:
+        failed = services.mailbox.failures_since(now - timedelta(hours=24))
+        if failed:
+            job_alerts.append(
+                f"{failed} inbound email{'s' if failed != 1 else ''} could not be processed in "
+                "24 hours: check the outreach mailbox and the scheduler log"
+            )
     report = platform.reporting.operations(platform.follow_ups.summary(), entries, denied)
     return {**report, "scheduler": jobs, "alerts": [*report["alerts"], *job_alerts]}
 

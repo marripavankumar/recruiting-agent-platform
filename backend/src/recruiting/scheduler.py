@@ -3,7 +3,9 @@
 Jobs (each one is idempotent, so a late or repeated run does no harm):
 - follow_ups: Agent 12 sweep, hourly (Q13 cadence, overdue alerts);
 - outreach_retry: deliveries waiting to retry, every 5 minutes (S24);
-- hiring_signals: career pages due for a re-check, daily (S4).
+- hiring_signals: career pages due for a re-check, daily (S4);
+- mailbox: replies, JDs and bounce notices from the outreach mailbox, every 2 minutes
+  (when RAP_READ_MAILBOX is on).
 
 Run it as its own process next to the API: `python -m recruiting.scheduler`, with the same
 RAP_* settings. Any number of replicas may run: each job run is claimed in the shared
@@ -219,6 +221,8 @@ def default_jobs(services: Services) -> list[Job]:
         jobs.append(Job("outreach_retry", timedelta(minutes=5), services.outreach.retry_due))
     if platform is not None:
         jobs.append(Job("hiring_signals", timedelta(days=1), platform.signals.run_due))
+    if services.mailbox is not None:
+        jobs.append(Job("mailbox", timedelta(minutes=2), services.mailbox.run))
     return jobs
 
 

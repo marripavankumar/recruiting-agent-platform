@@ -139,8 +139,9 @@ Main endpoints (all need sign-in except the last two):
 | Candidate erasure (S23) | `POST /candidates/{id}/erase` | Admin |
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
-| Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret`; attachments as `attachments: [{filename, content_base64}]` (PDF, .docx, text, up to 10 MB each, 10 per email) or pre-extracted `attachments_text`; unreadable files come back in `attachment_errors` | Mail-routing workflow |
-| Bounce notices (S6) | `POST /inbound/bounce` with header `X-RAP-Webhook-Secret`; body `recipient`, `reason`, `hard`, optional `approval_request_id` | Mail-routing workflow |
+| Mailbox reader | Built in: `RAP_READ_MAILBOX=true` reads the outreach mailbox (first of `RAP_EMAIL_PROVIDERS`; `RAP_INBOUND_MAILBOX`, default `RAP_EMAIL_SENDER`) every 2 minutes through the scheduler. Token scope: Gmail `gmail.modify`; Microsoft 365 `Mail.ReadWrite` | Scheduler process |
+| Inbound replies (alternative to the reader) | `POST /inbound/email` with header `X-RAP-Webhook-Secret`; attachments as `attachments: [{filename, content_base64}]` (PDF, .docx, text, up to 10 MB each, 10 per email) or pre-extracted `attachments_text`; unreadable files come back in `attachment_errors` | Mail-routing workflow |
+| Bounce notices (S6, alternative to the reader) | `POST /inbound/bounce` with header `X-RAP-Webhook-Secret`; body `recipient`, `reason`, `hard`, optional `approval_request_id` | Mail-routing workflow |
 | Unsubscribe | `GET` / `POST /unsubscribe?token=` | Public (signed link) |
 
 Windows note: Smart App Control can block newly downloaded native Python modules (for example `psycopg_binary`) with "An Application Control policy has blocked this file". It may allow a module after a while, as it did for `ormsgpack`. While `psycopg` is blocked, run with `RAP_STORAGE=memory`; the PostgreSQL tests then run only in CI or in a Linux container.

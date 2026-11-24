@@ -28,6 +28,7 @@ from recruiting.outreach import (
 
 if TYPE_CHECKING:
     from recruiting.api.platform import Platform
+    from recruiting.mailbox import MailboxReader
     from recruiting.scheduler import JobStateStore
 
 
@@ -48,6 +49,8 @@ class Services:
     platform: Platform | None = None
     # Last run of each scheduled job (operations view). None: no scheduler configured.
     job_state: JobStateStore | None = None
+    # Reads the outreach mailbox (scheduled). None: replies arrive only through the webhook.
+    mailbox: MailboxReader | None = None
 
 
 def demo_users() -> list[CurrentUser]:
@@ -96,12 +99,15 @@ def build_services(settings: Settings) -> Services:
             workflows=workflows,
             approvals=approvals,
         )
+        from recruiting.mailbox import InMemoryProcessed
         from recruiting.scheduler import InMemoryJobState
 
         job_state = InMemoryJobState() if settings.run_scheduler else None
+        reader = build_mailbox_reader(settings, platform, InMemoryProcessed())
         return Services(
-            approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state
-        )
+            approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state,
+            reader,
+        )  # fmt: skip
 
     from recruiting.approvals.postgres import PostgresApprovalStore, PostgresPolicyStore
     from recruiting.compliance.postgres import PostgresOptOutStore
@@ -145,12 +151,38 @@ def build_services(settings: Settings) -> Services:
         follow_up_cadence=PostgresCadence(connect),
         approvals=approvals,
     )
+    from recruiting.mailbox import PostgresProcessed
     from recruiting.scheduler import PostgresJobState
 
     return Services(
         approvals, opt_outs, users, authenticator, workflows, outreach, platform,
         PostgresJobState(connect),
+        build_mailbox_reader(settings, platform, PostgresProcessed(connect)),
     )  # fmt: skip
+
+
+def build_mailbox_reader(settings: Settings, platform: Platform, processed: Any):
+    """The reader for the first email provider's mailbox, or None when RAP_READ_MAILBOX is off."""
+    if not settings.read_mailbox:
+        return None
+    from recruiting.connectors.secrets import EnvironmentSecrets
+    from recruiting.mailbox import GmailMailbox, MailboxReader, Microsoft365Mailbox
+
+    address = settings.inbound_mailbox or settings.email_sender
+    if not settings.email_providers or not address:
+        raise RuntimeError(
+            "RAP_READ_MAILBOX needs RAP_EMAIL_PROVIDERS and RAP_INBOUND_MAILBOX or RAP_EMAIL_SENDER"
+        )
+    secrets = EnvironmentSecrets()
+    provider = settings.email_providers[0]
+    if provider == "m365":
+        mailbox: Any = Microsoft365Mailbox(address, lambda: secrets.get("m365_access_token"))
+    elif provider == "gmail":
+        mailbox = GmailMailbox(lambda: secrets.get("gmail_access_token"))
+    else:
+        raise RuntimeError(f"Unknown email provider {provider}; use m365 or gmail")
+    own = tuple(a for a in (settings.email_sender, address) if a)
+    return MailboxReader(mailbox, platform, processed, own_addresses=own)
 
 
 def build_email_channels(settings: Settings) -> list[ChannelAdapter]:

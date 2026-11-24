@@ -14,6 +14,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from recruiting.agents.bounces import BounceError
+from recruiting.agents.inbound_router import route_email
 from recruiting.agents.jd_intake import InboundEmail
 from recruiting.api.deps import ServicesDep, require_platform
 from recruiting.api.platform import Platform
@@ -73,20 +74,8 @@ def receive_email(
         message_id=body.message_id,
         received_at=body.received_at or datetime.now(UTC),
     )
-    # Replies from known candidates go to Agent 9; everything else to Agent 4.
-    candidate = platform.candidates.find_duplicate(email.from_address.lower(), None, None)
     # Unreadable files are reported so the mail-routing workflow can flag them to a person.
-    if candidate is not None:
-        return {
-            "handled_by": "agent-9",
-            **asdict(platform.resume_collection.process_reply(email, candidate)),
-            "attachment_errors": attachment_errors,
-        }
-    return {
-        "handled_by": "agent-4",
-        **asdict(platform.jd_intake.process(email)),
-        "attachment_errors": attachment_errors,
-    }
+    return {**route_email(platform, email), "attachment_errors": attachment_errors}
 
 
 class BounceIn(BaseModel):

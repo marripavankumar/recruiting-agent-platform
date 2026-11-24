@@ -554,3 +554,31 @@ def test_scheduler_job_claims_are_shared(connect):
     [state] = first.all()
     assert state.last_status == "ok" and state.last_result == {"created": 2}
     assert state.interval_seconds == 3600
+
+
+def test_inbound_messages_are_claimed_once(connect):
+    from datetime import UTC, datetime, timedelta
+
+    from recruiting.mailbox import MAX_ATTEMPTS, PostgresProcessed
+
+    with connect() as conn:
+        conn.execute("DELETE FROM inbound_message")
+    first, second = PostgresProcessed(connect), PostgresProcessed(connect)
+    now = datetime(2026, 11, 24, 12, 0, tzinfo=UTC)
+    assert first.claim("<m-1@x>", now) == 1
+    assert second.claim("<m-1@x>", now) == 0  # another replica is handling it
+    first.finish("<m-1@x>", now, True, "agent-4:jd_received", None)
+    assert second.claim("<m-1@x>", now + timedelta(hours=1)) == 0  # done: never again
+
+    assert first.claim("<m-2@x>", now) == 1
+    first.finish("<m-2@x>", now, False, "failed", "RuntimeError: boom")
+    assert second.claim("<m-2@x>", now) == 2  # failed: tried again
+    second.finish("<m-2@x>", now, False, "failed", "RuntimeError: boom")
+    assert first.claim("<m-2@x>", now) == MAX_ATTEMPTS
+    first.finish("<m-2@x>", now, False, "failed", "RuntimeError: boom")
+    assert first.claim("<m-2@x>", now) == 0  # out of attempts
+    assert first.failures_since(now - timedelta(minutes=1)) == 1
+
+    assert first.claim("<m-3@x>", now) == 1  # a worker crashes while handling it
+    assert second.claim("<m-3@x>", now + timedelta(minutes=5)) == 0
+    assert second.claim("<m-3@x>", now + timedelta(minutes=16)) == 2  # stuck: taken over

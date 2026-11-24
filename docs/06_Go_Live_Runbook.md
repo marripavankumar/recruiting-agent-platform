@@ -14,7 +14,7 @@ and what to do when something goes wrong. Endpoints are listed in
 | --- | --- | --- | --- | --- |
 | 1 | PostgreSQL migrations 0001–0008 applied and the PostgreSQL tests pass | CI run on the repository (needs a GitHub repo or WSL + Podman) | ____ | ☐ |
 | 2 | Automated end-to-end scenarios pass | `uv run pytest` in `backend/`; all 27 pass in memory | Engineering | ☑ (in memory) |
-| 3 | S6 (bounces) and S12 (too few qualified candidates) built; mail-routing workflow forwards bounce notices to `POST /inbound/bounce` | Bounce test in the test environment marks the contact invalid | Engineering | ☑ (in memory) |
+| 3 | S6 (bounces) and S12 (too few qualified candidates) built; the mailbox reader (`RAP_READ_MAILBOX=true`, mailbox token with gmail.modify or Mail.ReadWrite) reads replies, JDs and bounce reports | Send a test email and a bounce to the test mailbox; both appear in the scheduler's `mailbox` job result within 2 minutes and the bounced contact is marked invalid | Engineering | ☑ (in memory) |
 | 4 | Legal review of consent wording and outreach footers (compliance checklist P1, E-items) | Signed checklist | ____ | ☐ |
 | 5 | Retention period for approval and delivery records agreed (they keep the sent text; see section 4.3) | Written decision | ____ | ☐ |
 | 6 | Security test: role access matrix, penetration test, secrets in the vault | Test report, zero open critical findings | ____ | ☐ |

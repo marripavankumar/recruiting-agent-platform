@@ -36,6 +36,8 @@ class InboundEmail:
     received_at: datetime
     message_id: str
     attachments_text: str = ""  # text already extracted from PDF / DOCX attachments
+    # Marked by its headers as an automatic reply (Auto-Submitted, X-Autoreply ...): S9.
+    auto_reply: bool = False
 
 
 @dataclass
@@ -145,6 +147,9 @@ class JDIntakeAgent:
         self._clock = clock
 
     def _classify(self, email: InboundEmail) -> tuple[ReplyClassification, str]:
+        if email.auto_reply:
+            summary = "Automatic reply (marked by its email headers)"
+            return ReplyClassification(category="out_of_office", summary=summary), "headers"
         if self._gateway is not None:
             try:
                 result = self._gateway.run(

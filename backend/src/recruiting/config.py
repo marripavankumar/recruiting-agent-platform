@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     brand_name: str = "CBS LLC"
     brand_color: str = "#1F3A93"
     brand_logo_path: str | None = None  # PNG or JPEG
+    # Read replies, JDs and bounce notices from the outreach mailbox (the first email provider)
+    # every 2 minutes. Needs gmail.modify (Gmail) or Mail.ReadWrite (Microsoft 365).
+    read_mailbox: bool = False
+    inbound_mailbox: str | None = None  # defaults to RAP_EMAIL_SENDER
     # Run the scheduled sweeps inside the API process (local in-memory runs). Deployments run
     # `python -m recruiting.scheduler` as its own process instead.
     run_scheduler: bool = False
