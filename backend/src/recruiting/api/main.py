@@ -5,4 +5,4 @@ from recruiting.api.services import build_services
 from recruiting.config import Settings
 
 settings = Settings()
-app = create_app(build_services(settings), settings.environment)
+app = create_app(build_services(settings), settings.environment, settings.run_scheduler)

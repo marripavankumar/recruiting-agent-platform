@@ -28,6 +28,7 @@ from recruiting.outreach import (
 
 if TYPE_CHECKING:
     from recruiting.api.platform import Platform
+    from recruiting.scheduler import JobStateStore
 
 
 class WorkflowResumer(Protocol):
@@ -45,6 +46,8 @@ class Services:
     outreach: OutreachService | None = None
     # Records, AI services and agents behind /companies, /jobs and /inbound. None: not served.
     platform: Platform | None = None
+    # Last run of each scheduled job (operations view). None: no scheduler configured.
+    job_state: JobStateStore | None = None
 
 
 def demo_users() -> list[CurrentUser]:
@@ -93,7 +96,12 @@ def build_services(settings: Settings) -> Services:
             workflows=workflows,
             approvals=approvals,
         )
-        return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)
+        from recruiting.scheduler import InMemoryJobState
+
+        job_state = InMemoryJobState() if settings.run_scheduler else None
+        return Services(
+            approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state
+        )
 
     from recruiting.approvals.postgres import PostgresApprovalStore, PostgresPolicyStore
     from recruiting.compliance.postgres import PostgresOptOutStore
@@ -137,7 +145,12 @@ def build_services(settings: Settings) -> Services:
         follow_up_cadence=PostgresCadence(connect),
         approvals=approvals,
     )
-    return Services(approvals, opt_outs, users, authenticator, workflows, outreach, platform)
+    from recruiting.scheduler import PostgresJobState
+
+    return Services(
+        approvals, opt_outs, users, authenticator, workflows, outreach, platform,
+        PostgresJobState(connect),
+    )  # fmt: skip
 
 
 def build_email_channels(settings: Settings) -> list[ChannelAdapter]:

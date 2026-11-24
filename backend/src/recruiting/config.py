@@ -58,5 +58,8 @@ class Settings(BaseSettings):
     linkedin_weekly_limit: int = 100
     # Shared secret the mail-routing workflow (n8n) sends with inbound replies.
     inbound_webhook_secret: str | None = None
+    # Run the scheduled sweeps inside the API process (local in-memory runs). Deployments run
+    # `python -m recruiting.scheduler` as its own process instead.
+    run_scheduler: bool = False
     # Vector store: "memory" (in-process) or "qdrant" (at RAP_QDRANT_URL).
     vector_store: Literal["memory", "qdrant"] = "memory"

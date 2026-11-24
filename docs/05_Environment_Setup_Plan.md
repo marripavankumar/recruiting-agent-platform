@@ -110,9 +110,10 @@ python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/a
 pip install -e ".[dev]"                               # or: uv sync --extra dev, then prefix commands with "uv run"
 pytest                                                # PostgreSQL tests need RAP_TEST_DATABASE_URL
 uvicorn recruiting.api.main:app --reload             # http://localhost:8000/health
+python -m recruiting.scheduler                        # second process: follow-ups, retries, re-checks
 
 # Quickest try-out, no database or API key: in-memory storage, rule-based agents, demo users
-RAP_STORAGE=memory RAP_LLM_PROVIDER=none RAP_DEMO_USERS=true uvicorn recruiting.api.main:app --reload
+RAP_STORAGE=memory RAP_LLM_PROVIDER=none RAP_DEMO_USERS=true RAP_RUN_SCHEDULER=true uvicorn recruiting.api.main:app --reload
 # Open http://localhost:8000/docs. Sign in by sending a header, e.g.
 curl -H "X-Dev-User-Email: bd.manager@cbs.example" http://localhost:8000/approvals/pending
 
@@ -134,7 +135,7 @@ Main endpoints (all need sign-in except the last two):
 | Follow-ups (Agent 12) | `GET /follow-ups`, `GET /follow-ups/summary`, `POST /follow-ups/run`, `POST /follow-ups/{id}/complete`, `.../snooze`, `.../draft`, `POST /submissions/{id}/stage` | All staff; `scope=all`: Admin |
 | Follow-up cadence (Q13) | `GET /admin/follow-up-cadence`, `PUT /admin/follow-up-cadence/{kind}` | Admin |
 | KPIs and operations (Phase 8) | `GET /kpis?days=30` (staff), `GET /admin/operations`, `GET /admin/access-denied` (Admin) | Staff / Admin |
-| Scheduled sweeps | `POST /follow-ups/run` (hourly), `POST /admin/outreach/retry` (every 5 minutes, S24), `POST /companies/hiring-signals/run-due` (daily, S4) | Scheduler service user |
+| Scheduled sweeps | Run by the built-in scheduler (`python -m recruiting.scheduler`, any number of replicas; each run is claimed in the `scheduler_job` table): follow-ups hourly, delivery retries every 5 minutes (S24), career-page re-check daily (S4). The same sweeps can be triggered by hand: `POST /follow-ups/run`, `POST /admin/outreach/retry`, `POST /companies/hiring-signals/run-due`. Last runs and alerts: `GET /admin/operations` | Scheduler process / Admin |
 | Candidate erasure (S23) | `POST /candidates/{id}/erase` | Admin |
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |

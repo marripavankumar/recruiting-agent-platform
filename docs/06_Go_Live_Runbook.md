@@ -22,7 +22,7 @@ and what to do when something goes wrong. Endpoints are listed in
 | 8 | Approvers per gate confirmed (Q14) | `/admin/gate-policies` | Administrator | ☐ |
 | 9 | Follow-up cadence confirmed (Q13) | `/admin/follow-up-cadence` | Administrator | ☐ |
 | 10 | Email provider connected (`RAP_EMAIL_PROVIDERS`, `RAP_EMAIL_SENDER`), postal address and unsubscribe secret set | Test email to an allow-listed address | ____ | ☐ |
-| 11 | Scheduler (n8n or cron, with a service user) calls `POST /follow-ups/run` hourly, `POST /admin/outreach/retry` every 5 minutes (S24) and `POST /companies/hiring-signals/run-due` daily (S4) | Scheduler log shows the runs | ____ | ☐ |
+| 11 | Scheduler process deployed (`python -m recruiting.scheduler`, same image and RAP_* settings as the API, at least one replica): follow-ups hourly, delivery retries every 5 minutes (S24), career-page re-check daily (S4) | `GET /admin/operations` lists all three jobs with status ok and no "Scheduled job" alerts | ____ | ☐ |
 | 12 | UAT sign-off by each of the six roles | Signed UAT sheet | Role leads | ☐ |
 | 13 | 4-week pilot with 2–3 recruiters and a few clients; KPI dashboard shows pilot data | `GET /kpis` | ____ | ☐ |
 | 14 | Users trained; this runbook reviewed | Training record | ____ | ☐ |
@@ -52,6 +52,7 @@ each morning. It raises these alerts:
 | Email failure rate | Above 5% of emails in 30 days | Check the provider's status and the sending domain (SPF, DKIM, DMARC); lower the daily cap; review failed recipients. A failed send is never retried automatically: create a new approval if it should go again. |
 | Approvals waiting | Oldest pending request older than 48 hours | Remind the approver role for that gate, or change the approver in `/admin/gate-policies`. |
 | Overdue follow-ups | Any | Owners work through `GET /follow-ups`; check the hourly scheduler is running. |
+| Scheduled job never ran, overdue or failed | Twice the job's interval, or any failure | Check the scheduler process is up and can reach the database (its log names the failing job). A failed job is retried after 5 minutes; sweeps can also be run by hand from the endpoints in the environment plan. |
 | Messages waiting to retry delivery (S24) | Any | Normal for a few minutes while the email provider recovers. If the count grows, check the provider status and the 5-minute retry job. After 5 attempts a message fails; sending it needs a new approval. |
 
 Also on the operations view:

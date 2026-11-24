@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
 from recruiting.compliance.erasure import ErasureError
 from recruiting.domain import Role
+from recruiting.scheduler import status as scheduler_status
 
 router = APIRouter(tags=["reports"])
 
@@ -37,7 +38,9 @@ def operations(request: Request, user: UserDep, services: ServicesDep) -> dict:
     platform = require_platform(services)
     entries = platform.gateway.ledger.entries() if platform.gateway else []
     denied = len(request.app.state.access_log.recent(500))
-    return platform.reporting.operations(platform.follow_ups.summary(), entries, denied)
+    jobs, job_alerts = scheduler_status(services.job_state, platform.reporting.now())
+    report = platform.reporting.operations(platform.follow_ups.summary(), entries, denied)
+    return {**report, "scheduler": jobs, "alerts": [*report["alerts"], *job_alerts]}
 
 
 @router.post("/admin/outreach/retry")

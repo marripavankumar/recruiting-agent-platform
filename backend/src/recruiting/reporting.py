@@ -216,6 +216,9 @@ class Reporting:
         }
         return {"from": start, "to": end, "days": days, "kpis": out, "funnel": funnel}
 
+    def now(self) -> datetime:
+        return self._clock()
+
     def operations(
         self, follow_up_summary: dict[str, Any], llm_entries: list[Any], denied: int
     ) -> dict[str, Any]:

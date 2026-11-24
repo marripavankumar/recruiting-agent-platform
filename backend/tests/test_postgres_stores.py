@@ -533,3 +533,24 @@ def test_follow_up_store_and_cadence(connect):
     assert cadence.get()[FollowUpKind.CLIENT_OUTREACH] == [3, 7, 14]
     cadence.save(FollowUpKind.CLIENT_OUTREACH, [2, 5], "u-admin")
     assert cadence.get()[FollowUpKind.CLIENT_OUTREACH] == [2, 5]
+
+
+def test_scheduler_job_claims_are_shared(connect):
+    from datetime import UTC, datetime, timedelta
+
+    from recruiting.scheduler import PostgresJobState
+
+    with connect() as conn:
+        conn.execute("DELETE FROM scheduler_job")
+    first, second = PostgresJobState(connect), PostgresJobState(connect)
+    now = datetime(2026, 11, 24, 9, 0, tzinfo=UTC)
+    hour = timedelta(hours=1)
+    assert first.claim("follow_ups", hour, now) is True
+    assert second.claim("follow_ups", hour, now) is False  # another replica: not twice
+    first.finish("follow_ups", now, False, "RuntimeError: boom", {})
+    assert second.claim("follow_ups", hour, now + timedelta(minutes=4)) is False
+    assert second.claim("follow_ups", hour, now + timedelta(minutes=5)) is True  # failed: sooner
+    second.finish("follow_ups", now + timedelta(minutes=6), True, None, {"created": 2})
+    [state] = first.all()
+    assert state.last_status == "ok" and state.last_result == {"created": 2}
+    assert state.interval_seconds == 3600
