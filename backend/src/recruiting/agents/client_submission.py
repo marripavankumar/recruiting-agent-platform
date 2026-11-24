@@ -281,6 +281,12 @@ class ClientSubmissionAgent:
             raise SubmissionError(
                 "No recorded consent from the candidate to be submitted for this job (P2)"
             )
+        if engagement.missing or engagement.status not in (
+            EngagementStatus.COMPLETE, EngagementStatus.SUBMITTED,
+        ):  # fmt: skip
+            # Scenario S16: Agent 9 must have everything before a submission.
+            missing = ", ".join(engagement.missing) or str(engagement.status)
+            raise SubmissionError(f"The candidate's details are not complete ({missing})")
         if not (submission.package.get("resume") or "").strip():
             raise SubmissionError("The package has no resume")
         live = self._live_with_client(

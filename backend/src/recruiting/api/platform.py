@@ -31,6 +31,7 @@ from recruiting.ai.prompts import default_registry
 from recruiting.ai.search import HashingEmbedder, InMemoryIndex, QdrantIndex, SemanticSearch
 from recruiting.approvals import ApprovalEngine
 from recruiting.compliance import OptOutRegistry
+from recruiting.compliance.erasure import CandidateErasure
 from recruiting.compliance.unsubscribe import UnsubscribeLinks
 from recruiting.config import Settings
 from recruiting.domain import Role
@@ -58,6 +59,7 @@ from recruiting.records.rankings import (
     WeightsStore,
 )
 from recruiting.records.submissions import InMemorySubmissions, SubmissionStore
+from recruiting.reporting import Reporting
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,8 @@ class Platform:
     submissions: ClientSubmissionAgent
     follow_ups: FollowUpAgent
     follow_up_cadence: CadenceStore
+    reporting: Reporting
+    erasure: CandidateErasure
     inbound_webhook_secret: str | None = None
 
 
@@ -171,8 +175,10 @@ def build_platform(
         settings.public_base_url, settings.outreach_postal_address, **timing,
     )  # fmt: skip
 
+    submissions = submissions or InMemorySubmissions()
+    follow_ups = follow_ups or InMemoryFollowUps()
     submission_agent = ClientSubmissionAgent(
-        companies, jobs, candidates, engagements, submissions or InMemorySubmissions(),
+        companies, jobs, candidates, engagements, submissions,
         ResumeMatchingAgent(ranking_agent, gateway, HashingEmbedder(), _log_llm_error),
         approvals, deliveries, workflows, rankings=rankings, **timing,
     )  # fmt: skip
@@ -183,7 +189,7 @@ def build_platform(
         return next((u.display_name for u in users.list_users() if u.user_id == user_id), None)
 
     follow_up_agent = FollowUpAgent(
-        follow_ups or InMemoryFollowUps(), follow_up_cadence, companies, jobs, candidates,
+        follow_ups, follow_up_cadence, companies, jobs, candidates,
         engagements, submission_agent, resume_collection, approvals, deliveries, workflows,
         opt_outs, unsubscribe, settings.outreach_sender_name, settings.outreach_postal_address,
         user_name, **timing,
@@ -234,5 +240,18 @@ def build_platform(
         submissions=submission_agent,
         follow_ups=follow_up_agent,
         follow_up_cadence=follow_up_cadence,
+        reporting=Reporting(
+            companies,
+            jobs,
+            engagements,
+            submission_agent,
+            rankings,
+            deliveries,
+            approvals,
+            **timing,
+        ),  # fmt: skip
+        erasure=CandidateErasure(
+            candidates, engagements, submissions, follow_ups, search, opt_outs, **timing
+        ),  # fmt: skip
         inbound_webhook_secret=settings.inbound_webhook_secret,
     )

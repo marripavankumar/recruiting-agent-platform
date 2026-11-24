@@ -21,7 +21,7 @@ Ten phases run about 32 weeks to go-live, with overlapping tracks. Update the **
 | 5 | Candidate engagement | Agents 8–9 | 18–22 | Approved LinkedIn / email outreach, resume and details collection | No message sends without approval; ≥90% complete candidate data; consent recorded | In progress | 60% | Built and tested end to end in memory: Agent 8 drafts BRD-template LinkedIn notes (300-character limit) and candidate emails, both behind the recruiter approval gate; opt-out, duplicate-contact and weekly LinkedIn-limit checks; LinkedIn task list with sent and outcome tracking (Q15). Agent 9: approval-gated request email with a secure, expiring upload link (token hash only stored); candidate page for resume, the seven details and two explicit consents (store; submit for this job); candidate email replies routed to Agent 9 (interest, details, written consent, unsubscribe); completion rate per job for the 90% exit criterion; reminder dates for Agent 12. Migration 0006. Open: PDF/DOCX resume upload, LinkedIn Recruiter InMail if licensed, legal review of consent wording (checklist P1) |
 | 6 | Matching and client submission | Agents 10–11 | 21–25 | Match reports, recruiter approval, client submission packages | Median JD-to-first-submission <24 h; 100% submissions approved | In progress | 60% | Q8, Q14 resolved. Built and tested end to end in memory: Agent 10 match report (structured ranking model + resume-to-JD embedding similarity + LLM review over the JD, rule-based fallback): score, strengths, concerns, missing skills, interview-probability estimate, submission notes; missing must-have and work-authorisation flags shown, never dropped (S17). Recruiter step: edit notes and package, right-to-represent confirmation, flag acknowledgement, candidate consent for the job (P2), duplicate block per client (S18, also a partial unique index), other-agency warning. Agent 11: nine-item package and cover email behind the resume-submission gate; sent copy kept; rejection reason kept (S19); engagement set to Submitted; client follow-up date for Agent 12. Client portal: own sent submissions and interview / hold / reject feedback (Q8). KPIs per job: hours to first submission, approved-with-consent rate, interview rate. Migration 0007. Open: branded PDF/DOCX package, pilot timing |
 | 7 | Follow-up | Agent 12 | 24–27 | Reminders for client, candidate, interview, offer, feedback, start date | Every open item has a next reminder date | In progress | 60% | Q13 resolved. Built and tested end to end in memory: Agent 12 sweep (idempotent `POST /follow-ups/run`) keeps one item per open step: client email with no reply (S8), submission and interview feedback (S20), candidate with no reply, missing details, interview scheduling and prep, offer, start-date check-ins. Admin cadence per type (default 3, 7, 14 days, then stop). Due messages are drafted into the same approval gates; LinkedIn follow-ups stay manual (Q15); opted-out people are not chased. Placement pipeline on submissions (Interview, Offer, Started, Rejected, Withdrawn with next-ranked suggestions, S21). Closing a job cancels pending drafts and follow-ups (S22). Task list per role, overdue alerts, summary. Migration 0008. Open: hourly scheduler (n8n or cron), email digest of reminders to staff |
-| 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | SIT, security and compliance tests, UAT, pilot, KPI dashboard, go-live | UAT sign-off by all roles; zero critical defects; compliance sign-off | Not started | 0% | — |
+| 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | SIT, security and compliance tests, UAT, pilot, KPI dashboard, go-live | UAT sign-off by all roles; zero critical defects; compliance sign-off | In progress | 30% | Built: KPI endpoint for all nine BRD section 12 metrics with target, status and basis (`GET /kpis`), operations view with alerts (email failures, approvals waiting over 48 h, overdue follow-ups, AI cost), access-denied log (S26), candidate erasure (S23), S16 completeness rule, end-to-end S1 test through the API; 21 of 27 scenarios pass automated in memory (section 14); go-live runbook (doc 06). Open: PostgreSQL run in CI, S6 and S12, security and penetration test, compliance sign-off, UAT by all roles, 4-week pilot, training, go-live |
 | 9 | Future enhancements | Future Enhancements | After go-live | 7 BRD enhancements | Defined per enhancement | Not started | 0% | Only after Phase 8 exit criteria are met |
 
 **Suggested team:** product owner (CBS LLC), solution architect, 2 AI/ML engineers, 2 backend engineers, 1 frontend engineer, 1 integration engineer, QA engineer, part-time compliance/legal advisor, recruiter SMEs for review and UAT.
@@ -399,15 +399,15 @@ Phase 8 proves the whole pipeline on live clients and hands it to the business w
 
 | Metric | Target | Data source | Current |
 | --- | --- | --- | --- |
-| New target companies identified | 500+ per month | Company DB (Agent 1) | — |
-| Personalised outreach emails sent | 200–500 per week, after approval | Approval log + email API (Agent 3) | — |
-| Client response rate | >15% | Email response tracking | — |
-| New job descriptions received | >40 per month | Job DB (Agent 4) | — |
-| Qualified candidates identified per JD | 10–20 | Agent 7 Top 20 + recruiter review | — |
-| Candidate response rate | >30% | Agent 8 tracking | — |
-| Time from JD receipt to first submission | <24 hours | Job DB timestamps | — |
-| Resume-to-interview ratio | >25% | Agent 11 + Agent 12 statuses | — |
-| Interview-to-offer ratio | >20% | Agent 12 statuses | — |
+| New target companies identified | 500+ per month | Company DB (Agent 1) | Live in `GET /kpis`; awaiting pilot data |
+| Personalised outreach emails sent | 200–500 per week, after approval | Approval log + email API (Agent 3) | Live in `GET /kpis`; awaiting pilot data |
+| Client response rate | >15% | Email response tracking | Live in `GET /kpis`; awaiting pilot data |
+| New job descriptions received | >40 per month | Job DB (Agent 4) | Live in `GET /kpis`; awaiting pilot data |
+| Qualified candidates identified per JD | 10–20 | Agent 7 Top 20 + recruiter review | Live in `GET /kpis`; awaiting pilot data |
+| Candidate response rate | >30% | Agent 8 tracking | Live in `GET /kpis`; awaiting pilot data |
+| Time from JD receipt to first submission | <24 hours | Job DB timestamps | Live in `GET /kpis`; awaiting pilot data |
+| Resume-to-interview ratio | >25% | Agent 11 + Agent 12 statuses | Live in `GET /kpis`; awaiting pilot data |
+| Interview-to-offer ratio | >20% | Agent 12 statuses | Live in `GET /kpis`; awaiting pilot data |
 
 Goal metrics from BRD §2 (manual effort reduction over 80%, recruiter productivity, candidate quality, time-to-submit) are reported against the Phase 0 baseline.
 
@@ -456,36 +456,38 @@ These scenarios are the system-integration and UAT test set for Phase 8; each mu
 10. Agent 11 sends the packages within 24 hours of JD receipt.
 11. Agent 12 tracks feedback, interview, offer and start date to "Started".
 
+**S1 status:** Passed (automated, in memory, through the HTTP API: `tests/test_phase8_end_to_end.py`). Email delivery is a test double; licensed job boards and the PostgreSQL path are not yet exercised. All "Passed" results below are automated in-memory runs; UAT with each role is still required (section 12).
+
 **Exception and alternate paths**
 
 | # | Scenario | Expected system behaviour | Test status |
 | --- | --- | --- | --- |
-| S2 | Company is under $100M or outside target countries | Excluded by Agent 1; not stored as a prospect | Not run |
-| S3 | Same company found by two sources | Merged into one record; sources both kept | Not run |
-| S4 | Company has no open engineering jobs | Stays in Company DB with low priority; re-checked on schedule | Not run |
-| S5 | BD Manager rejects or edits the draft email | Not sent; edited version re-queued; reason logged | Not run |
-| S6 | Email bounces | Contact marked invalid; alternative contact suggested | Not run |
-| S7 | Client replies "not interested" or "unsubscribe" | Outreach stops; opt-out applied across all agents | Not run |
-| S8 | No reply after the first email | Agent 12 schedules follow-up per the configurable cadence (Q13); stops at the limit | Not run |
-| S9 | Out-of-office or "JD to follow" reply | No job created; reminder set | Not run |
-| S10 | One reply contains several JDs | One job record per JD | Not run |
-| S11 | JD missing location, visa or rate | Flagged to Account Manager to ask client | Not run |
-| S12 | Fewer than 10 qualified candidates found | Recruiter alerted; search widened (location, title variants) with approval | Not run |
-| S13 | Same candidate found in ATS and job board | De-duplicated into one candidate record | Not run |
-| S14 | Recruiter rejects a LinkedIn request draft | Not sent; candidate stays in Top 20 list | Not run |
-| S15 | Candidate declines or does not respond | Status updated; follow-up per rules; do-not-contact honoured | Not run |
-| S16 | Candidate sends resume but not visa or rate | Agent 9 chases missing items; no match until complete | Not run |
-| S17 | Candidate fails work authorisation requirement | Flagged in Agent 10; recruiter decides; cannot auto-submit | Not run |
-| S18 | Candidate already submitted to this client | Submission blocked with warning | Not run |
-| S19 | Recruiter rejects the submission | Not sent; reason stored for model tuning | Not run |
-| S20 | Client rejects candidate or gives no feedback | Agent 12 chases feedback; status Rejected with reason | Not run |
-| S21 | Candidate withdraws after interview or offer | Status Withdrawn; next-ranked candidates suggested | Not run |
-| S22 | Client fills or cancels the job | Job closed; all open outreach for that job stopped | Not run |
-| S23 | Candidate asks to delete their data | Record removed or anonymised within the legal deadline; logged | Not run |
-| S24 | An external API (LinkedIn, job board, email) fails or hits a rate limit | Retry with back-off; task paused and user alerted; no duplicate sends | Not run |
-| S25 | LLM returns low-confidence or invalid output | Field marked for human review; no automatic action | Not run |
-| S26 | User tries an action outside their role | Access denied and logged | Not run |
-| S27 | Client user logs into the portal | Sees only their own jobs and submissions (per Q8) | Not run |
+| S2 | Company is under $100M or outside target countries | Excluded by Agent 1; not stored as a prospect | Passed (automated) |
+| S3 | Same company found by two sources | Merged into one record; sources both kept | Partly: merged into one record; only one source kept |
+| S4 | Company has no open engineering jobs | Stays in Company DB with low priority; re-checked on schedule | Partly: low priority; scheduled re-check not built |
+| S5 | BD Manager rejects or edits the draft email | Not sent; edited version re-queued; reason logged | Passed (automated) |
+| S6 | Email bounces | Contact marked invalid; alternative contact suggested | Not built |
+| S7 | Client replies "not interested" or "unsubscribe" | Outreach stops; opt-out applied across all agents | Passed (automated) |
+| S8 | No reply after the first email | Agent 12 schedules follow-up per the configurable cadence (Q13); stops at the limit | Passed (automated) |
+| S9 | Out-of-office or "JD to follow" reply | No job created; reminder set | Partly: classified, no job created; reminder not set |
+| S10 | One reply contains several JDs | One job record per JD | Passed (automated) |
+| S11 | JD missing location, visa or rate | Flagged to Account Manager to ask client | Passed (automated) |
+| S12 | Fewer than 10 qualified candidates found | Recruiter alerted; search widened (location, title variants) with approval | Not built (alert and widened search) |
+| S13 | Same candidate found in ATS and job board | De-duplicated into one candidate record | Passed (automated) |
+| S14 | Recruiter rejects a LinkedIn request draft | Not sent; candidate stays in Top 20 list | Passed (automated) |
+| S15 | Candidate declines or does not respond | Status updated; follow-up per rules; do-not-contact honoured | Passed (automated) |
+| S16 | Candidate sends resume but not visa or rate | Agent 9 chases missing items; no match until complete | Passed (automated) |
+| S17 | Candidate fails work authorisation requirement | Flagged in Agent 10; recruiter decides; cannot auto-submit | Passed (automated) |
+| S18 | Candidate already submitted to this client | Submission blocked with warning | Passed (automated) |
+| S19 | Recruiter rejects the submission | Not sent; reason stored for model tuning | Passed (automated) |
+| S20 | Client rejects candidate or gives no feedback | Agent 12 chases feedback; status Rejected with reason | Passed (automated) |
+| S21 | Candidate withdraws after interview or offer | Status Withdrawn; next-ranked candidates suggested | Passed (automated) |
+| S22 | Client fills or cancels the job | Job closed; all open outreach for that job stopped | Passed (automated) |
+| S23 | Candidate asks to delete their data | Record removed or anonymised within the legal deadline; logged | Passed (automated); audit copies kept pending legal review |
+| S24 | An external API (LinkedIn, job board, email) fails or hits a rate limit | Retry with back-off; task paused and user alerted; no duplicate sends | Partly: no duplicate sends, cap deferral, failure alert; no automatic retry |
+| S25 | LLM returns low-confidence or invalid output | Field marked for human review; no automatic action | Passed (automated) |
+| S26 | User tries an action outside their role | Access denied and logged | Passed (automated) |
+| S27 | Client user logs into the portal | Sees only their own jobs and submissions (per Q8) | Passed (automated) |
 
 ## 15. Requirements traceability matrix
 

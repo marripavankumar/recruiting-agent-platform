@@ -28,6 +28,7 @@ def current_user(request: Request, services: ServicesDep) -> CurrentUser:
             status.HTTP_401_UNAUTHORIZED, str(exc), headers={"WWW-Authenticate": "Bearer"}
         ) from exc
     user = services.users.by_email(email)
+    request.state.user = user  # for the access log (scenario S26)
     if user is None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not a platform user")
     return user

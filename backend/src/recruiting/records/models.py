@@ -72,6 +72,7 @@ class Company:
     priority_score: int = 0
     hiring_history: list[dict[str, Any]] = field(default_factory=list)
     last_verified_at: datetime | None = None
+    created_at: datetime | None = None  # first stored (KPI: companies identified)
 
 
 @dataclass

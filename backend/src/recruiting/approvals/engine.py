@@ -189,6 +189,9 @@ class ApprovalEngine:
         steps = policy.steps
         return steps[request.approval_count] if request.approval_count < len(steps) else None
 
+    def pending(self) -> list[ApprovalRequest]:
+        return self._store.pending()
+
     def pending_for(self, role: Role) -> list[ApprovalRequest]:
         policies = self.policies()
         return [r for r in self._store.pending() if self.next_approver_role(r, policies) == role]

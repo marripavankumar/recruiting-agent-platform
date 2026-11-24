@@ -25,11 +25,11 @@
     <div class="card kpi"><div class="label">Phase 1 · Core platform</div><div class="value num">70%</div><div class="bar ok"><span style="width:70%"></span></div></div>
     <div class="card kpi"><div class="label">Phase 2 · Client acquisition</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div></div>
     <div class="card kpi"><div class="label">Phase 3 · JD intake &amp; analysis</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div></div>
-    <div class="card kpi"><div class="label">Phase 4 · Search &amp; ranking</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div><div class="target">Phases 5–7: 60% · Phase 8 not started</div></div>
+    <div class="card kpi"><div class="label">Phase 4 · Search &amp; ranking</div><div class="value num">60%</div><div class="bar"><span style="width:60%"></span></div><div class="target">Phases 5–7: 60% · Phase 8: 30% (code done; UAT, pilot, sign-offs open)</div></div>
   </div>
 
   <div class="card" style="margin-bottom:16px">
-    <div class="card-head"><h2>Screens</h2><span class="faint">Tests: 126 pass locally · PostgreSQL tests run in CI</span></div>
+    <div class="card-head"><h2>Screens</h2><span class="faint">Tests: 132 pass locally · PostgreSQL tests run in CI</span></div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Screen</th><th>Backend</th><th>API</th><th>Still open</th></tr></thead>
@@ -41,7 +41,7 @@
           <tr><td><a href="admin.html">Users &amp; approvers</a></td><td><span class="built">Built</span></td><td><code>/admin/users</code>, <code>/admin/gate-policies</code>, <code>/admin/ranking-weights</code>, <code>/admin/llm-usage</code></td><td>Connector settings screen (now set by configuration)</td></tr>
           <tr><td><a href="unsubscribe.html">Unsubscribe (public)</a></td><td><span class="built">Built</span></td><td><code>GET</code> / <code>POST /unsubscribe</code></td><td>—</td></tr>
           <tr><td><a href="client-portal.html">Client portal</a></td><td><span class="built">Built</span></td><td><code>/jobs</code>, <code>/client/submissions</code>, <code>…/feedback</code> (own company only)</td><td>JD upload from the portal, interview scheduling (Phase 7)</td></tr>
-          <tr><td><a href="index.html">Dashboard</a></td><td><span class="planned">Planned · Phase 8</span></td><td>—</td><td>KPI endpoint and dashboard</td></tr>
+          <tr><td><a href="index.html">Dashboard</a></td><td><span class="built">Built</span></td><td><code>GET /kpis</code>, <code>/admin/operations</code>, <code>/admin/access-denied</code></td><td>Pilot data; BRD section 2 goals against the Phase 0 baseline</td></tr>
           <tr><td><a href="candidates.html">Candidate ranking</a></td><td><span class="built">Built</span></td><td><code>POST /candidates</code>, <code>/jobs/{id}/ranking</code>, <code>…/review</code>, <code>…/move</code></td><td>Licensed job-board adapters, weight tuning from feedback</td></tr>
           <tr><td><a href="linkedin-tasks.html">Engagement &amp; LinkedIn</a></td><td><span class="built">Built</span></td><td><code>POST /jobs/{id}/outreach</code>, <code>/linkedin-tasks</code>, <code>/engagements/{id}/outcome</code>, <code>…/request-details</code></td><td>PDF/DOCX upload, LinkedIn Recruiter InMail if licensed</td></tr>
           <tr><td><a href="collect.html">Candidate secure link (public)</a></td><td><span class="built">Built</span></td><td><code>GET</code> / <code>POST /collect/{token}</code></td><td>Legal review of consent wording</td></tr>

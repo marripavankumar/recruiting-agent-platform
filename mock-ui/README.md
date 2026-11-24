@@ -17,7 +17,7 @@ Use **Viewing as** at the top right to switch role. The sidebar, the approval qu
 
 | Screen | File | BRD scope | Main roles |
 | --- | --- | --- | --- |
-| Dashboard: KPIs vs targets, pipeline, agent activity | `index.html` | §12 KPIs | All staff |
+| Dashboard: the nine BRD KPIs with target and status, pipeline funnel, operations alerts | `index.html` | §12 KPIs | All staff |
 | Approval queue: approve, edit and approve, reject with reason; second approver | `approvals.html` | §10 gates | All staff |
 | Companies & outreach: list import, hiring signals and priority factors, contacts with CASL consent, drafting with skip reasons, email tracking and daily cap | `companies.html` | Agents 1–3 | BD, Sales, Account, Admin |
 | Client replies: reply categories, JD to job records, unsubscribes, unknown senders | `replies.html` | Agent 4 | BD, Account, Sales, Admin |

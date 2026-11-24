@@ -7,6 +7,7 @@ import re
 import uuid
 from collections.abc import Iterable
 from dataclasses import replace
+from datetime import UTC, datetime
 from typing import Protocol
 
 from recruiting.records.models import (
@@ -130,6 +131,9 @@ class InMemoryCompanies:
         other = self.by_domain(company.domain)
         if other is not None and other.id != company.id:
             raise ValueError(f"Domain {company.domain} already belongs to company {other.id}")
+        if company.created_at is None:
+            previous = self._companies.get(company.id)
+            company.created_at = previous.created_at if previous else datetime.now(UTC)
         self._companies[company.id] = copy.deepcopy(company)
         return company
 

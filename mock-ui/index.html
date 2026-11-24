@@ -17,23 +17,24 @@
   <div class="page-head">
     <div>
       <h1>Good morning</h1>
-      <p>November 2026 · month to date. Targets come from the BRD success metrics (section 12).</p>
+      <p>Last 30 days. Every number is computed from the platform's own records with its basis; targets are the BRD success metrics (section 12). <span class="built">Built in backend</span></p>
     </div>
     <div class="row">
-      <select aria-label="Period"><option>This month</option><option>Last 30 days</option><option>This quarter</option></select>
+      <select aria-label="Period"><option>Last 30 days</option><option>Last 7 days</option><option>Last 90 days</option></select>
       <a class="btn" href="#" data-toast="Exports the KPI report as CSV (mock)">Export</a>
     </div>
   </div>
 
-  <div class="grid cols-4" style="margin-bottom:16px">
-    <div class="card kpi"><div class="label">Target companies identified</div><div class="value num">412</div><div class="target">Target 500+ / month</div><div class="bar"><span style="width:82%"></span></div></div>
-    <div class="card kpi"><div class="label">Approved client emails sent (this week)</div><div class="value num">236</div><div class="target">Target 200–500 / week</div><div class="bar ok"><span style="width:100%"></span></div></div>
-    <div class="card kpi"><div class="label">Client response rate</div><div class="value num">17.4%</div><div class="target">Target &gt;15% · <span style="color:var(--ok)">on track</span></div><div class="bar ok"><span style="width:100%"></span></div></div>
-    <div class="card kpi"><div class="label">New job descriptions received</div><div class="value num">31</div><div class="target">Target &gt;40 / month</div><div class="bar warn"><span style="width:77%"></span></div></div>
-    <div class="card kpi"><div class="label">Qualified candidates per JD</div><div class="value num">14.2</div><div class="target">Target 10–20</div><div class="bar ok"><span style="width:100%"></span></div></div>
-    <div class="card kpi"><div class="label">Candidate response rate</div><div class="value num">33%</div><div class="target">Target &gt;30%</div><div class="bar ok"><span style="width:100%"></span></div></div>
-    <div class="card kpi"><div class="label">JD to first submission (median)</div><div class="value num">19.5 h</div><div class="target">Target &lt;24 h</div><div class="bar ok"><span style="width:100%"></span></div></div>
-    <div class="card kpi"><div class="label">Resume-to-interview / interview-to-offer</div><div class="value num">27% · 18%</div><div class="target">Targets &gt;25% · &gt;20%</div><div class="bar warn"><span style="width:90%"></span></div></div>
+  <div class="grid cols-3" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Target companies identified</div><div class="value num">412</div><div class="target">Target 500+ / month · <span style="color:var(--warn)">below</span></div><div class="bar warn"><span style="width:82%"></span></div></div>
+    <div class="card kpi"><div class="label">Approved client emails sent</div><div class="value num">236 / wk</div><div class="target">Target 200–500 / week · <span style="color:var(--ok)">on track</span></div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Client response rate</div><div class="value num">17.4%</div><div class="target">Target &gt;15% · <span style="color:var(--ok)">on track</span> · 41 of 236</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">New job descriptions received</div><div class="value num">31</div><div class="target">Target &gt;40 / month · <span style="color:var(--warn)">below</span></div><div class="bar warn"><span style="width:77%"></span></div></div>
+    <div class="card kpi"><div class="label">Qualified candidates per JD</div><div class="value num">14.2</div><div class="target">Target 10–20 · recruiter-reviewed Top 20</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Candidate response rate</div><div class="value num">33%</div><div class="target">Target &gt;30% · <span style="color:var(--ok)">on track</span></div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">JD to first submission (median)</div><div class="value num">19.5 h</div><div class="target">Target &lt;24 h · <span style="color:var(--ok)">on track</span></div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Resume-to-interview</div><div class="value num">27%</div><div class="target">Target &gt;25% · <span style="color:var(--ok)">on track</span> · 18 of 66</div><div class="bar ok"><span style="width:100%"></span></div></div>
+    <div class="card kpi"><div class="label">Interview-to-offer</div><div class="value num">18%</div><div class="target">Target &gt;20% · <span style="color:var(--warn)">below</span> · 3 of 17 held</div><div class="bar warn"><span style="width:90%"></span></div></div>
   </div>
 
   <div class="split">
@@ -42,13 +43,15 @@
         <div class="card-head"><h2>Pipeline this month</h2><span class="faint">From discovery to placement</span></div>
         <div class="card-body funnel">
           <div class="funnel-row"><span>Companies found</span><div class="track"><span style="width:100%"></span></div><b class="num">412</b></div>
-          <div class="funnel-row"><span>Hiring signals</span><div class="track"><span style="width:68%"></span></div><b class="num">281</b></div>
-          <div class="funnel-row"><span>Emails approved &amp; sent</span><div class="track"><span style="width:57%"></span></div><b class="num">236</b></div>
+          <div class="funnel-row"><span>First client emails</span><div class="track"><span style="width:57%"></span></div><b class="num">236</b></div>
           <div class="funnel-row"><span>Client replies</span><div class="track"><span style="width:10%"></span></div><b class="num">41</b></div>
           <div class="funnel-row"><span>Job descriptions</span><div class="track"><span style="width:7.5%"></span></div><b class="num">31</b></div>
+          <div class="funnel-row"><span>Candidates contacted</span><div class="track"><span style="width:60%"></span></div><b class="num">248</b></div>
+          <div class="funnel-row"><span>Candidates replied</span><div class="track"><span style="width:20%"></span></div><b class="num">82</b></div>
           <div class="funnel-row"><span>Submissions</span><div class="track"><span style="width:16%"></span></div><b class="num">66</b></div>
           <div class="funnel-row"><span>Interviews</span><div class="track"><span style="width:4.4%"></span></div><b class="num">18</b></div>
           <div class="funnel-row"><span>Offers</span><div class="track"><span style="width:1%"></span></div><b class="num">3</b></div>
+          <div class="funnel-row"><span>Started</span><div class="track"><span style="width:0.5%"></span></div><b class="num">2</b></div>
         </div>
       </div>
 
@@ -79,12 +82,12 @@
       </div>
 
       <div class="card">
-        <div class="card-head"><h2>Agent activity</h2><span class="chip ok">All agents healthy</span></div>
+        <div class="card-head"><h2>Operations</h2><span class="chip warn">2 alerts</span></div>
         <ul class="list">
-          <li><div class="avatar">A1</div><div class="grow"><div class="title">Company Discovery</div><div class="faint">Found 18 new companies in Michigan and Ohio · 12 min ago</div></div></li>
-          <li><div class="avatar">A4</div><div class="grow"><div class="title">JD Intake</div><div class="faint">Extracted a JD from a reply by Kestrel Medical Devices · 40 min ago</div></div></li>
-          <li><div class="avatar">A7</div><div class="grow"><div class="title">Candidate Ranking</div><div class="faint">Ranked 64 profiles for JOB-2026-0139 · Top 20 ready · 1 h ago</div></div></li>
-          <li><div class="avatar">A12</div><div class="grow"><div class="title">Follow-up</div><div class="faint">7 reminders due today · 2 overdue</div></div></li>
+          <li><span class="chip warn">Alert</span><div class="grow"><div class="title">Approvals have waited more than 48 hours</div><div class="faint">7 pending · oldest 52 h · resume submission gate</div></div></li>
+          <li><span class="chip warn">Alert</span><div class="grow"><div class="title">2 follow-ups are overdue</div><div class="faint"><a href="followups.html">Open follow-ups</a></div></div></li>
+          <li><span class="chip ok">OK</span><div class="grow"><div class="title">Email delivery</div><div class="faint">0.8% failed in 30 days (alert above 5%)</div></div></li>
+          <li><span class="chip ok">OK</span><div class="grow"><div class="title">AI cost</div><div class="faint">1,284 calls · $41.70 in 30 days</div></div></li>
         </ul>
       </div>
     </div>

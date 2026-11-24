@@ -76,6 +76,8 @@ class VectorIndex(Protocol):
         self, collection: str, vector: Vector, limit: int, where: Mapping[str, Any] | None = None
     ) -> list[Hit]: ...
 
+    def delete(self, collection: str, item_id: str) -> None: ...
+
 
 class InMemoryIndex:
     def __init__(self) -> None:
@@ -88,6 +90,9 @@ class InMemoryIndex:
         self, collection: str, item_id: str, vector: Vector, payload: Mapping[str, Any]
     ) -> None:
         self._items.setdefault(collection, {})[item_id] = (vector, dict(payload))
+
+    def delete(self, collection: str, item_id: str) -> None:
+        self._items.get(collection, {}).pop(item_id, None)
 
     def search(
         self, collection: str, vector: Vector, limit: int, where: Mapping[str, Any] | None = None
@@ -149,6 +154,13 @@ class QdrantIndex:
             hits.append(Hit(payload.pop("_id", str(point["id"])), point["score"], payload))
         return hits
 
+    def delete(self, collection: str, item_id: str) -> None:
+        self._http.post(
+            f"/collections/{collection}/points/delete",
+            params={"wait": "true"},
+            json={"points": [self._point_id(item_id)]},
+        ).raise_for_status()
+
 
 class SemanticSearch:
     """Index and search texts by kind ("job", "candidate", ...), one collection per kind."""
@@ -177,3 +189,6 @@ class SemanticSearch:
     ) -> list[Hit]:
         [vector] = self._embedder.embed([query])
         return self._index.search(self._collection(kind), vector, limit, where)
+
+    def remove(self, kind: str, item_id: str) -> None:
+        self._index.delete(self._collection(kind), item_id)

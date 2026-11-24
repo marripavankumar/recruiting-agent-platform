@@ -45,7 +45,7 @@ from recruiting.records.rankings import (
 
 _COMPANY = """id::text, name, domain, source, industry, revenue_usd, employees, country, locations,
     website, linkedin_url, career_page_url, is_client, outreach_status, priority_score,
-    hiring_history, last_verified_at"""
+    hiring_history, last_verified_at, created_at"""
 _CONTACT = """id::text, company_id::text, full_name, title, role_category, email, phone,
     linkedin_url, country, consent_basis, source"""
 _POSTING = """id::text, company_id::text, title, target_role, url, location, hiring_manager,
@@ -54,14 +54,14 @@ _POSTING = """id::text, company_id::text, title, target_role, url, location, hir
 
 def _company(row: tuple) -> Company:
     (cid, name, domain, source, industry, revenue, employees, country, locations, website,
-     linkedin, career, is_client, status, score, history, verified) = row  # fmt: skip
+     linkedin, career, is_client, status, score, history, verified, created) = row  # fmt: skip
     return Company(
         id=cid, name=name, domain=domain, source=source, industry=industry,
         revenue_usd=float(revenue) if revenue is not None else None, employees=employees,
         country=country.strip() if country else None, locations=list(locations or []),
         website=website, linkedin_url=linkedin, career_page_url=career, is_client=is_client,
         outreach_status=OutreachStatus(status), priority_score=score,
-        hiring_history=list(history or []), last_verified_at=verified,
+        hiring_history=list(history or []), last_verified_at=verified, created_at=created,
     )  # fmt: skip
 
 

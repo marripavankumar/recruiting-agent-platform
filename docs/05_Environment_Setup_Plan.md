@@ -133,6 +133,8 @@ Main endpoints (all need sign-in except the last two):
 | Client portal submissions | `GET /client/submissions`, `POST /client/submissions/{id}/feedback` | Client (own company) |
 | Follow-ups (Agent 12) | `GET /follow-ups`, `GET /follow-ups/summary`, `POST /follow-ups/run`, `POST /follow-ups/{id}/complete`, `.../snooze`, `.../draft`, `POST /submissions/{id}/stage` | All staff; `scope=all`: Admin |
 | Follow-up cadence (Q13) | `GET /admin/follow-up-cadence`, `PUT /admin/follow-up-cadence/{kind}` | Admin |
+| KPIs and operations (Phase 8) | `GET /kpis?days=30` (staff), `GET /admin/operations`, `GET /admin/access-denied` (Admin) | Staff / Admin |
+| Candidate erasure (S23) | `POST /candidates/{id}/erase` | Admin |
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
 | Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |
