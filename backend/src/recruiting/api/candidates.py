@@ -7,10 +7,13 @@ user until a submission is approved (Phase 6).
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
+from recruiting.agents.candidate_search import Widening, shortfall
 from recruiting.agents.ranking import RankingWeights
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
 from recruiting.domain import Role
@@ -35,6 +38,14 @@ class ResumesIn(BaseModel):
 class ReviewIn(BaseModel):
     verdict: Verdict
     note: str | None = Field(default=None, max_length=2000)
+
+
+class WidenIn(BaseModel):
+    """S12: the recruiter's choice of how to widen the search (their approval to run it)."""
+
+    title_variants: list[str] = Field(default_factory=list, max_length=10)
+    location: Literal["state", "anywhere"] | None = None
+    include_nice_to_have: bool = False
 
 
 class MoveIn(BaseModel):
@@ -80,12 +91,15 @@ def _ranking_out(ranking: Ranking, services) -> dict:
                 "source": candidate.source if candidate else None,
             }
         )
+    job = platform.jobs.get(ranking.job_id)
     return {
         "job_id": ranking.job_id,
         "ranked_at": ranking.ranked_at,
         "searched": ranking.searched,
         "weights": ranking.weights,
         "qualified_in_top_20": ranking.qualified_in_top_20,
+        "widened": ranking.widened,
+        "shortfall": shortfall(job, ranking) if job else None,  # S12
         "candidates": rows,
     }
 
@@ -139,6 +153,37 @@ def run_ranking(
     if job is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
     ranking, report = platform.candidate_search.run(job, limit=limit)
+    ranking = platform.rankings.save(ranking)
+    return {**_ranking_out(ranking, services), "search": asdict(report)}
+
+
+@router.post("/jobs/{job_id}/ranking/widen")
+def widen_ranking(
+    job_id: str,
+    body: WidenIn,
+    user: UserDep,
+    services: ServicesDep,
+    limit: int = Query(default=20, ge=1, le=100),
+) -> dict:
+    """S12: re-run Agents 6-7 with the widening the recruiter chose; recorded on the ranking."""
+    require_role(user, TALENT)
+    platform = require_platform(services)
+    job = platform.jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Job not found")
+    variants = tuple(dict.fromkeys(t.strip()[:120] for t in body.title_variants if t.strip()))
+    widen = Widening(variants, body.location, body.include_nice_to_have)
+    if widen == Widening():
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, "Choose at least one way to widen the search"
+        )
+    ranking, report = platform.candidate_search.run(job, limit=limit, widen=widen)
+    ranking.widened = {
+        **widen.as_dict(),
+        "by": user.user_id,
+        "at": datetime.now(UTC).isoformat(),
+        "before": (previous := platform.rankings.get(job_id)) and len(previous.top),
+    }
     ranking = platform.rankings.save(ranking)
     return {**_ranking_out(ranking, services), "search": asdict(report)}
 

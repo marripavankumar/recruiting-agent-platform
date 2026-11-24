@@ -20,6 +20,7 @@ DEFAULT_CADENCE: dict[FollowUpKind, list[int]] = {
     FollowUpKind.INTERVIEW_FEEDBACK: [1, 3, 7],
     FollowUpKind.OFFER: [2, 5, 10],
     FollowUpKind.START_DATE: [-7, -1, 7],
+    FollowUpKind.CANDIDATE_SHORTFALL: [0, 2, 5],
 }
 
 

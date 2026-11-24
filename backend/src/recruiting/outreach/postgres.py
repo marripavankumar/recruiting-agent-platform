@@ -108,6 +108,24 @@ class PostgresDeliveryLog:
             ).fetchall()
         return [_receipt(r) for r in rows]
 
+    def record_bounce(self, approval_request_id: str, reason: str) -> DeliveryReceipt:
+        # Keeps the provider id and send time; only the outcome changes.
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE outreach_message SET delivery_status = 'bounced', error = %s"
+                " WHERE approval_request_id = %s",
+                (reason, approval_request_id),
+            )
+            conn.execute(
+                """
+                INSERT INTO audit_log (actor, action, entity_type, entity_id, details)
+                VALUES ('outreach_service', 'outreach.bounced', 'approval_request', %s, %s)
+                """,
+                (approval_request_id, Jsonb({"error": reason})),
+            )
+            row = conn.execute(_SELECT, (approval_request_id,)).fetchone()
+        return _receipt(row)
+
     def mark_manually_sent(self, approval_request_id: str, at: datetime) -> DeliveryReceipt:
         return self._update(approval_request_id, DeliveryStatus.MANUALLY_SENT, None, None, at)
 

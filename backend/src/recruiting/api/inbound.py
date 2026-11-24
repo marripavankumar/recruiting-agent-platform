@@ -11,8 +11,10 @@ from fastapi import APIRouter, Form, Header, HTTPException, Query, status
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from recruiting.agents.bounces import BounceError
 from recruiting.agents.jd_intake import InboundEmail
 from recruiting.api.deps import ServicesDep, require_platform
+from recruiting.api.platform import Platform
 
 router = APIRouter(tags=["inbound"])
 
@@ -34,13 +36,7 @@ def receive_email(
 ) -> dict:
     """Called by the mail-routing workflow (n8n) for each reply to the outreach mailbox."""
     platform = require_platform(services)
-    expected = platform.inbound_webhook_secret
-    if (
-        not expected
-        or not x_rap_webhook_secret
-        or not hmac.compare_digest(expected, x_rap_webhook_secret)
-    ):
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid webhook secret")
+    _check_secret(platform, x_rap_webhook_secret)
     email = InboundEmail(
         from_address=body.from_address.strip(),
         subject=body.subject,
@@ -57,6 +53,38 @@ def receive_email(
             **asdict(platform.resume_collection.process_reply(email, candidate)),
         }
     return {"handled_by": "agent-4", **asdict(platform.jd_intake.process(email))}
+
+
+class BounceIn(BaseModel):
+    recipient: str = Field(min_length=3, max_length=320)
+    reason: str = Field(default="", max_length=2000)
+    hard: bool = True  # permanent failure (5.x.x); soft bounces are left to provider retries
+    approval_request_id: str | None = Field(default=None, max_length=100)
+
+
+@router.post("/inbound/bounce")
+def receive_bounce(
+    body: BounceIn,
+    services: ServicesDep,
+    x_rap_webhook_secret: str | None = Header(default=None),
+) -> dict:
+    """Scenario S6: the mail-routing workflow forwards each bounce notice from the provider."""
+    platform = require_platform(services)
+    _check_secret(platform, x_rap_webhook_secret)
+    try:
+        result = platform.bounces.process(
+            body.recipient, body.reason, hard=body.hard,
+            approval_request_id=body.approval_request_id,
+        )  # fmt: skip
+    except BounceError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return asdict(result)
+
+
+def _check_secret(platform: Platform, given: str | None) -> None:
+    expected = platform.inbound_webhook_secret
+    if not expected or not given or not hmac.compare_digest(expected, given):
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid webhook secret")
 
 
 _PAGE = """<!doctype html><html lang="en"><head><meta charset="utf-8">

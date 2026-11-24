@@ -113,6 +113,9 @@ class ClientOutreachAgent:
         contacts = [c for c in self._companies.contacts(company.id) if c.email]
         if not contacts:
             return None, "no_contact_email"
+        contacts = [c for c in contacts if c.email_valid]  # S6: hard bounces are skipped
+        if not contacts:
+            return None, "no_valid_contact_email"
         contacts = [c for c in contacts if not self._opt_outs.is_opted_out(c.email or "")]
         if not contacts:
             return None, "opted_out"

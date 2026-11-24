@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
+from recruiting.agents.bounces import BounceHandler
 from recruiting.agents.candidate_outreach import CandidateOutreachAgent
 from recruiting.agents.candidate_search import CandidateSearchAgent, CandidateSource
 from recruiting.agents.client_outreach import ClientOutreachAgent, SenderProfile, WorkflowStarter
@@ -90,6 +91,7 @@ class Platform:
     follow_up_cadence: CadenceStore
     reporting: Reporting
     erasure: CandidateErasure
+    bounces: BounceHandler
     inbound_webhook_secret: str | None = None
 
 
@@ -192,7 +194,7 @@ def build_platform(
         follow_ups, follow_up_cadence, companies, jobs, candidates,
         engagements, submission_agent, resume_collection, approvals, deliveries, workflows,
         opt_outs, unsubscribe, settings.outreach_sender_name, settings.outreach_postal_address,
-        user_name, **timing,
+        user_name, rankings=rankings, **timing,
     )  # fmt: skip
 
     outreach_agent = None
@@ -253,5 +255,6 @@ def build_platform(
         erasure=CandidateErasure(
             candidates, engagements, submissions, follow_ups, search, opt_outs, **timing
         ),  # fmt: skip
+        bounces=BounceHandler(deliveries, companies, candidates, outreach_agent),
         inbound_webhook_secret=settings.inbound_webhook_secret,
     )

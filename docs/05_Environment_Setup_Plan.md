@@ -138,6 +138,7 @@ Main endpoints (all need sign-in except the last two):
 | Candidate secure link | `GET` / `POST /collect/{token}` | Public (expiring token) |
 | Administration | `/admin/users`, `/admin/gate-policies`, `/admin/ranking-weights`, `GET /admin/llm-usage` | Administrator |
 | Inbound replies | `POST /inbound/email` with header `X-RAP-Webhook-Secret` | Mail-routing workflow |
+| Bounce notices (S6) | `POST /inbound/bounce` with header `X-RAP-Webhook-Secret`; body `recipient`, `reason`, `hard`, optional `approval_request_id` | Mail-routing workflow |
 | Unsubscribe | `GET` / `POST /unsubscribe?token=` | Public (signed link) |
 
 Windows note: Smart App Control can block newly downloaded native Python modules (for example `psycopg_binary`) with "An Application Control policy has blocked this file". It may allow a module after a while, as it did for `ormsgpack`. While `psycopg` is blocked, run with `RAP_STORAGE=memory`; the PostgreSQL tests then run only in CI or in a Linux container.

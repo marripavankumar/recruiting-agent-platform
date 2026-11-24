@@ -51,6 +51,7 @@ class Contact:
     country: str | None = None  # ISO 3166 alpha-2
     consent_basis: ConsentBasis = ConsentBasis.NONE
     source: str = "manual"
+    email_valid: bool = True  # False after a hard bounce (scenario S6); Agent 3 skips it
 
 
 @dataclass
@@ -201,6 +202,7 @@ class Ranking:
     weights: dict[str, float]
     candidates: list[RankedCandidate] = field(default_factory=list)  # ranked first, then excluded
     searched: int = 0  # candidates considered by Agent 6
+    widened: dict[str, Any] | None = None  # S12: who widened the search, when and how
 
     @property
     def top(self) -> list[RankedCandidate]:
@@ -372,6 +374,7 @@ class FollowUpKind(StrEnum):
     INTERVIEW_FEEDBACK = "interview_feedback"  # interview held, no outcome logged
     OFFER = "offer"  # offer extended: track the decision and terms
     START_DATE = "start_date"  # offer accepted: documents and start-date check-ins
+    CANDIDATE_SHORTFALL = "candidate_shortfall"  # S12: fewer than 10 qualified for a job
 
 
 # Kinds where a follow-up is a message to the client or candidate (approval gate applies).

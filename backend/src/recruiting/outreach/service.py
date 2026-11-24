@@ -40,6 +40,7 @@ class DeliveryStatus(StrEnum):
     # Q15: LinkedIn requests are sent by the recruiter by hand; the platform queues and logs them.
     QUEUED_FOR_MANUAL_SEND = "queued_for_manual_send"
     MANUALLY_SENT = "manually_sent"  # the recruiter confirmed sending it in LinkedIn
+    BOUNCED = "bounced"  # accepted by the provider, then returned as undeliverable (S6)
     FAILED = "failed"
 
 
@@ -133,6 +134,10 @@ class DeliveryLog(Protocol):
 
     def record_reply(self, approval_request_id: str, at: datetime) -> None: ...
 
+    def record_bounce(self, approval_request_id: str, reason: str) -> DeliveryReceipt:
+        """S6: the provider reported the sent message as undeliverable."""
+        ...
+
     def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]: ...
 
     def mark_manually_sent(self, approval_request_id: str, at: datetime) -> DeliveryReceipt:
@@ -203,6 +208,13 @@ class InMemoryDeliveryLog:
         receipt = self._receipts[approval_request_id]
         if receipt.replied_at is None:
             self._receipts[approval_request_id] = replace(receipt, replied_at=at)
+
+    def record_bounce(self, approval_request_id: str, reason: str) -> DeliveryReceipt:
+        receipt = replace(
+            self._receipts[approval_request_id], status=DeliveryStatus.BOUNCED, error=reason
+        )
+        self._receipts[approval_request_id] = receipt
+        return receipt
 
     def receipts(self, since: datetime | None = None) -> list[DeliveryReceipt]:
         return [r for r in self._receipts.values() if since is None or r.delivered_at >= since]

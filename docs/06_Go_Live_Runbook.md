@@ -13,8 +13,8 @@ and what to do when something goes wrong. Endpoints are listed in
 | # | Item | How it is checked | Owner | Done |
 | --- | --- | --- | --- | --- |
 | 1 | PostgreSQL migrations 0001–0008 applied and the PostgreSQL tests pass | CI run on the repository (needs a GitHub repo or WSL + Podman) | ____ | ☐ |
-| 2 | Automated end-to-end scenarios pass | `uv run pytest` in `backend/`; 21 of 27 pass, gaps listed in plan section 14 | Engineering | ☑ (in memory) |
-| 3 | S6 (bounces) and S12 (too few qualified candidates) decided: build before go-live or accept for the pilot | Decision recorded in plan section 14 | ____ | ☐ |
+| 2 | Automated end-to-end scenarios pass | `uv run pytest` in `backend/`; 23 of 27 pass, gaps listed in plan section 14 | Engineering | ☑ (in memory) |
+| 3 | S6 (bounces) and S12 (too few qualified candidates) built; mail-routing workflow forwards bounce notices to `POST /inbound/bounce` | Bounce test in the test environment marks the contact invalid | Engineering | ☑ (in memory) |
 | 4 | Legal review of consent wording and outreach footers (compliance checklist P1, E-items) | Signed checklist | ____ | ☐ |
 | 5 | Retention period for approval and delivery records agreed (they keep the sent text; see section 4.3) | Written decision | ____ | ☐ |
 | 6 | Security test: role access matrix, penetration test, secrets in the vault | Test report, zero open critical findings | ____ | ☐ |

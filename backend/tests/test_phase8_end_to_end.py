@@ -229,7 +229,9 @@ def test_s1_happy_path_from_company_to_started(ctx):
     assert report["funnel"]["started"] == 1 and report["funnel"]["companies"] == 2
     ops = ok(client.get("/admin/operations", headers=h(ADMIN)))
     assert ops["approvals_pending"]["total"] == 0 and ops["email_30d"]["failed"] == 0
-    assert ops["alerts"] == []
+    # Three candidates is below the BRD's 10 per JD, so S12 flags the job to its recruiter.
+    assert ops["alerts"] == ["1 open job has fewer than 10 qualified candidates (S12)",
+                             "1 follow-up is overdue"]  # fmt: skip
 
 
 def test_kpis_without_data_say_so(ctx):

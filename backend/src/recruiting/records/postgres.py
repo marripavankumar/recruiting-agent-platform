@@ -47,7 +47,7 @@ _COMPANY = """id::text, name, domain, source, industry, revenue_usd, employees, 
     website, linkedin_url, career_page_url, is_client, outreach_status, priority_score,
     hiring_history, last_verified_at, created_at"""
 _CONTACT = """id::text, company_id::text, full_name, title, role_category, email, phone,
-    linkedin_url, country, consent_basis, source"""
+    linkedin_url, country, consent_basis, source, email_valid"""
 _POSTING = """id::text, company_id::text, title, target_role, url, location, hiring_manager,
     date_posted, first_seen, last_seen, active"""
 
@@ -66,12 +66,13 @@ def _company(row: tuple) -> Company:
 
 
 def _contact(row: tuple) -> Contact:
-    cid, company_id, name, title, role, email, phone, linkedin, country, consent, source = row
+    (cid, company_id, name, title, role, email, phone, linkedin, country, consent, source,
+     valid) = row  # fmt: skip
     return Contact(
         id=cid, company_id=company_id, full_name=name, title=title, role=ContactRole(role),
         email=email, phone=phone, linkedin_url=linkedin,
         country=country.strip() if country else None, consent_basis=ConsentBasis(consent),
-        source=source,
+        source=source, email_valid=valid,
     )  # fmt: skip
 
 
@@ -160,18 +161,19 @@ class PostgresCompanies:
             conn.execute(
                 """
                 INSERT INTO company_contact (id, company_id, full_name, title, role_category, email,
-                    phone, linkedin_url, country, consent_basis, source)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    phone, linkedin_url, country, consent_basis, source, email_valid)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name,
                     title = EXCLUDED.title, role_category = EXCLUDED.role_category,
                     email = EXCLUDED.email, phone = EXCLUDED.phone,
                     linkedin_url = EXCLUDED.linkedin_url, country = EXCLUDED.country,
-                    consent_basis = EXCLUDED.consent_basis
+                    consent_basis = EXCLUDED.consent_basis, email_valid = EXCLUDED.email_valid
                 """,
                 (
                     contact.id, contact.company_id, contact.full_name, contact.title,
                     contact.role.value, contact.email, contact.phone, contact.linkedin_url,
                     contact.country, contact.consent_basis.value, contact.source,
+                    contact.email_valid,
                 ),
             )  # fmt: skip
         return contact
@@ -438,9 +440,15 @@ class PostgresRankings:
         with self._connect() as conn:
             conn.execute("DELETE FROM candidate_ranking WHERE job_id = %s", (ranking.job_id,))
             conn.execute(
-                "INSERT INTO candidate_ranking (job_id, ranked_at, weights, searched)"
-                " VALUES (%s, %s, %s, %s)",
-                (ranking.job_id, ranking.ranked_at, Jsonb(ranking.weights), ranking.searched),
+                "INSERT INTO candidate_ranking (job_id, ranked_at, weights, searched, widened)"
+                " VALUES (%s, %s, %s, %s, %s)",
+                (
+                    ranking.job_id,
+                    ranking.ranked_at,
+                    Jsonb(ranking.weights),
+                    ranking.searched,
+                    Jsonb(ranking.widened) if ranking.widened is not None else None,
+                ),  # fmt: skip
             )
             for e in ranking.candidates:
                 conn.execute(
@@ -462,7 +470,8 @@ class PostgresRankings:
             return None
         with self._connect() as conn:
             head = conn.execute(
-                "SELECT ranked_at, weights, searched FROM candidate_ranking WHERE job_id = %s",
+                "SELECT ranked_at, weights, searched, widened FROM candidate_ranking"
+                " WHERE job_id = %s",
                 (job_id,),
             ).fetchone()
             if head is None:
@@ -481,7 +490,8 @@ class PostgresRankings:
                             Verdict(verdict) if verdict else None, note)
             for cid, score, comp, st, gp, rank, excl, verdict, note in rows
         ]  # fmt: skip
-        return Ranking(job_id, head[0], dict(head[1]), entries, head[2])
+        widened = dict(head[3]) if head[3] is not None else None
+        return Ranking(job_id, head[0], dict(head[1]), entries, head[2], widened)
 
     def review(
         self, job_id: str, candidate_id: str, verdict: Verdict, note: str | None, by: str

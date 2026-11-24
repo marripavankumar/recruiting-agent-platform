@@ -229,6 +229,10 @@ def test_company_job_and_usage_repositories(connect):
                       country="US", consent_basis=ConsentBasis.NOT_REQUIRED)  # fmt: skip
     companies.save_contact(contact)
     assert companies.contact_by_email("r.lee@NORTHFIELD-axle.example").id == contact.id
+    assert companies.contact_by_email("r.lee@northfield-axle.example").email_valid is True
+    contact.email_valid = False  # S6: hard bounce
+    companies.save_contact(contact)
+    assert companies.contact_by_email("r.lee@northfield-axle.example").email_valid is False
 
     posting = JobPosting(new_id(), company.id, "CAE Engineer", "CAE Engineer",
                          "https://northfield-axle.example/j/1", date_posted=date(2026, 11, 20))  # fmt: skip
@@ -277,6 +281,9 @@ def test_delivery_log_tracking_and_cap_counts(engine, connect):
     log.record_reply(request.id, now)
     log.record_reply(request.id, now + timedelta(hours=1))  # first reply time is kept
     assert log.get(request.id).replied_at == now
+    bounced = log.record_bounce(request.id, "550 5.1.1 user unknown")  # S6
+    assert bounced.status is DeliveryStatus.BOUNCED and bounced.provider_message_id == "m-1"
+    assert bounced.error == "550 5.1.1 user unknown"
 
 
 def test_candidates_rankings_and_weights(connect):
@@ -330,6 +337,11 @@ def test_candidates_rankings_and_weights(connect):
                                   [RankedCandidate(priya.id, 93, {}, [], [], rank=1)], searched=1))  # fmt: skip
     assert rerun.candidates[0].verdict is Verdict.QUALIFIED
     assert rankings.get(job.id).qualified_in_top_20 == 1
+    assert rankings.get(job.id).widened is None
+    widened = {"title_variants": ["FEA Engineer"], "location": "state", "by": "u-rec"}  # S12
+    rankings.save(Ranking(job.id, datetime.now(UTC), {"skill_match": 0.25},
+                          [RankedCandidate(priya.id, 93, {}, [], [], rank=1)], 1, widened))  # fmt: skip
+    assert rankings.get(job.id).widened == widened
 
     weights = PostgresWeights(connect)
     assert weights.get() == RankingWeights()
@@ -481,6 +493,10 @@ def test_follow_up_store_and_cadence(connect):
     store.save(item)
     assert store.list(status=FollowUpStatus.OPEN, job_id=job.id) == []
     assert [i.id for i in store.list(job_id=job.id)] == [item.id]
+    short = FollowUp(new_id(), FollowUpKind.CANDIDATE_SHORTFALL, job.id, "recruiter", now, now,
+                     job_id=job.id)  # fmt: skip
+    store.save(short)
+    assert store.find(FollowUpKind.CANDIDATE_SHORTFALL, job.id).id == short.id
 
     cadence = PostgresCadence(connect)
     assert cadence.get()[FollowUpKind.CLIENT_OUTREACH] == [3, 7, 14]

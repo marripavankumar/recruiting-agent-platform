@@ -20,6 +20,7 @@ from datetime import UTC, datetime, time, timedelta
 from typing import Any
 
 from recruiting.agents.candidate_outreach import first_name, role_family
+from recruiting.agents.candidate_search import shortfall
 from recruiting.agents.client_outreach import WorkflowStarter
 from recruiting.agents.client_submission import ClientSubmissionAgent
 from recruiting.agents.resume_collection import CollectionError, ResumeCollectionAgent
@@ -44,6 +45,7 @@ from recruiting.records.models import (
     Submission,
     SubmissionStatus,
 )
+from recruiting.records.rankings import RankingStore
 
 K = FollowUpKind
 OWNERS: dict[FollowUpKind, str] = {
@@ -56,6 +58,7 @@ OWNERS: dict[FollowUpKind, str] = {
     K.INTERVIEW_FEEDBACK: "account_manager",
     K.OFFER: "account_manager,recruiter",
     K.START_DATE: "recruiter",
+    K.CANDIDATE_SHORTFALL: "recruiter",
 }
 NOTES: dict[FollowUpKind, str] = {
     K.CLIENT_OUTREACH: "No reply to the first client email",
@@ -67,6 +70,7 @@ NOTES: dict[FollowUpKind, str] = {
     K.INTERVIEW_FEEDBACK: "Interview held: collect the client's feedback and outcome",
     K.OFFER: "Offer extended: track the candidate's decision and the terms",
     K.START_DATE: "Offer accepted: confirm documents and check in around the start date",
+    K.CANDIDATE_SHORTFALL: "Too few qualified candidates: review and widen the search",
 }
 GATES: dict[FollowUpKind, GateType] = {
     K.CLIENT_OUTREACH: GateType.FIRST_CLIENT_EMAIL,
@@ -123,7 +127,9 @@ class FollowUpAgent:
         postal_address: str,
         user_name: Callable[[str | None], str | None] = lambda _id: None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        rankings: RankingStore | None = None,
     ) -> None:
+        self._rankings = rankings
         self._items = items
         self._cadence = cadence
         self._companies = companies
@@ -153,6 +159,26 @@ class FollowUpAgent:
         out += self._client_outreach()
         out += self._candidates_due()
         out += self._pipeline()
+        out += self._shortfalls()
+        return out
+
+    def _shortfalls(self) -> list[Desired]:
+        """S12: open jobs whose ranking has fewer than 10 qualified candidates."""
+        if self._rankings is None:
+            return []
+        out = []
+        for job in self._jobs.list(status=JobStatus.OPEN):
+            ranking = self._rankings.get(job.id)
+            gap = shortfall(job, ranking) if ranking else None
+            if gap is None or ranking is None:
+                continue
+            out.append(Desired(
+                K.CANDIDATE_SHORTFALL, job.id, ranking.ranked_at, job_id=job.id,
+                owner_id=job.recruiter_id,
+                note=f"Only {gap['qualified']} of {gap['target']} qualified candidates for "
+                f"{job.job_code}: review the ranking and widen the search",
+                context={"qualified": gap["qualified"], "widened": gap["widened"]},
+            ))  # fmt: skip
         return out
 
     def _client_outreach(self) -> list[Desired]:
