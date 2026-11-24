@@ -151,7 +151,11 @@ class ResumeCollectionAgent:
         link_valid_days: int = 14,
         remind_after_days: int = 3,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        refresh: Callable[[Engagement], Engagement] | None = None,
     ) -> None:
+        # Settles a drafted engagement from its approvals and deliveries (Agent 8's refresh), so
+        # a reply is read against the current status even if nobody has opened the job since.
+        self._refresh = refresh or (lambda e: e)
         self._candidates = candidates
         self._jobs = jobs
         self._engagements = engagements
@@ -301,7 +305,7 @@ class ResumeCollectionAgent:
             self._deliveries.record_reply(delivery.message.approval_request_id, now)
         engagements = [
             e
-            for e in self._engagements.for_candidate(candidate.id)
+            for e in map(self._refresh, self._engagements.for_candidate(candidate.id))
             if e.status is not EngagementStatus.DRAFT_REJECTED
         ]
         engagement = engagements[0] if engagements else None

@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     # Local in-memory runs only: sign in as administrator@cbs.example, bd.manager@cbs.example,
     # recruiter@cbs.example, account.manager@cbs.example or sales.manager@cbs.example.
     demo_users: bool = False
+    # Local in-memory runs only: also load a fictional pipeline (companies, jobs, candidates,
+    # approvals waiting) to click through in the web app. Emails go to an in-memory outbox.
+    demo_data: bool = False
 
     # Sign-in: "dev" is local-only; "oidc" works with any OpenID Connect provider.
     auth_provider: Literal["dev", "oidc"] = "dev"

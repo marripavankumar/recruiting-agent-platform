@@ -84,15 +84,36 @@ def build_authenticator(settings: Settings) -> Authenticator:
 def build_services(settings: Settings) -> Services:
     from recruiting.api.platform import build_platform
 
-    if settings.demo_users and (settings.environment != "local" or settings.storage != "memory"):
-        raise RuntimeError("RAP_DEMO_USERS is allowed only for local in-memory runs")
+    if (settings.demo_users or settings.demo_data) and (
+        settings.environment != "local" or settings.storage != "memory"
+    ):
+        raise RuntimeError("RAP_DEMO_USERS and RAP_DEMO_DATA are only for local in-memory runs")
+    if settings.demo_data:
+        from recruiting.demo import WEBHOOK_SECRET
+
+        settings = settings.model_copy(
+            update={
+                "demo_users": True,
+                "inbound_webhook_secret": WEBHOOK_SECRET,
+                "llm_provider": "none",  # rule-based paths: free, no API key, same every time
+                "agents_enabled": False,
+                "client_outreach_min_priority": 50,  # every demo company with openings
+            }
+        )
     authenticator = build_authenticator(settings)
     if settings.storage == "memory":
         from langgraph.checkpoint.memory import MemorySaver
 
         approvals, opt_outs = ApprovalEngine(), OptOutRegistry()
         users = InMemoryUserDirectory(demo_users() if settings.demo_users else ())
-        outreach = build_outreach(settings, approvals, opt_outs)
+        outbox = fetcher = None
+        if settings.demo_data:
+            from recruiting.demo import DemoCareerPages, DemoOutbox
+
+            outbox, fetcher = DemoOutbox(), DemoCareerPages()
+            outreach = OutreachService(approvals, opt_outs, [ManualLinkedInChannel(), outbox])
+        else:
+            outreach = build_outreach(settings, approvals, opt_outs)
         workflows = build_workflows(approvals, outreach, MemorySaver())
         platform = build_platform(
             settings,
@@ -101,6 +122,7 @@ def build_services(settings: Settings) -> Services:
             deliveries=outreach.log,
             workflows=workflows,
             approvals=approvals,
+            fetcher=fetcher,
         )
         from recruiting.mailbox import InMemoryProcessed
         from recruiting.scheduler import InMemoryJobState
@@ -108,10 +130,15 @@ def build_services(settings: Settings) -> Services:
         job_state = InMemoryJobState() if settings.run_scheduler else None
         agents = build_agent_runner(settings, platform, MemorySaver(), None)
         reader = build_mailbox_reader(settings, platform, InMemoryProcessed(), agents)
-        return Services(
+        services = Services(
             approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state,
             reader, agents,
         )  # fmt: skip
+        if outbox is not None:
+            from recruiting.demo import seed
+
+            seed(services, outbox)
+        return services
 
     from recruiting.approvals.postgres import PostgresApprovalStore, PostgresPolicyStore
     from recruiting.compliance.postgres import PostgresOptOutStore

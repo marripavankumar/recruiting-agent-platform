@@ -50,3 +50,4 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.ruff.lint.per-file-ignores]
 # Test fixtures (CSV rows, HTML, email bodies) need long literal lines.
 "tests/*" = ["E501"]
+"src/recruiting/demo.py" = ["E501"]  # fictional CSV rows

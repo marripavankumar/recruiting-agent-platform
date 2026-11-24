@@ -98,19 +98,23 @@ def classify_by_rules(email: InboundEmail) -> ReplyClassification:
     )
 
 
+_TITLE_LABEL = re.compile(
+    r"\b(?:job description|job title|position|role)\s*[:\-]\s*([^\n.;]{3,120})", re.I
+)
+
+
 def extract_by_rules(email: InboundEmail) -> JDExtraction:
     """Fallback without an LLM: one job, title from the subject, skills from the dictionary."""
     text = f"{email.body}\n{email.attachments_text}"
     subject = re.sub(r"^\s*((re|fw|fwd)\s*:\s*)+", "", email.subject, flags=re.I).strip()
+    # The attachment is the JD itself, so it is read before the covering email; an explicit
+    # "Job description: ..." / "Position: ..." label beats the first line naming an engineer.
+    lines = f"{email.attachments_text}\n{email.body}".splitlines()
+    labelled = next((m.group(1).strip() for line in lines if (m := _TITLE_LABEL.search(line))), "")
     title_line = next(
-        (
-            line.strip()
-            for line in text.splitlines()
-            if re.search(r"\bengineer|manager\b", line, re.I)
-        ),
-        "",
+        (line.strip() for line in lines if re.search(r"\bengineer|manager\b", line, re.I)), ""
     )
-    title = title_line[:120] or subject or "Untitled position"
+    title = (labelled or title_line)[:120] or subject or "Untitled position"
     skills = [m.skill for m in extract_skills(text)]
     empty = dict.fromkeys(ALL_FIELDS)
     job = ExtractedJob(

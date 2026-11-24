@@ -17,6 +17,7 @@ from recruiting.api import (
     submissions,
 )
 from recruiting.api.audit import AccessLog
+from recruiting.api.deps import UserDep
 from recruiting.api.services import Services
 from recruiting.scheduler import start_in_background
 
@@ -45,6 +46,18 @@ def create_app(
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "environment": environment}
+
+    @app.get("/me")
+    def me(user: UserDep) -> dict:
+        """The signed-in user: the web app shows the screens for this role."""
+        return {
+            "id": user.user_id,
+            "email": user.email,
+            "display_name": user.display_name,
+            "role": user.role.value,
+            "client_company_id": user.client_company_id,
+            "environment": environment,
+        }
 
     app.include_router(approvals.router)
     app.include_router(admin.router)

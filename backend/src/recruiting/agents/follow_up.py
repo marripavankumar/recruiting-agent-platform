@@ -34,6 +34,7 @@ from recruiting.records.followups import CadenceStore, FollowUpStore
 from recruiting.records.memory import CandidateRepository, CompanyRepository, JobRepository, new_id
 from recruiting.records.models import (
     MESSAGE_KINDS,
+    Engagement,
     EngagementStatus,
     FollowUp,
     FollowUpKind,
@@ -130,7 +131,9 @@ class FollowUpAgent:
         user_name: Callable[[str | None], str | None] = lambda _id: None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         rankings: RankingStore | None = None,
+        refresh: Callable[[Engagement], Engagement] | None = None,
     ) -> None:
+        self._refresh = refresh or (lambda e: e)  # Agent 8: drafted -> contacted once delivered
         self._rankings = rankings
         self._items = items
         self._cadence = cadence
@@ -228,7 +231,7 @@ class FollowUpAgent:
 
     def _candidates_due(self) -> list[Desired]:
         out = []
-        for e in self._engagements.list():
+        for e in map(self._refresh, self._engagements.list()):
             job = self._open_job(e.job_id)
             candidate = self._candidates.get(e.candidate_id)
             if job is None or candidate is None:

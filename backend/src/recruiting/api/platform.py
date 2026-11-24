@@ -177,6 +177,7 @@ def build_platform(
     resume_collection = ResumeCollectionAgent(
         candidates, jobs, engagements, resume_intake, workflows, opt_outs, deliveries, unsubscribe,
         settings.public_base_url, settings.outreach_postal_address, **timing,
+        refresh=candidate_outreach.refresh if candidate_outreach else None,
     )  # fmt: skip
 
     submissions = submissions or InMemorySubmissions()
@@ -200,6 +201,7 @@ def build_platform(
         engagements, submission_agent, resume_collection, approvals, deliveries, workflows,
         opt_outs, unsubscribe, settings.outreach_sender_name, settings.outreach_postal_address,
         user_name, rankings=rankings, **timing,
+        refresh=candidate_outreach.refresh if candidate_outreach else None,
     )  # fmt: skip
 
     outreach_agent = None
