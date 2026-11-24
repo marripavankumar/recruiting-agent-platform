@@ -12,7 +12,8 @@ from dataclasses import asdict
 from datetime import date, datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from recruiting.agents.client_submission import (
@@ -129,6 +130,37 @@ def get_submission(submission_id: str, user: UserDep, services: ServicesDep) -> 
         return _out(services, _agent(services).get(submission_id))
     except SubmissionError as exc:
         raise _errors(exc) from exc
+
+
+@router.get("/submissions/{submission_id}/package")
+def package_document(
+    submission_id: str,
+    user: UserDep,
+    services: ServicesDep,
+    format: str = Query(default="pdf", pattern="^(pdf|docx)$"),
+) -> Response:
+    """The branded package exactly as the client will receive it (from the approval request's
+    content once it is sent for approval; from the current draft before that)."""
+    from recruiting.outreach.packages import MIME, render
+
+    require_role(user, TALENT)
+    agent = _agent(services)
+    try:
+        submission = agent.get(submission_id)
+    except SubmissionError as exc:
+        raise _errors(exc) from exc
+    if submission.approval_request_id:
+        content = services.approvals.get(submission.approval_request_id).content
+    else:
+        content = agent.cover_email(submission, user.display_name)
+    document = render(content, format, services.platform.branding)  # type: ignore[arg-type]
+    if document is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "This submission has no package")
+    return Response(
+        document.data,
+        media_type=MIME[format],
+        headers={"Content-Disposition": f'attachment; filename="{document.filename}"'},
+    )
 
 
 @router.patch("/submissions/{submission_id}")

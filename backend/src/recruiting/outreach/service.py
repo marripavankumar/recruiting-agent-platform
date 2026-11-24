@@ -101,11 +101,25 @@ class TransientDeliveryError(Exception):
 
 
 @dataclass(frozen=True)
+class Attachment:
+    filename: str
+    content_type: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class OutboundMessage:
     approval_request_id: str
     channel: Channel
     recipient: str
     content: Mapping[str, str]  # e.g. {"subject": ..., "body": ...}; must equal approved content
+    # Rendered by the Outreach Service from the approved content just before delivery (never
+    # stored, so a retry renders the same file again).
+    attachments: tuple[Attachment, ...] = ()
+
+
+# Builds the files to attach from the gate and the approved content.
+AttachmentRenderer = Callable[[GateType, Mapping[str, str]], list[Attachment]]
 
 
 @dataclass(frozen=True)
@@ -347,7 +361,9 @@ class OutreachService:
         max_attempts: int = 5,
         backoff: timedelta = timedelta(minutes=1),
         max_backoff: timedelta = timedelta(hours=6),
+        attachments: AttachmentRenderer | None = None,
     ) -> None:
+        self._render = attachments
         # S24: retry after 1, 4, 16, 64 minutes ... (or the provider's Retry-After), at most
         # max_attempts tries in all, then fail and alert.
         self._max_attempts = max_attempts
@@ -400,6 +416,11 @@ class OutreachService:
                 message, "Daily cap reached", tomorrow, now, claimed=False, count_attempt=False
             )
             raise DailyCapReached(f"Daily {message.channel} cap reached; retry tomorrow", receipt)
+
+        if self._render is not None and message.channel is Channel.EMAIL:
+            # Before the claim: if rendering fails, the approval is still unused.
+            files = tuple(self._render(request.gate, message.content))
+            message = replace(message, attachments=files)
 
         self._log.claim(message, self._clock())
         try:

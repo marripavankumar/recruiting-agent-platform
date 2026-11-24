@@ -58,6 +58,11 @@ class Settings(BaseSettings):
     linkedin_weekly_limit: int = 100
     # Shared secret the mail-routing workflow (n8n) sends with inbound replies.
     inbound_webhook_secret: str | None = None
+    # Agent 11: the client package is attached to the submission email as a branded document.
+    submission_attachment: Literal["pdf", "docx", "none"] = "pdf"
+    brand_name: str = "CBS LLC"
+    brand_color: str = "#1F3A93"
+    brand_logo_path: str | None = None  # PNG or JPEG
     # Run the scheduled sweeps inside the API process (local in-memory runs). Deployments run
     # `python -m recruiting.scheduler` as its own process instead.
     run_scheduler: bool = False

@@ -5,7 +5,7 @@ from __future__ import annotations
 import itertools
 import logging
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
@@ -38,6 +38,7 @@ from recruiting.config import Settings
 from recruiting.domain import Role
 from recruiting.identity import UserDirectory
 from recruiting.outreach import DeliveryLog
+from recruiting.outreach.packages import Branding
 from recruiting.records.engagements import EngagementStore, InMemoryEngagements
 from recruiting.records.followups import (
     CadenceStore,
@@ -93,6 +94,7 @@ class Platform:
     erasure: CandidateErasure
     bounces: BounceHandler
     inbound_webhook_secret: str | None = None
+    branding: Branding = field(default_factory=Branding)  # submission package look
 
 
 def round_robin_recruiter(users: UserDirectory) -> Callable[[], str | None]:
@@ -183,6 +185,9 @@ def build_platform(
         companies, jobs, candidates, engagements, submissions,
         ResumeMatchingAgent(ranking_agent, gateway, HashingEmbedder(), _log_llm_error),
         approvals, deliveries, workflows, rankings=rankings, **timing,
+        attachment_format=None if settings.submission_attachment == "none"
+        else settings.submission_attachment,
+        agency=settings.brand_name,
     )  # fmt: skip
 
     follow_up_cadence = follow_up_cadence or InMemoryCadence()
@@ -257,4 +262,5 @@ def build_platform(
         ),  # fmt: skip
         bounces=BounceHandler(deliveries, companies, candidates, outreach_agent),
         inbound_webhook_secret=settings.inbound_webhook_secret,
+        branding=Branding(settings.brand_name, settings.brand_color, settings.brand_logo_path),
     )

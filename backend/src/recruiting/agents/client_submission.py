@@ -109,7 +109,11 @@ class ClientSubmissionAgent:
         follow_up_days: int = 2,
         rankings: RankingStore | None = None,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        attachment_format: str | None = None,  # "pdf" or "docx": the package goes as a file
+        agency: str = "CBS LLC",
     ) -> None:
+        self._attachment = attachment_format
+        self._agency = agency
         self._companies = companies
         self._jobs = jobs
         self._candidates = candidates
@@ -239,15 +243,26 @@ class ClientSubmissionAgent:
             f"KEY PROJECTS\n{projects}\n\n"
             "The candidate has agreed to be submitted for this role. Please reply with your "
             "feedback or preferred interview times.\n\n"
-            f"Regards,\n{recruiter}\nCBS LLC\n\n"
-            f"RESUME\n{p.get('resume') or '(attached)'}"
+            f"Regards,\n{recruiter}\n{self._agency}"
         )
+        if self._attachment:
+            kind = "PDF" if self._attachment == "pdf" else "Word document"
+            body += f"\n\nThe full submission package, with the resume, is attached as a {kind}."
+        else:
+            body += f"\n\nRESUME\n{p.get('resume') or '-'}"
         return {
             "subject": f"Candidate submission: {p['job_code']} {p['job_title']} - "
             f"{p['candidate_name']}",
             "body": body,
             # The approver sees, and the content hash covers, the exact package that is sent.
-            "package": json.dumps({k: p.get(k) for k in PACKAGE_ITEMS}, ensure_ascii=False),
+            # The attached document is rendered from this, so it is covered too.
+            "package": json.dumps(
+                {
+                    k: p.get(k)
+                    for k in ("candidate_name", "job_code", "job_title", *PACKAGE_ITEMS, "notes")
+                },
+                ensure_ascii=False,
+            ),  # fmt: skip
             "warnings": "; ".join(submission.warnings),
         }
 

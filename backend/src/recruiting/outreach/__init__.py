@@ -5,6 +5,8 @@ from recruiting.outreach.channels import (
 )
 from recruiting.outreach.service import (
     AlreadySent,
+    Attachment,
+    AttachmentRenderer,
     ChannelAdapter,
     DailyCapReached,
     DeliveryDeferred,
@@ -26,6 +28,8 @@ from recruiting.outreach.service import (
 
 __all__ = [
     "AlreadySent",
+    "Attachment",
+    "AttachmentRenderer",
     "ChannelAdapter",
     "DailyCapReached",
     "DeliveryDeferred",

@@ -18,9 +18,11 @@ from recruiting.api.services import Services  # noqa: E402
 from recruiting.approvals import ApprovalEngine  # noqa: E402
 from recruiting.compliance import OptOutRegistry  # noqa: E402
 from recruiting.config import Settings  # noqa: E402
+from recruiting.documents import extract_text  # noqa: E402
 from recruiting.domain import Channel, Role  # noqa: E402
 from recruiting.identity import CurrentUser, DevHeaderAuthenticator, InMemoryUserDirectory  # noqa: E402
 from recruiting.outreach import DeliveryResult, DeliveryStatus, OutreachService  # noqa: E402
+from recruiting.outreach.packages import Branding, SubmissionPackageRenderer  # noqa: E402
 from recruiting.records.models import (  # noqa: E402
     Candidate,
     Company,
@@ -94,7 +96,8 @@ def build(llm_provider=None):
     settings = Settings(llm_provider="none", _env_file=None)
     users = InMemoryUserDirectory([REC, AM, CLIENT, OTHER_CLIENT])
     approvals, opt_outs, email = ApprovalEngine(), OptOutRegistry(), FakeEmail()
-    outreach = OutreachService(approvals, opt_outs, [email])
+    outreach = OutreachService(approvals, opt_outs, [email],
+                               attachments=SubmissionPackageRenderer("pdf", Branding()))  # fmt: skip
     from recruiting.workflows.outreach_graph import OutreachWorkflow, build_outreach_graph
 
     workflows = OutreachWorkflow(build_outreach_graph(approvals, outreach, MemorySaver()))
@@ -205,7 +208,15 @@ def test_full_flow_sends_only_after_approval_and_keeps_the_sent_version(ctx):
     message = email.sent[0]
     assert message.recipient == "hm@northfield.example"
     assert "Led two FMVSS 208 programmes." in message.content["body"]
-    assert "SKILL MATRIX" in message.content["body"] and RESUME in message.content["body"]
+    assert "SKILL MATRIX" in message.content["body"]
+    assert "attached as a PDF" in message.content["body"] and RESUME not in message.content["body"]
+    # The branded PDF is rendered from the approved package and carries the resume.
+    [pdf] = message.attachments
+    assert pdf.content_type == "application/pdf"
+    assert pdf.filename == "JOB-2026-0142 Priya Natarajan - CBS LLC submission.pdf"
+    text = extract_text(pdf.filename, pdf.data).text
+    assert "Priya Natarajan" in text and "Candidate submission" in text and "LS-DYNA" in text
+    assert "Lead crash engineer at Lakeside Automotive" in text
 
     sub = client.get(f"/submissions/{sid}", headers=h(AM)).json()
     assert sub["status"] == "submitted"

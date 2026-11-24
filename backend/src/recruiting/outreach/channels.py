@@ -88,6 +88,15 @@ class Microsoft365EmailChannel:
                 "subject": message.content.get("subject", ""),
                 "body": {"contentType": "Text", "content": message.content.get("body", "")},
                 "toRecipients": [{"emailAddress": {"address": message.recipient}}],
+                "attachments": [
+                    {
+                        "@odata.type": "#microsoft.graph.fileAttachment",
+                        "name": a.filename,
+                        "contentType": a.content_type,
+                        "contentBytes": base64.b64encode(a.data).decode("ascii"),
+                    }
+                    for a in message.attachments
+                ],
                 "internetMessageHeaders": [
                     {"name": APPROVAL_HEADER, "value": message.approval_request_id}
                 ],
@@ -132,6 +141,11 @@ class GmailEmailChannel:
             mime["List-Unsubscribe"] = f"<{self._unsubscribe_url(message.recipient)}>"
             mime["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
         mime.set_content(message.content.get("body", ""))
+        for a in message.attachments:
+            maintype, _, subtype = a.content_type.partition("/")
+            mime.add_attachment(
+                a.data, maintype=maintype, subtype=subtype or "octet-stream", filename=a.filename
+            )
         return mime
 
     def deliver(self, message: OutboundMessage) -> DeliveryResult:

@@ -189,6 +189,12 @@ def build_outreach(
     log: DeliveryLog | None = None,
 ) -> OutreachService:
     # LinkedIn is manual (Q15); email goes through the active provider, if any.
+    from recruiting.outreach.packages import Branding, SubmissionPackageRenderer
+
+    renderer = None
+    if settings.submission_attachment != "none":
+        branding = Branding(settings.brand_name, settings.brand_color, settings.brand_logo_path)
+        renderer = SubmissionPackageRenderer(settings.submission_attachment, branding)
     return OutreachService(
         approvals,
         opt_outs,
@@ -197,6 +203,7 @@ def build_outreach(
         enabled=settings.outreach_enabled,
         allow_list=settings.outreach_allow_list,
         daily_caps={Channel.EMAIL: settings.outreach_daily_cap_email},
+        attachments=renderer,
     )
 
 
