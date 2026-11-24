@@ -25,7 +25,7 @@ from recruiting.records.memory import (
 from recruiting.records.models import Candidate, ConsentStatus
 
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
-_PHONE = re.compile(r"(\+?\d[\d\s().-]{8,}\d)")
+_PHONE = re.compile(r"(\+?\(?\d[\d\s().-]{8,}\d)")  # "(313) 555-0108", "+1 313 555 0108"
 _LINKEDIN = re.compile(r"(https?://)?(www\.)?linkedin\.com/in/[\w%-]+/?", re.I)
 _YEARS = re.compile(r"(\d{1,2}(?:\.\d)?)\+?\s*(?:years|yrs)", re.I)
 _DEGREE = re.compile(

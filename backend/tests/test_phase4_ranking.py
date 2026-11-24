@@ -64,7 +64,8 @@ B.S. Mechanical Engineering, University of Toledo
 def test_rule_parser_reads_contact_details_skills_years_and_degree():
     parsed = parse_by_rules(RESUME)
     assert parsed.full_name == "Elena Vasquez"
-    assert parsed.email == "elena.vasquez@mail.example" and "555-0188" in parsed.phone
+    assert parsed.email == "elena.vasquez@mail.example" and parsed.phone == "(419) 555-0188"
+    assert parse_by_rules("A B\n+1 313 555 0108\n").phone == "+1 313 555 0108"
     assert parsed.linkedin_url.endswith("elena-vasquez-fea")
     assert {"LS-DYNA", "ANSA"} <= set(parsed.skills) and parsed.experience_years == 6
     assert parsed.education.startswith("B.S. Mechanical")
