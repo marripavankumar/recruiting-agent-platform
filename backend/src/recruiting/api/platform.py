@@ -218,8 +218,8 @@ def build_platform(
         gateway=gateway,
         unsubscribe=unsubscribe,
         deliveries=deliveries,
-        discovery=CompanyDiscoveryAgent(companies, sources or []),
-        signals=HiringSignalsAgent(companies, fetcher or HttpCareerPageFetcher()),
+        discovery=CompanyDiscoveryAgent(companies, sources or [], **timing),
+        signals=HiringSignalsAgent(companies, fetcher or HttpCareerPageFetcher(), **timing),
         client_outreach=outreach_agent,
         jd_intake=JDIntakeAgent(
             companies,

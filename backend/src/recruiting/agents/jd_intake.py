@@ -177,10 +177,12 @@ class JDIntakeAgent:
         contact = self._companies.contact_by_email(email.from_address)
         company = self._companies.get(contact.company_id) if contact else None
         delivery = self._deliveries.latest_to(email.from_address)
-        if delivery is not None:
-            self._deliveries.record_reply(delivery.message.approval_request_id, email.received_at)
 
         classification, by = self._classify(email)
+        # S9: an automatic out-of-office reply is not a response, so the email still counts as
+        # unanswered and Agent 12 keeps its follow-up reminder (and the response-rate KPI).
+        if delivery is not None and classification.category != "out_of_office":
+            self._deliveries.record_reply(delivery.message.approval_request_id, email.received_at)
         result = IntakeResult(
             category=classification.category,
             summary=classification.summary,
@@ -198,6 +200,12 @@ class JDIntakeAgent:
         if company and classification.category != "out_of_office":
             if company.outreach_status in (OutreachStatus.NOT_CONTACTED, OutreachStatus.CONTACTED):
                 self._companies.set_outreach_status(company.id, OutreachStatus.REPLIED)
+        if company and classification.category == "jd_to_follow":
+            # S9: no job yet; Agent 12 reminds the BD Manager until the JD arrives.
+            company = self._companies.get(company.id) or company
+            company.jd_promised_at = company.jd_promised_at or email.received_at
+            self._companies.save(company)
+            return result
         if classification.category != "jd_received" or company is None:
             # A JD from an unknown sender waits for a person to link it to a company.
             return result
@@ -208,6 +216,7 @@ class JDIntakeAgent:
         company = self._companies.get(company.id) or company
         company.is_client = True
         company.outreach_status = OutreachStatus.CLIENT
+        company.jd_promised_at = None
         self._companies.save(company)
         return result
 

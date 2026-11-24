@@ -230,7 +230,7 @@ class CandidateOutreachAgent:
             kind
             for kind, aid in engagement.approvals.items()
             if (r := self._deliveries.get(aid)) is not None
-            and r.status is not DeliveryStatus.FAILED
+            and r.status not in (DeliveryStatus.FAILED, DeliveryStatus.RETRY_SCHEDULED)
         ]
         now = self._clock()
         if delivered:

@@ -220,6 +220,11 @@ def test_company_job_and_usage_repositories(connect):
                 priority_score=80)
     )  # fmt: skip
     assert companies.by_domain("northfield-axle.example").name == "Northfield Axle"
+    assert companies.get(company.id).sources == ["list"]  # filled from source when empty
+    company.sources, company.jd_promised_at = ["list", "trade-db"], datetime.now(UTC)  # S3, S9
+    companies.save(company)
+    loaded = companies.get(company.id)
+    assert loaded.sources == ["list", "trade-db"] and loaded.jd_promised_at is not None
     assert [c.id for c in companies.list(min_priority=70)] == [company.id]
     companies.set_outreach_status(company.id, OutreachStatus.CONTACTED)
     assert companies.get(company.id).outreach_status is OutreachStatus.CONTACTED
@@ -268,7 +273,7 @@ def test_delivery_log_tracking_and_cap_counts(engine, connect):
     from datetime import UTC, datetime, timedelta
 
     from recruiting.domain import Channel
-    from recruiting.outreach import DeliveryResult, DeliveryStatus, OutboundMessage
+    from recruiting.outreach import AlreadySent, DeliveryResult, DeliveryStatus, OutboundMessage
     from recruiting.outreach.postgres import PostgresDeliveryLog
 
     request = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-1", DRAFT, requested_by="agent-3")
@@ -284,6 +289,28 @@ def test_delivery_log_tracking_and_cap_counts(engine, connect):
     bounced = log.record_bounce(request.id, "550 5.1.1 user unknown")  # S6
     assert bounced.status is DeliveryStatus.BOUNCED and bounced.provider_message_id == "m-1"
     assert bounced.error == "550 5.1.1 user unknown"
+
+    # S24: a retry is scheduled under the same approval and claimed again exactly once.
+    retry = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-2", DRAFT, requested_by="agent-3")
+    message = OutboundMessage(retry.id, Channel.EMAIL, "kim@example.com", DRAFT)
+    log.claim(message, now)
+    waiting = log.defer(message, "HTTP 429", now + timedelta(minutes=1), now,
+                        claimed=True, count_attempt=True)  # fmt: skip
+    assert waiting.status is DeliveryStatus.RETRY_SCHEDULED and waiting.attempts == 1
+    assert retry.id not in [r.message.approval_request_id for r in log.due_retries(now)]
+    later = now + timedelta(minutes=2)
+    assert retry.id in [r.message.approval_request_id for r in log.due_retries(later)]
+    log.claim(message, later)
+    with pytest.raises(AlreadySent):
+        log.claim(message, later)  # a concurrent retry cannot send it twice
+    with pytest.raises(AlreadySent):
+        log.defer(message, "cap", later, later, claimed=False, count_attempt=False)
+    log.complete(retry.id, DeliveryResult(DeliveryStatus.SENT, "m-2"), later)
+    assert log.get(retry.id).attempts == 1 and log.get(retry.id).status is DeliveryStatus.SENT
+    capped = engine.submit(GateType.FIRST_CLIENT_EMAIL, "contact-3", DRAFT, requested_by="agent-3")
+    deferred = log.defer(OutboundMessage(capped.id, Channel.EMAIL, "x@example.com", DRAFT),
+                         "Daily cap reached", later, now, claimed=False, count_attempt=False)  # fmt: skip
+    assert deferred.status is DeliveryStatus.RETRY_SCHEDULED and deferred.attempts == 0
 
 
 def test_candidates_rankings_and_weights(connect):
@@ -497,6 +524,10 @@ def test_follow_up_store_and_cadence(connect):
                      job_id=job.id)  # fmt: skip
     store.save(short)
     assert store.find(FollowUpKind.CANDIDATE_SHORTFALL, job.id).id == short.id
+    promised = FollowUp(new_id(), FollowUpKind.JD_PROMISED, f"co-{new_id()}", "bd_manager", now,
+                        now + timedelta(days=3))  # fmt: skip
+    store.save(promised)  # S9 kind, migration 0010
+    assert store.find(FollowUpKind.JD_PROMISED, promised.subject_id).id == promised.id
 
     cadence = PostgresCadence(connect)
     assert cadence.get()[FollowUpKind.CLIENT_OUTREACH] == [3, 7, 14]

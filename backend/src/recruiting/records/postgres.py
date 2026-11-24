@@ -45,7 +45,7 @@ from recruiting.records.rankings import (
 
 _COMPANY = """id::text, name, domain, source, industry, revenue_usd, employees, country, locations,
     website, linkedin_url, career_page_url, is_client, outreach_status, priority_score,
-    hiring_history, last_verified_at, created_at"""
+    hiring_history, last_verified_at, created_at, sources, jd_promised_at"""
 _CONTACT = """id::text, company_id::text, full_name, title, role_category, email, phone,
     linkedin_url, country, consent_basis, source, email_valid"""
 _POSTING = """id::text, company_id::text, title, target_role, url, location, hiring_manager,
@@ -54,7 +54,8 @@ _POSTING = """id::text, company_id::text, title, target_role, url, location, hir
 
 def _company(row: tuple) -> Company:
     (cid, name, domain, source, industry, revenue, employees, country, locations, website,
-     linkedin, career, is_client, status, score, history, verified, created) = row  # fmt: skip
+     linkedin, career, is_client, status, score, history, verified, created, sources,
+     promised) = row  # fmt: skip
     return Company(
         id=cid, name=name, domain=domain, source=source, industry=industry,
         revenue_usd=float(revenue) if revenue is not None else None, employees=employees,
@@ -62,6 +63,7 @@ def _company(row: tuple) -> Company:
         website=website, linkedin_url=linkedin, career_page_url=career, is_client=is_client,
         outreach_status=OutreachStatus(status), priority_score=score,
         hiring_history=list(history or []), last_verified_at=verified, created_at=created,
+        sources=list(sources or []), jd_promised_at=promised,
     )  # fmt: skip
 
 
@@ -102,15 +104,17 @@ class PostgresCompanies:
             company.revenue_usd, company.employees, company.country, Jsonb(company.locations),
             company.website, company.linkedin_url, company.career_page_url, company.is_client,
             company.outreach_status.value, company.priority_score, Jsonb(company.hiring_history),
-            company.last_verified_at,
+            company.last_verified_at, company.sources or [company.source], company.jd_promised_at,
         )  # fmt: skip
         with self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO company (id, name, domain, source, industry, revenue_usd, employees,
                     country, locations, website, linkedin_url, career_page_url, is_client,
-                    outreach_status, priority_score, hiring_history, last_verified_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    outreach_status, priority_score, hiring_history, last_verified_at, sources,
+                    jd_promised_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                    %s)
                 ON CONFLICT (id) DO UPDATE SET
                     name = EXCLUDED.name, domain = EXCLUDED.domain, industry = EXCLUDED.industry,
                     revenue_usd = EXCLUDED.revenue_usd, employees = EXCLUDED.employees,
@@ -120,7 +124,8 @@ class PostgresCompanies:
                     outreach_status = EXCLUDED.outreach_status,
                     priority_score = EXCLUDED.priority_score,
                     hiring_history = EXCLUDED.hiring_history,
-                    last_verified_at = EXCLUDED.last_verified_at, updated_at = now()
+                    last_verified_at = EXCLUDED.last_verified_at, sources = EXCLUDED.sources,
+                    jd_promised_at = EXCLUDED.jd_promised_at, updated_at = now()
                 """,
                 values,
             )

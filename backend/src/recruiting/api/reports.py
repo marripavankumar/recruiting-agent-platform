@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
@@ -36,6 +38,15 @@ def operations(request: Request, user: UserDep, services: ServicesDep) -> dict:
     entries = platform.gateway.ledger.entries() if platform.gateway else []
     denied = len(request.app.state.access_log.recent(500))
     return platform.reporting.operations(platform.follow_ups.summary(), entries, denied)
+
+
+@router.post("/admin/outreach/retry")
+def retry_deliveries(user: UserDep, services: ServicesDep) -> dict:
+    """S24: scheduled sweep (n8n or cron, every few minutes) for deliveries waiting to retry."""
+    require_role(user, (Role.ADMINISTRATOR,))
+    if services.outreach is None:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Outreach is not running")
+    return asdict(services.outreach.retry_due())
 
 
 @router.get("/admin/access-denied")

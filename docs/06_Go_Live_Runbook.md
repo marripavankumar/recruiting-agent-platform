@@ -13,7 +13,7 @@ and what to do when something goes wrong. Endpoints are listed in
 | # | Item | How it is checked | Owner | Done |
 | --- | --- | --- | --- | --- |
 | 1 | PostgreSQL migrations 0001–0008 applied and the PostgreSQL tests pass | CI run on the repository (needs a GitHub repo or WSL + Podman) | ____ | ☐ |
-| 2 | Automated end-to-end scenarios pass | `uv run pytest` in `backend/`; 23 of 27 pass, gaps listed in plan section 14 | Engineering | ☑ (in memory) |
+| 2 | Automated end-to-end scenarios pass | `uv run pytest` in `backend/`; all 27 pass in memory | Engineering | ☑ (in memory) |
 | 3 | S6 (bounces) and S12 (too few qualified candidates) built; mail-routing workflow forwards bounce notices to `POST /inbound/bounce` | Bounce test in the test environment marks the contact invalid | Engineering | ☑ (in memory) |
 | 4 | Legal review of consent wording and outreach footers (compliance checklist P1, E-items) | Signed checklist | ____ | ☐ |
 | 5 | Retention period for approval and delivery records agreed (they keep the sent text; see section 4.3) | Written decision | ____ | ☐ |
@@ -22,7 +22,7 @@ and what to do when something goes wrong. Endpoints are listed in
 | 8 | Approvers per gate confirmed (Q14) | `/admin/gate-policies` | Administrator | ☐ |
 | 9 | Follow-up cadence confirmed (Q13) | `/admin/follow-up-cadence` | Administrator | ☐ |
 | 10 | Email provider connected (`RAP_EMAIL_PROVIDERS`, `RAP_EMAIL_SENDER`), postal address and unsubscribe secret set | Test email to an allow-listed address | ____ | ☐ |
-| 11 | Hourly scheduler calls `POST /follow-ups/run` (n8n or cron, with a service user) | Scheduler log shows hourly runs | ____ | ☐ |
+| 11 | Scheduler (n8n or cron, with a service user) calls `POST /follow-ups/run` hourly, `POST /admin/outreach/retry` every 5 minutes (S24) and `POST /companies/hiring-signals/run-due` daily (S4) | Scheduler log shows the runs | ____ | ☐ |
 | 12 | UAT sign-off by each of the six roles | Signed UAT sheet | Role leads | ☐ |
 | 13 | 4-week pilot with 2–3 recruiters and a few clients; KPI dashboard shows pilot data | `GET /kpis` | ____ | ☐ |
 | 14 | Users trained; this runbook reviewed | Training record | ____ | ☐ |
@@ -52,6 +52,7 @@ each morning. It raises these alerts:
 | Email failure rate | Above 5% of emails in 30 days | Check the provider's status and the sending domain (SPF, DKIM, DMARC); lower the daily cap; review failed recipients. A failed send is never retried automatically: create a new approval if it should go again. |
 | Approvals waiting | Oldest pending request older than 48 hours | Remind the approver role for that gate, or change the approver in `/admin/gate-policies`. |
 | Overdue follow-ups | Any | Owners work through `GET /follow-ups`; check the hourly scheduler is running. |
+| Messages waiting to retry delivery (S24) | Any | Normal for a few minutes while the email provider recovers. If the count grows, check the provider status and the 5-minute retry job. After 5 attempts a message fails; sending it needs a new approval. |
 
 Also on the operations view:
 

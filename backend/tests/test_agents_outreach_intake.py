@@ -331,10 +331,12 @@ class CountingEmail:
         return DeliveryResult(DeliveryStatus.SENT)
 
 
-def test_daily_cap_defers_without_using_the_approval():
+def test_daily_cap_defers_under_the_same_approval():
     engine = ApprovalEngine()
+    now = [datetime(2026, 11, 24, 15, 0, tzinfo=UTC)]
+    email = CountingEmail()
     service = OutreachService(
-        engine, OptOutRegistry(), [CountingEmail()], daily_caps={Channel.EMAIL: 1}
+        engine, OptOutRegistry(), [email], daily_caps={Channel.EMAIL: 1}, clock=lambda: now[0]
     )
     ids = []
     for n in range(2):
@@ -347,4 +349,11 @@ def test_daily_cap_defers_without_using_the_approval():
     assert service.remaining_today(Channel.EMAIL) == 0
     with pytest.raises(DailyCapReached):
         service.send(OutboundMessage(ids[1], Channel.EMAIL, "b@x.co", {"body": "1"}))
-    assert service.receipt(ids[1]) is None  # still unused, can be sent tomorrow
+    # S24: scheduled for tomorrow under the same approval, not counted against today's cap.
+    waiting = service.receipt(ids[1])
+    assert waiting.status is DeliveryStatus.RETRY_SCHEDULED and waiting.attempts == 0
+    assert waiting.next_attempt_at == datetime(2026, 11, 25, tzinfo=UTC)
+    assert service.retry_due().due == 0  # not yet
+    now[0] = datetime(2026, 11, 25, 8, 0, tzinfo=UTC)
+    assert service.retry_due().sent == 1
+    assert service.receipt(ids[1]).status is DeliveryStatus.SENT

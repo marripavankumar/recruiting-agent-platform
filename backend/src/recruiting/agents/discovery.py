@@ -10,11 +10,13 @@ from __future__ import annotations
 import csv
 import io
 import re
+import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Protocol
 
+from recruiting.connectors.retry import call_with_retry
 from recruiting.records.memory import CompanyRepository, new_id, normalize_domain
 from recruiting.records.models import Company, ConsentBasis, Contact, ContactRole
 
@@ -116,7 +118,9 @@ class DiscoveryReport:
     created: int = 0
     updated: int = 0
     contacts_added: int = 0
+    merged: int = 0  # S3: already known from a different source
     skipped: dict[str, int] = field(default_factory=dict)
+    source_errors: dict[str, str] = field(default_factory=dict)  # S24
 
     def skip(self, reason: str) -> None:
         self.skipped[reason] = self.skipped.get(reason, 0) + 1
@@ -128,7 +132,9 @@ class CompanyDiscoveryAgent:
         companies: CompanyRepository,
         sources: Sequence[CompanySource],
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        self._sleep = sleep
         self._companies = companies
         self._sources = sources
         self._clock = clock
@@ -137,7 +143,14 @@ class CompanyDiscoveryAgent:
         criteria = criteria or DiscoveryCriteria()
         report = DiscoveryReport()
         for source in self._sources:
-            for found in source.search(criteria):
+            try:
+                results = call_with_retry(
+                    lambda source=source: list(source.search(criteria)), sleep=self._sleep
+                )
+            except Exception as exc:  # S24: other sources still run; the error is reported
+                report.source_errors[source.name] = f"{type(exc).__name__}: {exc}"[:300]
+                continue
+            for found in results:
                 report.seen += 1
                 reason = matches(found, criteria)
                 if reason:
@@ -156,6 +169,10 @@ class CompanyDiscoveryAgent:
         else:
             company = existing
             report.updated += 1
+            if source not in {company.source, *company.sources}:
+                report.merged += 1  # S3: same company from another source
+        # S3: one record per domain; every source that reported it is kept (first one first).
+        company.sources = list(dict.fromkeys([company.source, *company.sources, source]))
         # Newer data fills gaps and refreshes figures; it never clears a known value.
         company.industry = found.industry or company.industry
         company.revenue_usd = found.revenue_usd or company.revenue_usd

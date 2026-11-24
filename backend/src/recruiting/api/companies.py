@@ -92,6 +92,13 @@ def check_hiring_signals(body: CompanyIdsIn, user: UserDep, services: ServicesDe
     return asdict(platform.signals.run(companies))
 
 
+@router.post("/hiring-signals/run-due")
+def check_due_hiring_signals(user: UserDep, services: ServicesDep) -> dict:
+    """S4: scheduled sweep (n8n or cron); re-reads only the career pages that are due."""
+    require_role(user, OPERATORS)
+    return asdict(require_platform(services).signals.run_due())
+
+
 @router.post("/outreach-drafts")
 def draft_outreach(body: CompanyIdsIn, user: UserDep, services: ServicesDep) -> dict:
     """Agent 3: draft first emails; each one waits in the BD Manager's approval queue."""

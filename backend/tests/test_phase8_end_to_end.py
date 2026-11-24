@@ -100,7 +100,7 @@ def build():
                         public_base_url="https://rap.example", _env_file=None)  # fmt: skip
     users = InMemoryUserDirectory(STAFF)
     approvals, opt_outs, email = ApprovalEngine(), OptOutRegistry(), FakeEmail()
-    outreach = OutreachService(approvals, opt_outs, [email, ManualLinkedInChannel()])
+    outreach = OutreachService(approvals, opt_outs, [email, ManualLinkedInChannel()], clock=clock)
     workflows = OutreachWorkflow(build_outreach_graph(approvals, outreach, MemorySaver()))
     platform = build_platform(settings, users=users, opt_outs=opt_outs, deliveries=outreach.log,
                               workflows=workflows, approvals=approvals, fetcher=Fetcher(),

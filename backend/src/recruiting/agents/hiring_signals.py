@@ -261,6 +261,7 @@ class SignalReport:
     target_postings: int = 0
     new_postings: int = 0
     expired: int = 0
+    not_due: int = 0  # S4: checked recently enough, skipped by run_due
     scores: dict[str, int] = field(default_factory=dict)
 
 
@@ -272,7 +273,13 @@ class HiringSignalsAgent:
         weights: PriorityWeights | None = None,
         stale_after_days: int = 21,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        recheck_hiring_days: int = 7,
+        recheck_idle_days: int = 14,
     ) -> None:
+        # S4: companies with open target roles are re-read weekly; the rest every two weeks,
+        # so a company with no engineering jobs today is picked up when it starts hiring.
+        self._recheck_hiring = timedelta(days=recheck_hiring_days)
+        self._recheck_idle = timedelta(days=recheck_idle_days)
         self._companies = companies
         self._fetcher = fetcher
         self._weights = weights or PriorityWeights()
@@ -284,6 +291,33 @@ class HiringSignalsAgent:
         for company in companies if companies is not None else self._companies.list(limit=10_000):
             if company.career_page_url:
                 self.check(company, report)
+        return report
+
+    @staticmethod
+    def last_checked(company: Company) -> datetime | None:
+        if not company.hiring_history:
+            return None
+        return datetime.fromisoformat(company.hiring_history[-1]["at"])
+
+    def next_check_at(self, company: Company) -> datetime | None:
+        """S4: when the career page is due to be read again (None: due now)."""
+        last = self.last_checked(company)
+        if last is None:
+            return None
+        return last + (self._recheck_hiring if company.priority_score > 0 else self._recheck_idle)
+
+    def run_due(self) -> SignalReport:
+        """Scheduled sweep (S4): re-check only the companies whose interval has passed."""
+        report = SignalReport()
+        now = self._clock()
+        for company in self._companies.list(limit=1_000_000):
+            if not company.career_page_url:
+                continue
+            due = self.next_check_at(company)
+            if due is not None and due > now:
+                report.not_due += 1
+                continue
+            self.check(company, report)
         return report
 
     def check(self, company: Company, report: SignalReport | None = None) -> int:

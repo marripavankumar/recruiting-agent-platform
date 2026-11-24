@@ -74,6 +74,8 @@ class Company:
     hiring_history: list[dict[str, Any]] = field(default_factory=list)
     last_verified_at: datetime | None = None
     created_at: datetime | None = None  # first stored (KPI: companies identified)
+    sources: list[str] = field(default_factory=list)  # S3: every source that reported it
+    jd_promised_at: datetime | None = None  # S9: the contact said a JD will follow
 
 
 @dataclass
@@ -375,6 +377,7 @@ class FollowUpKind(StrEnum):
     OFFER = "offer"  # offer extended: track the decision and terms
     START_DATE = "start_date"  # offer accepted: documents and start-date check-ins
     CANDIDATE_SHORTFALL = "candidate_shortfall"  # S12: fewer than 10 qualified for a job
+    JD_PROMISED = "jd_promised"  # S9: the client said a JD will follow
 
 
 # Kinds where a follow-up is a message to the client or candidate (approval gate applies).

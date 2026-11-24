@@ -19,6 +19,7 @@ from langgraph.types import Command, interrupt
 from recruiting.approvals import ApprovalEngine, ApprovalStatus
 from recruiting.domain import Channel, GateType
 from recruiting.outreach import (
+    DeliveryDeferred,
     OutboundMessage,
     OutreachDisabled,
     OutreachService,
@@ -78,6 +79,9 @@ def build_outreach_graph(
             return {"delivery_status": "blocked_opted_out"}
         except OutreachDisabled:
             return {"delivery_status": "blocked_outreach_disabled"}
+        except DeliveryDeferred:
+            # S24: kept under the same approval; OutreachService.retry_due sends it later.
+            return {"delivery_status": "retry_scheduled"}
         return {"delivery_status": receipt.status.value}
 
     graph = StateGraph(OutreachState)

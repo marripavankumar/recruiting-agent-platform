@@ -7,6 +7,7 @@ from recruiting.outreach.service import (
     AlreadySent,
     ChannelAdapter,
     DailyCapReached,
+    DeliveryDeferred,
     DeliveryLog,
     DeliveryReceipt,
     DeliveryResult,
@@ -19,12 +20,15 @@ from recruiting.outreach.service import (
     OutreachError,
     OutreachService,
     RecipientOptedOut,
+    RetryReport,
+    TransientDeliveryError,
 )
 
 __all__ = [
     "AlreadySent",
     "ChannelAdapter",
     "DailyCapReached",
+    "DeliveryDeferred",
     "DeliveryLog",
     "DeliveryReceipt",
     "DeliveryResult",
@@ -40,4 +44,6 @@ __all__ = [
     "OutreachError",
     "OutreachService",
     "RecipientOptedOut",
+    "RetryReport",
+    "TransientDeliveryError",
 ]

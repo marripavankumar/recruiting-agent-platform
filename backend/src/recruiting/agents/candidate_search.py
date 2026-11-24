@@ -16,7 +16,8 @@ the ranking.
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Sequence
+import time
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -25,6 +26,7 @@ from recruiting.agents.ranking import CandidateRankingAgent
 from recruiting.agents.resume_intake import ResumeIntake
 from recruiting.ai.search import SemanticSearch
 from recruiting.ai.skills import canonical
+from recruiting.connectors.retry import call_with_retry
 from recruiting.records.memory import CandidateRepository
 from recruiting.records.models import Candidate, Job, Ranking, Verdict
 
@@ -143,6 +145,7 @@ class SearchReport:
     internal_skill: int = 0
     external_found: dict[str, int] = field(default_factory=dict)
     external_new: int = 0
+    external_errors: dict[str, str] = field(default_factory=dict)  # S24: shown to the recruiter
     pool: int = 0
 
 
@@ -170,7 +173,9 @@ class CandidateSearchAgent:
         ranking: CandidateRankingAgent,
         sources: Sequence[CandidateSource] = (),
         pool_size: int = 200,
+        sleep: Callable[[float], None] = time.sleep,
     ) -> None:
+        self._sleep = sleep
         self._candidates = candidates
         self._search = search
         self._intake = intake
@@ -210,9 +215,15 @@ class CandidateSearchAgent:
 
         location = widened_location(job, widen.location)
         for source in self._sources:
-            found = []
-            for q in queries:
-                found += list(source.search(q, must, location, limit=50))
+            found: list[ExternalResume] = []
+            try:
+                for q in queries:
+                    found += call_with_retry(
+                        lambda q=q, source=source: list(source.search(q, must, location, 50)),
+                        sleep=self._sleep,
+                    )
+            except Exception as exc:  # S24: keep the other sources' results; tell the recruiter
+                report.external_errors[source.name] = f"{type(exc).__name__}: {exc}"[:300]
             report.external_found[source.name] = len(found)
             for resume in found:
                 outcome = self._intake.add(resume.resume_text, source=resume.source)

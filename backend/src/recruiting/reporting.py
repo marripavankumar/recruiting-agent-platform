@@ -226,6 +226,7 @@ class Reporting:
         email = [r for r in receipts if r.message.channel.value == "email"]
         failed = [r for r in email if r.status is DeliveryStatus.FAILED]
         bounced = [r for r in email if r.status is DeliveryStatus.BOUNCED]
+        retrying = [r for r in receipts if r.status is DeliveryStatus.RETRY_SCHEDULED]
         pending = self._approvals.pending() if self._approvals else []
         oldest = min((r.created_at for r in pending), default=None)
         by_gate: dict[str, int] = {}
@@ -238,11 +239,18 @@ class Reporting:
             alerts.append(f"Email failure rate {failure_rate:.0%} in 30 days (alert above 5%)")
         # Bounces are measured against what the provider accepted; above about 2% hurts the
         # sending domain's reputation (environment plan, mailbox warm-up).
-        bounce_rate = _rate(len(bounced), len(email) - len(failed))
+        retrying_email = sum(1 for r in retrying if r.message.channel.value == "email")
+        bounce_rate = _rate(len(bounced), len(email) - len(failed) - retrying_email)
         if bounce_rate is not None and bounce_rate > 0.02:
             alerts.append(f"Email bounce rate {bounce_rate:.0%} in 30 days (alert above 2%)")
         if oldest and now - oldest > timedelta(hours=48):
             alerts.append("Approvals have waited more than 48 hours")
+        if retrying:
+            # S24: paused sends; each goes out under its approval once the provider recovers.
+            n = len(retrying)
+            alerts.append(
+                f"{n} message{'s are' if n != 1 else ' is'} waiting to retry delivery (S24)"
+            )
         short = follow_up_summary.get("by_kind", {}).get("candidate_shortfall", 0)
         if short:
             jobs = "1 open job has" if short == 1 else f"{short} open jobs have"
@@ -253,7 +261,8 @@ class Reporting:
         return {
             "at": now,
             "email_30d": {
-                "sent": len(email) - len(failed),
+                "sent": len(email) - len(failed) - retrying_email,
+                "retry_scheduled": retrying_email,
                 "failed": len(failed),
                 "failure_rate": failure_rate,
                 "bounced": len(bounced),

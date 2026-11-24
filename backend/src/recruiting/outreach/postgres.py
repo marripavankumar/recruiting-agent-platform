@@ -18,7 +18,7 @@ from recruiting.outreach.service import (
 )
 
 _COLUMNS = """approval_request_id::text, channel, recipient, content, delivery_status,
-    provider_message_id, delivered_at, error, opened_at, replied_at"""
+    provider_message_id, delivered_at, error, opened_at, replied_at, attempts, next_attempt_at"""
 _SELECT = f"SELECT {_COLUMNS} FROM outreach_message WHERE approval_request_id = %s"
 _COUNTED = tuple(s.value for s in COUNTED)
 
@@ -35,7 +35,10 @@ class PostgresDeliveryLog:
                     (approval_request_id, channel, recipient, content, delivery_status,
                      delivered_at)
                 VALUES (%s, %s, %s, %s, 'sending', %s)
-                ON CONFLICT (approval_request_id) DO NOTHING
+                ON CONFLICT (approval_request_id) DO UPDATE
+                    SET delivery_status = 'sending', delivered_at = EXCLUDED.delivered_at,
+                        next_attempt_at = NULL
+                    WHERE outreach_message.delivery_status = 'retry_scheduled'
                 RETURNING id
                 """,
                 (
@@ -48,6 +51,71 @@ class PostgresDeliveryLog:
             ).fetchone()
         if row is None:
             raise AlreadySent(f"Approval {message.approval_request_id} was already used")
+
+    def defer(
+        self,
+        message: OutboundMessage,
+        error: str,
+        retry_at: datetime,
+        at: datetime,
+        *,
+        claimed: bool,
+        count_attempt: bool,
+    ) -> DeliveryReceipt:
+        request_id = message.approval_request_id
+        with self._connect() as conn:
+            if claimed:
+                row = conn.execute(
+                    """
+                    UPDATE outreach_message
+                    SET delivery_status = 'retry_scheduled', error = %s, delivered_at = %s,
+                        next_attempt_at = %s, attempts = attempts + %s
+                    WHERE approval_request_id = %s AND delivery_status = 'sending'
+                    RETURNING id
+                    """,
+                    (error, at, retry_at, int(count_attempt), request_id),
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    """
+                    INSERT INTO outreach_message
+                        (approval_request_id, channel, recipient, content, delivery_status,
+                         delivered_at, error, next_attempt_at)
+                    VALUES (%s, %s, %s, %s, 'retry_scheduled', %s, %s, %s)
+                    ON CONFLICT (approval_request_id) DO UPDATE
+                        SET error = EXCLUDED.error, delivered_at = EXCLUDED.delivered_at,
+                            next_attempt_at = EXCLUDED.next_attempt_at,
+                            attempts = outreach_message.attempts + %s
+                        WHERE outreach_message.delivery_status = 'retry_scheduled'
+                    RETURNING id
+                    """,
+                    (
+                        request_id, message.channel.value, message.recipient,
+                        Jsonb(dict(message.content)), at, error, retry_at, int(count_attempt),
+                    ),
+                ).fetchone()  # fmt: skip
+            if row is None:
+                raise AlreadySent(f"Approval {request_id} was already used")
+            conn.execute(
+                """
+                INSERT INTO audit_log (actor, action, entity_type, entity_id, details)
+                VALUES ('outreach_service', 'outreach.retry_scheduled', 'approval_request', %s,
+                        %s)
+                """,
+                (request_id, Jsonb({"error": error, "retry_at": retry_at.isoformat()})),
+            )
+            row = conn.execute(_SELECT, (request_id,)).fetchone()
+        return _receipt(row)
+
+    def due_retries(self, now: datetime) -> list[DeliveryReceipt]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT {_COLUMNS} FROM outreach_message"
+                " WHERE delivery_status = 'retry_scheduled' AND next_attempt_at <= %s"
+                " ORDER BY next_attempt_at",
+                (now,),
+            ).fetchall()
+        return [_receipt(r) for r in rows]
 
     def complete(
         self, approval_request_id: str, result: DeliveryResult, at: datetime
@@ -159,8 +227,9 @@ class PostgresDeliveryLog:
 
 def _receipt(row: tuple) -> DeliveryReceipt:
     (request_id, channel, recipient, content, status, provider_id, delivered_at, error, opened,
-     replied) = row  # fmt: skip
+     replied, attempts, next_at) = row  # fmt: skip
     message = OutboundMessage(request_id, Channel(channel), recipient, dict(content))
     return DeliveryReceipt(
-        message, DeliveryStatus(status), provider_id, delivered_at, error, opened, replied
-    )
+        message, DeliveryStatus(status), provider_id, delivered_at, error, opened, replied,
+        attempts, next_at,
+    )  # fmt: skip

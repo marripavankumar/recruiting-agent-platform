@@ -15,11 +15,41 @@ from email.policy import SMTP
 import httpx
 
 from recruiting.domain import Channel
-from recruiting.outreach.service import DeliveryResult, DeliveryStatus, OutboundMessage
+from recruiting.outreach.service import (
+    DeliveryResult,
+    DeliveryStatus,
+    OutboundMessage,
+    TransientDeliveryError,
+)
 
 TokenProvider = Callable[[], str]
 APPROVAL_HEADER = "X-RAP-Approval-Id"
 SMTP_POLICY = SMTP.clone(max_line_length=998)
+# S24: the provider refused the request before taking the message, so retrying is safe.
+_RETRY_STATUS = {429, 503}
+
+
+def _retry_after(response: httpx.Response) -> float | None:
+    value = response.headers.get("Retry-After", "").strip()
+    return float(value) if value.isdigit() else None
+
+
+def post_once(http: httpx.Client, url: str, **kwargs) -> httpx.Response:
+    """POST that raises TransientDeliveryError only when the message certainly was not sent.
+
+    A connection that never opened, a 429 or a 503 can be retried. A timeout while waiting for
+    the answer, or any other error status, may hide a sent message and is raised as it is.
+    """
+    try:
+        response = http.post(url, **kwargs)
+    except (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout) as exc:
+        raise TransientDeliveryError(f"{type(exc).__name__}: {exc}") from exc
+    if response.status_code in _RETRY_STATUS:
+        raise TransientDeliveryError(
+            f"HTTP {response.status_code} from the provider", _retry_after(response)
+        )
+    response.raise_for_status()
+    return response
 
 
 class ManualLinkedInChannel:
@@ -64,12 +94,12 @@ class Microsoft365EmailChannel:
             },
             "saveToSentItems": True,
         }
-        response = self._http.post(
+        post_once(
+            self._http,
             f"/users/{self._sender}/sendMail",
             json=payload,
             headers={"Authorization": f"Bearer {self._token()}"},
-        )
-        response.raise_for_status()  # 202 Accepted; Graph returns no message id
+        )  # 202 Accepted; Graph returns no message id
         return DeliveryResult(DeliveryStatus.SENT, provider_message_id=None)
 
 
@@ -106,10 +136,10 @@ class GmailEmailChannel:
 
     def deliver(self, message: OutboundMessage) -> DeliveryResult:
         raw = base64.urlsafe_b64encode(self.mime(message).as_bytes()).decode("ascii")
-        response = self._http.post(
+        response = post_once(
+            self._http,
             "/gmail/v1/users/me/messages/send",
             json={"raw": raw},
             headers={"Authorization": f"Bearer {self._token()}"},
         )
-        response.raise_for_status()
         return DeliveryResult(DeliveryStatus.SENT, provider_message_id=response.json().get("id"))

@@ -59,6 +59,7 @@ OWNERS: dict[FollowUpKind, str] = {
     K.OFFER: "account_manager,recruiter",
     K.START_DATE: "recruiter",
     K.CANDIDATE_SHORTFALL: "recruiter",
+    K.JD_PROMISED: "bd_manager",
 }
 NOTES: dict[FollowUpKind, str] = {
     K.CLIENT_OUTREACH: "No reply to the first client email",
@@ -71,6 +72,7 @@ NOTES: dict[FollowUpKind, str] = {
     K.OFFER: "Offer extended: track the candidate's decision and the terms",
     K.START_DATE: "Offer accepted: confirm documents and check in around the start date",
     K.CANDIDATE_SHORTFALL: "Too few qualified candidates: review and widen the search",
+    K.JD_PROMISED: "The client said a job description will follow: check in if it has not come",
 }
 GATES: dict[FollowUpKind, GateType] = {
     K.CLIENT_OUTREACH: GateType.FIRST_CLIENT_EMAIL,
@@ -160,6 +162,23 @@ class FollowUpAgent:
         out += self._candidates_due()
         out += self._pipeline()
         out += self._shortfalls()
+        out += self._jd_promised()
+        return out
+
+    def _jd_promised(self) -> list[Desired]:
+        """S9: a "JD to follow" reply; closes when the JD arrives (the company becomes a client)."""
+        out = []
+        for company in self._companies.list(limit=1_000_000):
+            if (
+                company.jd_promised_at is None
+                or company.outreach_status is not OutreachStatus.REPLIED
+            ):
+                continue
+            out.append(Desired(
+                K.JD_PROMISED, company.id, company.jd_promised_at, company_id=company.id,
+                note=f"{NOTES[K.JD_PROMISED]} ({company.name})",
+                context={"company": company.name},
+            ))  # fmt: skip
         return out
 
     def _shortfalls(self) -> list[Desired]:
