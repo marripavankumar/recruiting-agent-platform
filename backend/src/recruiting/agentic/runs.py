@@ -163,7 +163,7 @@ class PostgresAgentRuns:
             error,
         ) = row
         return AgentRun(
-            rid,
+            str(rid),  # the column is uuid; runs are keyed by their string id everywhere else
             agent,
             subject,
             RunStatus(status),
