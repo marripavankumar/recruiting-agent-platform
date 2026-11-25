@@ -17,8 +17,15 @@ if (-not (Test-Path $envFile)) {
 }
 
 Write-Step 'Starting containers'
+# podman-compose keeps running containers when only the image changed, so after a build the
+# containers are recreated from the new images.
 $upArgs = @('up', '-d')
-if ($Build) { $upArgs += '--build' }
+if ($Build) {
+    Write-Step 'Building images'
+    Invoke-Compose build *> $null
+    if ($LASTEXITCODE -ne 0) { Stop-WithError 'image build failed; run the build by hand to see why' }
+    $upArgs += '--force-recreate'
+}
 Invoke-Compose @upArgs *> $null
 if ($LASTEXITCODE -ne 0) { Stop-WithError 'compose up failed; run it by hand to see why' }
 

@@ -8,7 +8,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 BUILD=()
 for arg in "$@"; do
   case "$arg" in
-    --build) BUILD=(--build) ;;
+    --build) BUILD=(--force-recreate) ;;
     -h|--help) sed -n '2,4p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) die "unknown option: $arg" ;;
   esac
@@ -22,6 +22,12 @@ if [ ! -f "$ROOT/.env" ]; then
 fi
 
 say "Starting containers"
+# podman-compose keeps running containers when only the image changed, so after a build the
+# containers are recreated from the new images.
+if [ ${#BUILD[@]} -gt 0 ]; then
+  say "Building images"
+  compose build >/dev/null || die "image build failed; run the build without >/dev/null to see why"
+fi
 compose up -d "${BUILD[@]}" >/dev/null
 
 wait_for() { # name url

@@ -20,14 +20,27 @@ export type CandidateRow = {
   consent_status: string;
 };
 
+// BRD Agent 6 candidate filters; the API applies them (GET /candidates).
+const TEXT_FILTERS: [string, string, string][] = [
+  ["title", "Job title", "e.g. Quality Engineer"],
+  ["skills", "Skills (all of)", "e.g. PFMEA, APQP"],
+  ["industry", "Industry", "e.g. Automotive"],
+  ["education", "Education", "e.g. Mechanical"],
+  ["location", "Location", "e.g. Detroit or MI"],
+  ["visa", "Visa / authorisation", "e.g. US citizen"],
+  ["availability", "Availability", "e.g. 2 weeks"],
+];
+const FILTER_KEYS = ["q", ...TEXT_FILTERS.map(([k]) => k), "min_years", "max_hourly_rate", "has_linkedin", "has_resume"];
+
 export default async function Candidates({ searchParams }: { searchParams: Promise<Search> }) {
   const search = await searchParams;
-  const q = (param(search, "q") ?? "").trim().toLowerCase();
-  const all = await api<CandidateRow[]>("/candidates", { query: { limit: 1000 } });
-  const shown = q
-    ? all.filter((c) => [c.full_name, c.current_location ?? "", ...c.skills].some((v) => v.toLowerCase().includes(q)))
-    : all;
-  const back = q ? `/candidates?q=${encodeURIComponent(q)}` : "/candidates";
+  const filters = Object.fromEntries(
+    FILTER_KEYS.map((k) => [k, (param(search, k) ?? "").trim()]).filter(([, v]) => v !== ""),
+  ) as Record<string, string>;
+  const filtered = Object.keys(filters).length > 0;
+  const more = Object.keys(filters).some((k) => k !== "q");
+  const shown = await api<CandidateRow[]>("/candidates", { query: { ...filters, limit: 1000 } });
+  const back = filtered ? `/candidates?${new URLSearchParams(filters)}` : "/candidates";
   return (
     <>
       <PageHead title="Candidates" sub="The Candidate Database. Resumes are parsed, de-duplicated by email, phone and LinkedIn, and indexed for search." />
@@ -73,14 +86,47 @@ export default async function Candidates({ searchParams }: { searchParams: Promi
 
       <section className="card">
         <div className="card-head">
-          <h2>{q ? `${shown.length} of ${all.length}` : all.length} candidates</h2>
-          <form method="get" className="row">
-            <label className="sr-only" htmlFor="q">Search candidates</label>
-            <input id="q" name="q" defaultValue={q} placeholder="Name, skill or location" />
-            <button className="btn sm" type="submit">Search</button>
-          </form>
+          <h2>{shown.length} {filtered ? "matching " : ""}candidates</h2>
+          {filtered && <Link className="btn sm" href="/candidates">Clear filters</Link>}
         </div>
-        {shown.length === 0 ? <Empty>{q ? "No candidate matches." : "No candidates yet. Upload resumes to start."}</Empty> : (
+        <form method="get" className="card-body stack" style={{ gap: 10 }}>
+          <div className="row">
+            <label className="sr-only" htmlFor="q">Search candidates</label>
+            <input id="q" name="q" defaultValue={filters.q ?? ""} placeholder="Name, skill, location or past job title" style={{ flex: 1 }} />
+            <button className="btn sm primary" type="submit">Search</button>
+          </div>
+          <details open={more}>
+            <summary className="faint">More filters</summary>
+            <div className="grid cols-3" style={{ gap: 10, marginTop: 10 }}>
+              {TEXT_FILTERS.map(([key, label, hint]) => (
+                <label key={key} className="stack" style={{ gap: 4 }}>
+                  <span className="faint">{label}</span>
+                  <input name={key} defaultValue={filters[key] ?? ""} placeholder={hint} />
+                </label>
+              ))}
+              <label className="stack" style={{ gap: 4 }}>
+                <span className="faint">Years of experience, at least</span>
+                <input name="min_years" type="number" min={0} max={60} step={1} defaultValue={filters.min_years ?? ""} />
+              </label>
+              <label className="stack" style={{ gap: 4 }}>
+                <span className="faint">Expected rate, at most ($/hour)</span>
+                <input name="max_hourly_rate" type="number" min={1} step={1} defaultValue={filters.max_hourly_rate ?? ""} />
+              </label>
+              {([["has_linkedin", "LinkedIn profile"], ["has_resume", "Resume"]] as const).map(([key, label]) => (
+                <label key={key} className="stack" style={{ gap: 4 }}>
+                  <span className="faint">{label}</span>
+                  <select name={key} defaultValue={filters[key] ?? ""}>
+                    <option value="">Any</option>
+                    <option value="true">Has one</option>
+                    <option value="false">Missing</option>
+                  </select>
+                </label>
+              ))}
+            </div>
+            <p className="faint" style={{ margin: "8px 0 0" }}>Annual figures count as hourly over 2,080 hours; candidates who state no rate are left out when a rate is set.</p>
+          </details>
+        </form>
+        {shown.length === 0 ? <Empty>{filtered ? "No candidate matches these filters." : "No candidates yet. Upload resumes to start."}</Empty> : (
           <div className="table-wrap">
             <table>
               <thead><tr><th>Candidate</th><th>Skills</th><th>Experience</th><th>Availability</th><th>Work authorisation</th><th>Consent</th></tr></thead>

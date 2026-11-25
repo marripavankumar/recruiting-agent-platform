@@ -13,7 +13,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
 from pydantic import BaseModel, Field
 
-from recruiting.agents.candidate_search import Widening, shortfall
+from recruiting.agents.candidate_search import CandidateFilter, Widening, shortfall
 from recruiting.agents.ranking import RankingWeights
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
 from recruiting.documents import MAX_BYTES, DocumentError, extract_text
@@ -159,12 +159,48 @@ def upload_resumes(
     }
 
 
+SCAN_LIMIT = 20_000  # filters look at up to this many candidates (pilot scale)
+
+
 @router.get("/candidates")
 def list_candidates(
-    user: UserDep, services: ServicesDep, limit: int = Query(default=100, ge=1, le=1000)
+    user: UserDep,
+    services: ServicesDep,
+    limit: int = Query(default=100, ge=1, le=1000),
+    q: str | None = Query(default=None, max_length=200, description="Name, skill, location, title"),
+    title: str | None = Query(default=None, max_length=200),
+    skills: str | None = Query(default=None, max_length=500, description="Comma-separated; all"),
+    industry: str | None = Query(default=None, max_length=100),
+    min_years: float | None = Query(default=None, ge=0, le=60),
+    education: str | None = Query(default=None, max_length=100),
+    location: str | None = Query(default=None, max_length=100),
+    visa: str | None = Query(default=None, max_length=100),
+    availability: str | None = Query(default=None, max_length=100),
+    max_hourly_rate: float | None = Query(default=None, gt=0, le=10_000),
+    has_linkedin: bool | None = None,
+    has_resume: bool | None = None,
 ) -> list[dict]:
+    """The Candidate Database, with the BRD Agent 6 candidate filters."""
     require_role(user, TALENT)
-    return [_candidate_out(c) for c in require_platform(services).candidates.list(limit=limit)]
+    wanted = CandidateFilter(
+        text=(q or "").strip() or None,
+        title=title,
+        skills=tuple(s.strip() for s in (skills or "").split(",") if s.strip()),
+        industry=industry,
+        min_years=min_years,
+        education=education,
+        location=location,
+        visa=visa,
+        availability=availability,
+        max_hourly_rate=max_hourly_rate,
+        has_linkedin=has_linkedin,
+        has_resume=has_resume,
+    )
+    repo = require_platform(services).candidates
+    if wanted == CandidateFilter():
+        return [_candidate_out(c) for c in repo.list(limit=limit)]
+    found = [c for c in repo.list(limit=SCAN_LIMIT) if wanted.matches(c)]
+    return [_candidate_out(c) for c in found[:limit]]
 
 
 @router.get("/candidates/{candidate_id}")

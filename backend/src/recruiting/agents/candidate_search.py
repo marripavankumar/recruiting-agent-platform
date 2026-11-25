@@ -123,6 +123,92 @@ class Widening:
         }
 
 
+_NUMBER = re.compile(r"(\d+(?:[.,]\d+)?)\s*(k\b)?", re.I)
+_HOURLY = re.compile(r"/\s*h|\bh(ou)?rs?\b|\bhourly\b", re.I)
+_ANNUAL = re.compile(r"/\s*y|\by(ea)?rs?\b|\bannual|\bannum\b|\bp\.?a\.?(\s|$)|\bsalary\b", re.I)
+HOURS_PER_YEAR = 2080
+
+
+def hourly_rate(text: str | None) -> float | None:
+    """The hourly figure in a stated rate: "$75/hr" -> 75, "$120k" or "120,000 per year" ->
+    about 57.7 (annual / 2080 hours). None when no number is stated."""
+    if not text:
+        return None
+    match = _NUMBER.search(text.replace("$", " "))
+    if match is None:
+        return None
+    value = float(match.group(1).replace(",", ""))
+    if match.group(2):  # "120k"
+        value *= 1000
+    if not _HOURLY.search(text) and (value >= 1000 or _ANNUAL.search(text)):
+        return round(value / HOURS_PER_YEAR, 2)
+    return value
+
+
+def _has(value: str | None, wanted: str) -> bool:
+    return bool(value) and wanted.casefold() in value.casefold()
+
+
+@dataclass(frozen=True)
+class CandidateFilter:
+    """BRD Agent 6 candidate filters for searching the Candidate Database. Every filter given
+    must match; text filters match any part of the field, case-insensitively."""
+
+    text: str | None = None  # name, skills, location or a past job title
+    title: str | None = None  # any job title in the work history
+    skills: tuple[str, ...] = ()  # all of them (canonical names, so "Solidworks" works)
+    industry: str | None = None
+    min_years: float | None = None
+    education: str | None = None
+    location: str | None = None  # current or preferred location
+    visa: str | None = None  # visa status or work authorization
+    availability: str | None = None  # availability or notice period
+    max_hourly_rate: float | None = None  # candidates who state no rate are left out
+    has_linkedin: bool | None = None
+    has_resume: bool | None = None
+
+    def matches(self, c: Candidate) -> bool:
+        titles = [str(r.get("title") or "") for r in c.work_history]
+        if self.text and not (
+            _has(c.full_name, self.text) or _has(c.current_location, self.text)
+            or any(_has(s, self.text) for s in c.skills) or any(_has(t, self.text) for t in titles)
+        ):  # fmt: skip
+            return False
+        if self.title and not any(_has(t, self.title) for t in titles):
+            return False
+        if self.skills:
+            have = {canonical(s).casefold() for s in c.skills}
+            if not all(canonical(s).casefold() in have for s in self.skills):
+                return False
+        if self.industry and not any(_has(i, self.industry) for i in c.industries):
+            return False
+        if self.min_years is not None and (c.experience_years or 0) < self.min_years:
+            return False
+        if self.education and not _has(c.education, self.education):
+            return False
+        if self.location and not (
+            _has(c.current_location, self.location) or _has(c.preferred_location, self.location)
+        ):
+            return False
+        if self.visa and not (
+            _has(c.visa_status, self.visa) or _has(c.work_authorization, self.visa)
+        ):
+            return False
+        if self.availability and not (
+            _has(c.availability, self.availability) or _has(c.notice_period, self.availability)
+        ):
+            return False
+        if self.max_hourly_rate is not None:
+            rate = hourly_rate(c.expected_rate)
+            if rate is None or rate > self.max_hourly_rate:
+                return False
+        if self.has_linkedin is not None and bool(c.linkedin_url) != self.has_linkedin:
+            return False
+        if self.has_resume is not None and bool(c.resume_text) != self.has_resume:
+            return False
+        return True
+
+
 @dataclass(frozen=True)
 class ExternalResume:
     """A resume returned by a licensed source (Dice, CareerBuilder, Monster, Indeed, ...)."""

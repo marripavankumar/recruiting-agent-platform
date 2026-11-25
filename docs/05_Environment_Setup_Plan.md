@@ -27,7 +27,7 @@ The platform follows the same rule as the business integrations (plan Section 5.
 | Observability | OpenTelemetry | Azure Monitor | CloudWatch | Cloud Operations | Grafana stack |
 | Container registry | OCI registry | Azure Container Registry | ECR | Artifact Registry | Any OCI registry |
 
-SharePoint, OneDrive and S3 are the BRD's document-storage options and are built regardless of the hosting cloud. For example, the platform can run on AWS and store resumes in SharePoint.
+SharePoint, OneDrive and S3 are the BRD's document-storage options, independent of the hosting cloud (not built yet: see the BRD gap review, doc 08). For example, the platform can run on AWS and store resumes in SharePoint.
 
 ### Rules that keep it portable
 

@@ -1,8 +1,9 @@
 """Agent 2 - Hiring Opportunity Discovery (BRD Agent 2, plan section 6).
 
-Reads each company's career page, keeps postings for the 27 target positions (BRD section 4,
-Q2), links them to the Company Database (Hiring History), expires stale ones and gives each
-company a 0-100 priority score from configurable weights (Q10).
+Reads each company's career page, keeps postings for the 28 target positions (the 27 of BRD
+section 4, Q2, plus Agent 2's Manufacturing Manager), links them to the Company Database
+(Hiring History), expires stale ones and gives each company a 0-100 priority score from
+configurable weights (Q10).
 
 Postings are read from schema.org JobPosting data (JSON-LD), which most career sites publish for
 search engines, so no site-specific scraping is needed. robots.txt is respected.
@@ -27,7 +28,8 @@ import httpx
 from recruiting.records.memory import CompanyRepository, new_id
 from recruiting.records.models import Company, JobPosting
 
-# BRD section 4, in order. Patterns are tried most specific first (see _ROLE_PATTERNS).
+# BRD section 4, in order, then "Manufacturing Manager": BRD Agent 2 searches for it but section 4
+# does not list it. Patterns are tried most specific first (see _ROLE_PATTERNS).
 TARGET_ROLES = (
     "Manufacturing Engineer", "Manufacturing Process Engineer", "Industrial Engineer",
     "Mechanical Engineer", "Electrical Engineer", "Electronics Engineer", "Controls Engineer",
@@ -35,14 +37,14 @@ TARGET_ROLES = (
     "Product Engineer", "CAE Engineer", "FEA Engineer", "CFD Engineer", "Validation Engineer",
     "Reliability Engineer", "Test Engineer", "Production Engineer", "Tooling Engineer",
     "Robotics Engineer", "PLC Engineer", "Manufacturing Supervisor", "Engineering Manager",
-    "Program Manager", "NPI Engineer", "Launch Engineer",
+    "Program Manager", "NPI Engineer", "Launch Engineer", "Manufacturing Manager",
 )  # fmt: skip
 
 # The 10 roles BRD Agent 2 lists explicitly count as the strongest fit.
 CORE_ROLES = frozenset({
     "Manufacturing Engineer", "Quality Engineer", "Mechanical Engineer", "CAE Engineer",
     "Electrical Engineer", "Design Engineer", "Industrial Engineer", "Product Engineer",
-    "Manufacturing Supervisor", "Engineering Manager",
+    "Manufacturing Manager", "Engineering Manager",
 })  # fmt: skip
 
 _ROLE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
@@ -52,6 +54,11 @@ _ROLE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         ("Manufacturing Process Engineer", r"\bmanufacturing process\b|\bprocess engineer\b"),
         ("Manufacturing Supervisor", r"\b(manufacturing|production) supervisor\b"),
         ("Engineering Manager", r"\bengineering manager\b|\bmanager,? engineering\b"),
+        # After Engineering Manager, so "Manufacturing Engineering Manager" stays that role.
+        (
+            "Manufacturing Manager",
+            r"\b(manufacturing|production) manager\b|\bmanager,? (manufacturing|production)\b",
+        ),
         ("Program Manager", r"\bprogram manager\b"),
         ("NPI Engineer", r"\bnpi\b|\bnew product introduction\b"),
         ("Launch Engineer", r"\blaunch engineer\b"),

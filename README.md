@@ -13,6 +13,7 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | [docs/05_Environment_Setup_Plan.md](docs/05_Environment_Setup_Plan.md) | Cloud-agnostic hosting, environments, CI/CD, sending domains, local setup |
 | [docs/06_Go_Live_Runbook.md](docs/06_Go_Live_Runbook.md) | Go-live runbook |
 | [docs/07_Security_Review.md](docs/07_Security_Review.md) | Code security review before the penetration test: findings, fixes, open items |
+| [docs/08_BRD_Gap_Review.md](docs/08_BRD_Gap_Review.md) | Every BRD requirement checked against the code: gaps fixed, gaps open, decisions needed |
 | [docs/source/Business_Requirements_Document.docx](docs/source/Business_Requirements_Document.docx) | Original BRD (Word) |
 
 ## Implementation status (as of 2026-11-25)

@@ -59,7 +59,20 @@ DICTIONARY: dict[str, dict[str, tuple[str, ...]]] = {
             "rslogix",
             "factorytalk",
         ),
-        "Siemens PLC": ("tia portal", "step 7", "s7-1500", "s7-1200", "siemens plc"),
+        # Not "siemens" alone: it is also an employer and the maker of NX and Teamcenter.
+        "Siemens PLC": (
+            "tia portal",
+            "step 7",
+            "step7",
+            "s7-1500",
+            "s7-1200",
+            "s7-300",
+            "s7-400",
+            "siemens s7",
+            "siemens plc",
+            "siemens plcs",
+            "simatic",
+        ),  # fmt: skip
         "ABB": ("ABB",),
         "Fanuc": ("fanuc",),
         "KUKA": ("kuka",),
