@@ -32,7 +32,16 @@ def create_app(
         if stop is not None:
             stop.set()
 
-    app = FastAPI(title="Recruiting Agent Platform", version="0.1.0", lifespan=lifespan)
+    # The interactive docs and schema map every endpoint: not published in production.
+    docs = environment != "prod"
+    app = FastAPI(
+        title="Recruiting Agent Platform",
+        version="0.1.0",
+        lifespan=lifespan,
+        docs_url="/docs" if docs else None,
+        redoc_url="/redoc" if docs else None,
+        openapi_url="/openapi.json" if docs else None,
+    )
     app.state.services = services
     app.state.access_log = AccessLog()
 

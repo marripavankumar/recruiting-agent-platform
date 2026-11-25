@@ -210,6 +210,65 @@ def test_http_fetcher_respects_robots_txt():
             return httpx.Response(200, text="User-agent: *\nDisallow: /private/\n")
         return httpx.Response(200, text="<html>ok</html>")
 
-    fetcher = HttpCareerPageFetcher(httpx.Client(transport=httpx.MockTransport(handler)))
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    fetcher = HttpCareerPageFetcher(client, resolve=lambda host: ["93.184.215.14"])
     assert fetcher.fetch("https://acme.example/careers") == "<html>ok</html>"
     assert fetcher.fetch("https://acme.example/private/jobs") is None
+
+
+PUBLIC = {"acme.example": ["93.184.215.14"], "jobs.acme.example": ["93.184.215.15"]}
+PRIVATE = {
+    "qdrant": ["10.89.0.5"], "localhost": ["127.0.0.1", "::1"], "metadata": ["169.254.169.254"],
+    "split": ["93.184.215.14", "192.168.1.10"],  # any private answer blocks the host
+}  # fmt: skip
+
+
+def _resolve(host):
+    return {**PUBLIC, **PRIVATE}.get(host) or ([host] if host[0].isdigit() or ":" in host else [])
+
+
+def test_http_fetcher_only_reaches_public_addresses():
+    """SSRF guard: imported or provider career-page URLs, and the pages' redirects, cannot point
+    the platform at its own network."""
+    from recruiting.agents.hiring_signals import is_public_url
+
+    assert is_public_url("https://acme.example/careers", _resolve)
+    for url in (
+        "http://qdrant:6333/collections", "http://localhost:8000/admin/operations",
+        "http://metadata/latest/meta-data/", "https://split/jobs", "http://127.0.0.1/",
+        "http://10.0.0.1/", "http://[::1]/", "file:///etc/passwd", "ftp://acme.example/",
+        "https://unknown.example/", "careers",
+    ):  # fmt: skip
+        assert not is_public_url(url, _resolve), url
+
+    seen = []
+
+    def handler(request):
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        if request.url.host == "acme.example" and request.url.path == "/careers":
+            return httpx.Response(302, headers={"location": "https://jobs.acme.example/all"})
+        if request.url.host == "jobs.acme.example":
+            return httpx.Response(200, text="<html>jobs</html>")
+        if request.url.path == "/evil":  # a public page redirecting into the private network
+            return httpx.Response(302, headers={"location": "http://qdrant:6333/collections"})
+        return httpx.Response(200, text="internal data")
+
+    fetcher = HttpCareerPageFetcher(httpx.Client(transport=httpx.MockTransport(handler)), _resolve)
+    assert fetcher.fetch("https://acme.example/careers") == "<html>jobs</html>"  # public hop
+    assert fetcher.fetch("http://qdrant:6333/collections") is None
+    assert fetcher.fetch("https://acme.example/evil") is None
+    assert not any("qdrant" in url for url in seen)  # never requested
+
+
+def test_http_fetcher_caps_page_size():
+    from recruiting.agents.hiring_signals import MAX_PAGE_BYTES
+
+    def handler(request):
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(200, content=b"x" * (MAX_PAGE_BYTES + 1))
+
+    fetcher = HttpCareerPageFetcher(httpx.Client(transport=httpx.MockTransport(handler)), _resolve)
+    assert fetcher.fetch("https://acme.example/careers") is None

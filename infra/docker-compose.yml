@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: rap
       POSTGRES_DB: rap
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"  # this machine only
     volumes:
       - postgres-data:/var/lib/postgresql/data
       # Applied once, on first start of an empty volume.
@@ -23,14 +23,14 @@ services:
   qdrant:
     image: docker.io/qdrant/qdrant:v1.12.5
     ports:
-      - "6333:6333"
+      - "127.0.0.1:6333:6333"  # Qdrant has no authentication: this machine only
     volumes:
       - qdrant-data:/qdrant/storage
 
   n8n:
     image: docker.io/n8nio/n8n:1.72.1
     ports:
-      - "5678:5678"
+      - "127.0.0.1:5678:5678"
     environment:
       N8N_DIAGNOSTICS_ENABLED: "false"
     volumes:
@@ -41,6 +41,9 @@ services:
   # Settings come from ../.env (copy .env.example); the values below only point the services
   # at each other. Sign-in defaults to the local demo users (RAP_AUTH_PROVIDER=dev): add
   # users to app_user first, or set the OIDC variables.
+  # Ports listen on this machine only. RAP_BIND_ADDRESS=0.0.0.0 (in the shell) opens the web app
+  # and API to the network: do that only with company sign-in, never with the demo sign-in,
+  # which lets anyone choose to be the Administrator.
   api:
     profiles: [app]
     build: ../backend
@@ -53,7 +56,7 @@ services:
       RAP_QDRANT_URL: http://qdrant:6333
       RAP_PUBLIC_BASE_URL: ${RAP_PUBLIC_BASE_URL:-http://localhost:8000}
     ports:
-      - "8000:8000"
+      - "${RAP_BIND_ADDRESS:-127.0.0.1}:8000:8000"
     # Here as well as in the Dockerfile: Podman's default OCI image format drops HEALTHCHECK.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
@@ -91,7 +94,7 @@ services:
       RAP_OIDC_CLIENT_ID: ${RAP_OIDC_CLIENT_ID:-}
       RAP_OIDC_CLIENT_SECRET: ${RAP_OIDC_CLIENT_SECRET:-}
     ports:
-      - "3000:3000"
+      - "${RAP_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/signin').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s

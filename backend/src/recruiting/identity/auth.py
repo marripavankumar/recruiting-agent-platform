@@ -76,4 +76,11 @@ class OidcAuthenticator:
         email = claims.get(self._email_claim)
         if not isinstance(email, str) or not email:
             raise AuthenticationError(f"Token has no {self._email_claim} claim")
+        # Roles are looked up by email, so an address the provider says it has not verified
+        # must not sign anyone in. (Some providers send the flag as a string.)
+        if (
+            self._email_claim == "email"
+            and str(claims.get("email_verified", True)).lower() == "false"
+        ):
+            raise AuthenticationError("The email address is not verified by the sign-in provider")
         return email

@@ -73,6 +73,12 @@ def build_authenticator(settings: Settings) -> Authenticator:
     if settings.auth_provider == "dev":
         if settings.environment != "local":
             raise RuntimeError("Dev header sign-in is allowed only when RAP_ENVIRONMENT=local")
+        import logging
+
+        logging.getLogger("recruiting.audit").warning(
+            "Dev header sign-in is on (RAP_AUTH_PROVIDER=dev): anyone who can reach the API can "
+            "act as any user. Keep it on this machine only; use OIDC anywhere shared."
+        )
         return DevHeaderAuthenticator()
     if not (settings.oidc_issuer and settings.oidc_audience and settings.oidc_jwks_url):
         raise RuntimeError("OIDC needs RAP_OIDC_ISSUER, RAP_OIDC_AUDIENCE and RAP_OIDC_JWKS_URL")

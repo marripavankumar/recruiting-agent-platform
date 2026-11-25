@@ -11,9 +11,11 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | [docs/03_Compliance_Checklist.md](docs/03_Compliance_Checklist.md) | Compliance checklist (draft for legal review): email, LinkedIn, privacy, hiring fairness, licences |
 | [docs/04_KPI_Baseline_Timing_Study.md](docs/04_KPI_Baseline_Timing_Study.md) | Timing-study and KPI baseline template for the 80% effort goal (Q12) |
 | [docs/05_Environment_Setup_Plan.md](docs/05_Environment_Setup_Plan.md) | Cloud-agnostic hosting, environments, CI/CD, sending domains, local setup |
+| [docs/06_Go_Live_Runbook.md](docs/06_Go_Live_Runbook.md) | Go-live runbook |
+| [docs/07_Security_Review.md](docs/07_Security_Review.md) | Code security review before the penetration test: findings, fixes, open items |
 | [docs/source/Business_Requirements_Document.docx](docs/source/Business_Requirements_Document.docx) | Original BRD (Word) |
 
-## Implementation status (as of 2026-11-24)
+## Implementation status (as of 2026-11-25)
 
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
@@ -24,8 +26,8 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | 4 | Candidate search and ranking | Agents 6–7 | 14–19 | In progress | 60% |
 | 5 | Candidate engagement | Agents 8–9 | 18–22 | In progress | 60% |
 | 6 | Matching and client submission | Agents 10–11 | 21–25 | In progress | 70% |
-| 7 | Follow-up | Agent 12 | 24–27 | In progress | 70% |
-| 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | In progress | 45% |
+| 7 | Follow-up | Agent 12 | 24–27 | In progress | 85% |
+| 8 | E2E testing, KPI dashboard, go-live | §12 | 26–32 | In progress | 50% |
 | 9 | Future enhancements | Future Enhancements | After go-live | Not started | 0% |
 
 Full details, exit criteria and status notes are in the [implementation plan](docs/02_Implementation_Plan.md#implementation-phases-and-current-status).

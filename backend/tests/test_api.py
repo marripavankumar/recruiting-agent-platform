@@ -151,3 +151,13 @@ def test_workflow_failure_does_not_undo_the_decision():
     assert response.status_code == 200
     assert engine.get(request.id).status == "approved"
     assert workflows.resumed == [request.id]
+
+
+def test_api_docs_are_not_published_in_production():
+    services = Services(
+        approvals=ApprovalEngine(), opt_outs=OptOutRegistry(), users=InMemoryUserDirectory([]),
+        authenticator=DevHeaderAuthenticator(),
+    )  # fmt: skip
+    for path in ("/docs", "/redoc", "/openapi.json"):
+        assert TestClient(create_app(services, environment="prod")).get(path).status_code == 404
+        assert TestClient(create_app(services, environment="test")).get(path).status_code == 200

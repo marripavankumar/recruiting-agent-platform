@@ -66,3 +66,14 @@ def test_missing_bearer_token(keys):
     _, public_key = keys
     with pytest.raises(AuthenticationError):
         authenticator(public_key).identify({})
+
+
+@pytest.mark.parametrize("verified", [False, "false"])
+def test_email_the_provider_has_not_verified_is_rejected(keys, verified):
+    # Someone could otherwise put a staff member's address on an unverified account.
+    private_key, public_key = keys
+    token = make_token(private_key, email_verified=verified)
+    with pytest.raises(AuthenticationError, match="not verified"):
+        authenticator(public_key).identify(bearer(token))
+    ok = make_token(private_key, email_verified=True)
+    assert authenticator(public_key).identify(bearer(ok)) == "bd@cbs.example"

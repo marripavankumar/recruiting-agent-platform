@@ -10,8 +10,10 @@ search engines, so no site-specific scraping is needed. robots.txt is respected.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import re
+import socket
 import urllib.robotparser
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
@@ -188,14 +190,72 @@ class CareerPageFetcher(Protocol):
         ...
 
 
+Resolver = Callable[[str], list[str]]
+MAX_PAGE_BYTES = 5 * 1024 * 1024
+MAX_REDIRECTS = 5
+
+
+def resolve_host(host: str) -> list[str]:
+    return [info[4][0] for info in socket.getaddrinfo(host, None, proto=socket.IPPROTO_TCP)]
+
+
+def is_public_url(url: str, resolve: Resolver = resolve_host) -> bool:
+    """http(s) to a host whose every address is public internet. Career-page URLs come from
+    imports, data providers and the pages' own redirects, so without this check the platform
+    could be pointed at its own network (Qdrant, n8n, the database host, cloud metadata)."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        return False
+    try:
+        addresses = resolve(parts.hostname)
+    except (OSError, UnicodeError, ValueError):
+        return False
+    try:
+        return bool(addresses) and all(
+            ipaddress.ip_address(a.split("%", 1)[0]).is_global for a in addresses
+        )
+    except ValueError:
+        return False
+
+
 class HttpCareerPageFetcher:
+    """Fetches public career pages only: every URL, including each redirect hop and robots.txt,
+    must resolve to public addresses (is_public_url), and pages are capped at MAX_PAGE_BYTES.
+    The address is checked just before each request; a host that changes its DNS answer between
+    the check and the connection (DNS rebinding) is not covered, so deployments should also deny
+    the platform's egress to private ranges at the network level."""
+
     USER_AGENT = "RecruitingPlatformBot/0.1"
 
-    def __init__(self, client: httpx.Client | None = None) -> None:
+    def __init__(
+        self, client: httpx.Client | None = None, resolve: Resolver = resolve_host
+    ) -> None:
+        # Redirects are followed by hand so that each hop is checked.
         self._http = client or httpx.Client(
-            timeout=20, follow_redirects=True, headers={"User-Agent": self.USER_AGENT}
+            timeout=20, follow_redirects=False, headers={"User-Agent": self.USER_AGENT}
         )
+        self._resolve = resolve
         self._robots: dict[str, urllib.robotparser.RobotFileParser | None] = {}
+
+    def _get(self, url: str) -> tuple[int, str] | None:
+        """(status, text) of a public URL after redirects, or None if blocked or too large."""
+        for _ in range(MAX_REDIRECTS + 1):
+            if not is_public_url(url, self._resolve):
+                return None
+            with self._http.stream("GET", url, follow_redirects=False) as response:
+                if response.is_redirect:
+                    location = response.headers.get("location")
+                    if not location:
+                        return None
+                    url = urljoin(url, location)
+                    continue
+                body = bytearray()
+                for chunk in response.iter_bytes():
+                    body += chunk
+                    if len(body) > MAX_PAGE_BYTES:
+                        return None
+                return response.status_code, body.decode(response.encoding or "utf-8", "replace")
+        return None  # too many redirects
 
     def _allowed(self, url: str) -> bool:
         parts = urlsplit(url)
@@ -203,8 +263,8 @@ class HttpCareerPageFetcher:
         if origin not in self._robots:
             parser = urllib.robotparser.RobotFileParser()
             try:
-                response = self._http.get(f"{origin}/robots.txt")
-                parser.parse(response.text.splitlines() if response.status_code == 200 else [])
+                got = self._get(f"{origin}/robots.txt")
+                parser.parse(got[1].splitlines() if got and got[0] == 200 else [])
                 self._robots[origin] = parser
             except httpx.HTTPError:
                 self._robots[origin] = None
@@ -212,13 +272,13 @@ class HttpCareerPageFetcher:
         return parser is None or parser.can_fetch(self.USER_AGENT, url)
 
     def fetch(self, url: str) -> str | None:
-        if not self._allowed(url):
+        if not is_public_url(url, self._resolve) or not self._allowed(url):
             return None
         try:
-            response = self._http.get(url)
+            got = self._get(url)
         except httpx.HTTPError:
             return None
-        return response.text if response.status_code == 200 else None
+        return got[1] if got and got[0] == 200 else None
 
 
 # ----- Scoring -------------------------------------------------------------------------------
