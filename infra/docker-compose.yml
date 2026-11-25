@@ -10,7 +10,8 @@ services:
       POSTGRES_PASSWORD: rap
       POSTGRES_DB: rap
     ports:
-      - "127.0.0.1:5432:5432"  # this machine only
+      - "127.0.0.1:5432:5432"  # this machine only (IPv4 and IPv6 "localhost")
+      - "[::1]:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
       # Applied once, on first start of an empty volume.
@@ -24,6 +25,7 @@ services:
     image: docker.io/qdrant/qdrant:v1.12.5
     ports:
       - "127.0.0.1:6333:6333"  # Qdrant has no authentication: this machine only
+      - "[::1]:6333:6333"
     volumes:
       - qdrant-data:/qdrant/storage
 
@@ -31,6 +33,7 @@ services:
     image: docker.io/n8nio/n8n:1.72.1
     ports:
       - "127.0.0.1:5678:5678"
+      - "[::1]:5678:5678"
     environment:
       N8N_DIAGNOSTICS_ENABLED: "false"
     volumes:
@@ -54,9 +57,11 @@ services:
       RAP_STORAGE: postgres
       RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
       RAP_QDRANT_URL: http://qdrant:6333
+      RAP_VECTOR_STORE: qdrant  # shared and kept across restarts (in-memory is per process)
       RAP_PUBLIC_BASE_URL: ${RAP_PUBLIC_BASE_URL:-http://localhost:8000}
     ports:
       - "${RAP_BIND_ADDRESS:-127.0.0.1}:8000:8000"
+      - "[::1]:8000:8000"  # IPv6 "localhost"
     # Here as well as in the Dockerfile: Podman's default OCI image format drops HEALTHCHECK.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4)"]
@@ -78,6 +83,7 @@ services:
       RAP_STORAGE: postgres
       RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
       RAP_QDRANT_URL: http://qdrant:6333
+      RAP_VECTOR_STORE: qdrant  # shared and kept across restarts (in-memory is per process)
       RAP_WEB_BASE_URL: ${RAP_WEB_BASE_URL:-http://localhost:3000}  # link in the reminder digest
     depends_on:
       postgres:
@@ -95,6 +101,7 @@ services:
       RAP_OIDC_CLIENT_SECRET: ${RAP_OIDC_CLIENT_SECRET:-}
     ports:
       - "${RAP_BIND_ADDRESS:-127.0.0.1}:3000:3000"
+      - "[::1]:3000:3000"  # IPv6 "localhost"
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/signin').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s

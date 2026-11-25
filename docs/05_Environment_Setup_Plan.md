@@ -134,7 +134,10 @@ cd ../web && npm install && npm run dev                # http://localhost:3000, 
 # Easiest: scripts/start.sh [--build] and scripts/stop.sh [--machine] (bash), or
 # scripts\start.ps1 [-Build] and scripts\stop.ps1 [-Machine] (PowerShell). They start the Podman
 # machine if needed, create .env if missing, wait until healthy and add the demo users to an empty
-# database. By hand:
+# database. Test data: scripts/testdata.sh load | clean | status (or scripts\testdata.ps1): a fictional
+# pipeline with work waiting for every role, loaded through the API with nothing sent; clean removes
+# all business data and keeps staff users and settings. Refused when RAP_ENVIRONMENT=prod.
+# By hand:
 # Reads ../.env; the compose file points the services at each other. Add users as above first.
 podman compose -f infra/docker-compose.yml --profile app up --build -d   # web :3000, API :8000
 # The web app's demo sign-in lists these five users; with PostgreSQL they must exist in app_user:

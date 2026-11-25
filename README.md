@@ -64,7 +64,7 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | [web/](web/) | Next.js web app and client portal: dashboard, approval queue, jobs and candidates, follow-ups, AI agents, client portal |
 | [mock-ui/](mock-ui/) | Static clickable mock-up: the reference for screens not built in the web app yet |
 | [db/migrations/](db/migrations/) | PostgreSQL schema |
-| [scripts/](scripts/) | `start` / `stop` the whole stack on Podman (bash `.sh` and PowerShell `.ps1`) |
+| [scripts/](scripts/) | `start` / `stop` the whole stack on Podman, `testdata` to load or clean test data (bash `.sh` and PowerShell `.ps1`) |
 | [infra/](infra/) | Compose stack for Podman or Docker (PostgreSQL, Qdrant, n8n; the API, scheduler and web app with `--profile app`); per-cloud Terraform modules to come |
 | [docs/](docs/) | BRD, plan, checklists |
 

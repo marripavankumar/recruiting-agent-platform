@@ -90,7 +90,15 @@ def build_authenticator(settings: Settings) -> Authenticator:
     )
 
 
-def build_services(settings: Settings) -> Services:
+def build_services(
+    settings: Settings,
+    *,
+    email_channel: ChannelAdapter | None = None,
+    career_pages: Any = None,
+) -> Services:
+    """`email_channel` and `career_pages` replace the email provider and the career-page fetcher
+    with PostgreSQL storage: the test-data loader (recruiting.testdata) sends to an in-memory
+    outbox and reads canned pages, so loading data never emails or crawls anyone."""
     from recruiting.api.platform import build_platform
 
     if (settings.demo_users or settings.demo_data) and (
@@ -174,7 +182,9 @@ def build_services(settings: Settings) -> Services:
     approvals = ApprovalEngine(PostgresPolicyStore(connect), store=PostgresApprovalStore(connect))
     opt_outs = OptOutRegistry(PostgresOptOutStore(connect))
     users = PostgresUserDirectory(connect)
-    outreach = build_outreach(settings, approvals, opt_outs, PostgresDeliveryLog(connect))
+    outreach = build_outreach(
+        settings, approvals, opt_outs, PostgresDeliveryLog(connect), email_channel
+    )
     workflows = build_workflows(approvals, outreach, workflow_checkpointer(settings.database_url))
     platform = build_platform(
         settings,
@@ -193,6 +203,7 @@ def build_services(settings: Settings) -> Services:
         follow_ups=PostgresFollowUps(connect),
         follow_up_cadence=PostgresCadence(connect),
         approvals=approvals,
+        fetcher=career_pages,
     )
     from recruiting.agentic.runs import PostgresAgentRuns
     from recruiting.digest import PostgresDigestLog
@@ -327,6 +338,7 @@ def build_outreach(
     approvals: ApprovalEngine,
     opt_outs: OptOutRegistry,
     log: DeliveryLog | None = None,
+    email_channel: ChannelAdapter | None = None,
 ) -> OutreachService:
     # LinkedIn is manual (Q15); email goes through the active provider, if any.
     from recruiting.outreach.packages import Branding, SubmissionPackageRenderer
@@ -338,7 +350,10 @@ def build_outreach(
     return OutreachService(
         approvals,
         opt_outs,
-        [ManualLinkedInChannel(), *build_email_channels(settings)],
+        [
+            ManualLinkedInChannel(),
+            *([email_channel] if email_channel else build_email_channels(settings)),
+        ],
         log=log,
         enabled=settings.outreach_enabled,
         allow_list=settings.outreach_allow_list,

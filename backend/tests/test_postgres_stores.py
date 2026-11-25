@@ -637,3 +637,31 @@ def test_reminder_digest_is_claimed_once_per_user_and_day(connect):
     second.release(user.user_id, today)  # the send failed
     assert second.claim(user.user_id, today, now) is True  # retried
     assert first.claim(user.user_id, date(2026, 11, 26), now) is True  # next day
+
+
+def test_test_data_loads_through_the_api_and_cleans_up(connect):
+    from recruiting.config import Settings
+    from recruiting.testdata import TestDataError, clean, counts, load
+
+    settings = Settings(storage="postgres", database_url=DATABASE_URL, _env_file=None)
+    clean(settings)
+    with connect() as conn:
+        policies = conn.execute("SELECT count(*) FROM gate_policy").fetchone()[0]
+    loaded = load(settings)
+    assert loaded["company"] == 4 and loaded["job"] == 2 and loaded["candidate"] == 9
+    assert loaded["approval_request"] > 0 and loaded["client_submission"] == 1
+    assert loaded["client_users"] == 1
+    with pytest.raises(TestDataError, match="clean"):
+        load(settings)  # not twice on top of itself
+
+    emptied = clean(settings)
+    assert set(emptied.values()) == {0}
+    with connect() as conn:  # staff users and the Administrator's settings stay
+        staff = conn.execute("SELECT count(*) FROM app_user WHERE role <> 'client'").fetchone()[0]
+        assert staff >= 5
+        assert conn.execute("SELECT count(*) FROM gate_policy").fetchone()[0] == policies
+    assert counts(settings)["company"] == 0
+
+    with pytest.raises(TestDataError, match="production"):
+        clean(Settings(storage="postgres", database_url=DATABASE_URL, environment="prod",
+                       _env_file=None))  # fmt: skip
