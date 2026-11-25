@@ -1,5 +1,40 @@
-// Shared shell for the mock UI: sidebar, top bar, role switcher, toasts.
+// Shared shell for the mock UI: sidebar, top bar, role switcher, theme switch, toasts.
 // All data is fictional sample data. Nothing is sent anywhere.
+
+// Light / dark / system theme, applied as early as possible to limit a flash of the wrong one.
+const THEMES = [
+  { value: "light", label: "Light", icon: "M12 4V2m0 20v-2m8-8h2M2 12h2m13.66-5.66 1.41-1.41M4.93 19.07l1.41-1.41m0-11.32L4.93 4.93m14.14 14.14-1.41-1.41M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10Z" },
+  { value: "dark", label: "Dark", icon: "M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z" },
+  { value: "system", label: "System", icon: "M4 5h16v11H4zM9 20h6m-3-4v4" },
+];
+
+function readTheme() {
+  try {
+    const saved = localStorage.getItem("rap-mock-theme");
+    if (saved === "light" || saved === "dark") return saved;
+  } catch (e) { /* storage unavailable */ }
+  return "system";
+}
+
+function applyTheme(theme) {
+  if (theme === "system") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  try { localStorage.setItem("rap-mock-theme", theme); } catch (e) { /* ignore */ }
+  document.querySelectorAll(".theme-toggle button").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.theme === theme));
+  });
+}
+
+applyTheme(readTheme());
+
+function themeToggle() {
+  const current = readTheme();
+  return `<div class="theme-toggle" role="group" aria-label="Colour theme">${THEMES.map((t) => `
+    <button type="button" data-theme="${t.value}" aria-pressed="${t.value === current}" title="${t.label} theme">
+      <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="${t.icon}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="sr-only">${t.label}</span>
+    </button>`).join("")}</div>`;
+}
 
 const ROLES = {
   administrator: { label: "Administrator", user: "Priya Raman", initials: "PR" },
@@ -28,6 +63,8 @@ const NAV = [
   { id: "linkedin", href: "linkedin-tasks.html", label: "Engagement & LinkedIn", roles: ["administrator", "recruiter", "account_manager"] },
   { id: "match", href: "match.html", label: "Match & submission", roles: ["administrator", "recruiter", "account_manager"] },
   { id: "followups", href: "followups.html", label: "Follow-ups", roles: STAFF },
+  { group: "Automation" },
+  { id: "agents", href: "agents.html", label: "AI agents", roles: STAFF },
   { group: "Settings" },
   { id: "admin", href: "admin.html", label: "Users & approvers", roles: ["administrator"] },
   { id: "status", href: "build-status.html", label: "Build status", roles: STAFF },
@@ -82,12 +119,16 @@ function renderShell(role) {
   document.getElementById("topbar").innerHTML = `
     <div class="search">Search companies, jobs, candidates…</div>
     <div class="spacer"></div>
+    ${themeToggle()}
     <label class="role-switch">Viewing as
       <select id="role-select" aria-label="Switch role">
         ${Object.entries(ROLES).map(([k, v]) => `<option value="${k}" ${k === role ? "selected" : ""}>${v.label}</option>`).join("")}
       </select>
     </label>
     <div class="row" style="gap:10px"><div class="avatar">${r.initials}</div><div style="font-size:13px;line-height:1.2"><b>${r.user}</b><div class="faint">${r.label}</div></div></div>`;
+  document.querySelectorAll(".theme-toggle button").forEach((b) => {
+    b.addEventListener("click", () => applyTheme(b.dataset.theme));
+  });
   document.getElementById("role-select").addEventListener("change", (e) => {
     saveRole(e.target.value);
     applyRole(e.target.value);

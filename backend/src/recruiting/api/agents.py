@@ -3,6 +3,7 @@
 A run starts in the background and returns at once (202); poll GET /agents/runs/{id}. A run
 that waits for a person (for example a widened candidate search, S12) lists its pending actions;
 POST /agents/runs/{id}/decisions approves, edits or rejects them and the run continues.
+The run history stays readable while the agents are off; starting and deciding need them on.
 """
 
 from __future__ import annotations
@@ -43,13 +44,28 @@ def _runner(services) -> AgentRunner:
     return services.agents
 
 
-def _allowed(runner: AgentRunner, agent: str, user) -> None:
-    try:
-        spec = runner.spec(agent)
-    except AgentError as exc:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+def _allowed(runner: AgentRunner | None, agent: str, user) -> None:
+    from recruiting.agentic.agents import SPECS
+
+    spec = SPECS.get(agent)
+    if spec is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Unknown agent {agent}")
     if user.role.value not in spec.roles:
         raise HTTPException(status.HTTP_403_FORBIDDEN, f"Your role cannot run the {agent} agent")
+
+
+def _history(services):
+    """Where runs are kept: the runner's store, or the history store while the agents are off."""
+    runs = services.agents.runs if services.agents is not None else services.agent_runs
+    if runs is None:
+        _runner(services)  # 503 with how to turn the agents on
+    return runs
+
+
+def _out(run, services) -> dict:
+    """The run, with the display name of who started it (the record keeps the user id)."""
+    names = {u.user_id: u.display_name for u in services.users.list_users()}
+    return {**run_out(run), "started_by_name": names.get(run.started_by, run.started_by)}
 
 
 @router.get("")
@@ -58,6 +74,7 @@ def list_agents(user: UserDep, services: ServicesDep) -> dict:
 
     return {
         "enabled": services.agents is not None,
+        "has_history": services.agents is not None or services.agent_runs is not None,
         "agents": [
             {
                 "name": s.name,
@@ -92,7 +109,7 @@ def start_run(
     background.add_task(
         runner.execute, run.id, instruction=body.instruction, recruiter=user.display_name
     )
-    return run_out(run)
+    return _out(run, services)
 
 
 @router.get("/runs")
@@ -104,24 +121,23 @@ def list_runs(
     run_status: Annotated[RunStatus | None, Query(alias="status")] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 50,
 ) -> list[dict]:
-    runner = _runner(services)
+    history = _history(services)
     from recruiting.agentic.agents import SPECS
 
     visible = [n for n, s in SPECS.items() if user.role.value in s.roles]
     if agent is not None and agent not in visible:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Your role cannot see these runs")
-    runs = runner.runs.list(agent=agent, subject_id=subject_id, status=run_status, limit=limit)
-    return [run_out(r) for r in runs if r.agent in visible]
+    runs = history.list(agent=agent, subject_id=subject_id, status=run_status, limit=limit)
+    return [_out(r, services) for r in runs if r.agent in visible]
 
 
 @router.get("/runs/{run_id}")
 def get_run(run_id: str, user: UserDep, services: ServicesDep) -> dict:
-    runner = _runner(services)
-    run = runner.runs.get(run_id)
+    run = _history(services).get(run_id)
     if run is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Unknown agent run")
-    _allowed(runner, run.agent, user)
-    return run_out(run)
+    _allowed(services.agents, run.agent, user)
+    return _out(run, services)
 
 
 @router.post("/runs/{run_id}/decisions")
@@ -159,4 +175,4 @@ def decide(
             f"Give {expected} decision(s), one per pending action",
         )
     background.add_task(runner.resume, run_id, decisions, user.user_id, user.display_name)
-    return {**run_out(run), "status": "running"}
+    return {**_out(run, services), "status": "running"}

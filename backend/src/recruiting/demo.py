@@ -229,3 +229,11 @@ def seed(services: Services, outbox: DemoOutbox) -> None:
     call("POST", "/admin/users", admin, json={"email": CLIENT_EMAIL, "display_name": "Rachel Lee",
          "role": "client", "client_company_id": northfield})  # fmt: skip
     call("POST", "/follow-ups/run", admin)
+
+    # Sample AI agent runs, so the AI agents screen has a history while the agents are off.
+    if services.agent_runs is not None and services.platform is not None:
+        from recruiting.agentic.samples import sample_runs
+
+        ids = {u.role.value: u.user_id for u in services.users.list_users()}
+        for run in sample_runs(services.platform, services.approvals, ids):
+            services.agent_runs.save(run)

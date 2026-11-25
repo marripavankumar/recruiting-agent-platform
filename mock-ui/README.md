@@ -11,7 +11,7 @@ cd mock-ui
 python -m http.server 8080      # then open http://localhost:8080
 ```
 
-Use **Viewing as** at the top right to switch role. The sidebar, the approval queue and the screen access change to match that role.
+Use **Viewing as** at the top right to switch role. The sidebar, the approval queue and the screen access change to match that role. The sun, moon and screen buttons next to it switch between light, dark and the device's theme; the choice is remembered in this browser.
 
 ## Screens
 
@@ -27,6 +27,7 @@ Use **Viewing as** at the top right to switch role. The sidebar, the approval qu
 | Candidate secure link: resume, details and two consents (public, expiring) | `collect.html` | Agent 9, checklist P1–P2 | Candidate |
 | Match report (score, flags, interview probability) and the nine-item client package; right to represent, then the submission gate | `match.html` | Agents 10–11 | Recruiter, Account, Admin |
 | Follow-ups: reminders for clients, candidates, interviews, offers, start dates; drafted follow-ups for approval; cadence (Q13) | `followups.html` | Agent 12 | All staff |
+| AI agents: the four deep agents, a recruiting run waiting for the recruiter's decision (widen search, S12), a run's report and tool steps, recent runs per role, run count and AI cost | `agents.html` | §7, §5.4a | All staff |
 | Users & approvers, approval-gate policy, connectors, LLM cost per prompt, ranking weights, audit log | `admin.html` | §9 roles, Q14, §5.4 | Administrator |
 | Client portal: own company's roles and submissions, feedback | `client-portal.html` | Q8 | Client |
 | Unsubscribe page behind the link in every email (public) | `unsubscribe.html` | Compliance E6–E7 | Anyone |

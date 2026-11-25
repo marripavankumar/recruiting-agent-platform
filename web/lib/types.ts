@@ -178,10 +178,11 @@ export type AgentRun = {
   subject_id: string | null;
   status: "running" | "waiting_for_human" | "done" | "failed";
   started_by: string;
+  started_by_name?: string;
   started_at: string;
   updated_at: string;
   summary: string;
   actions: Record<string, unknown>[];
-  pending: { interrupt_id?: string; action_requests?: { name: string; args: Record<string, unknown> }[] }[];
+  pending: { interrupt_id?: string; action_requests?: { name: string; args: Record<string, unknown>; description?: string }[] }[];
   error: string | null;
 };

@@ -57,6 +57,8 @@ class Services:
     agents: AgentRunner | None = None
     # Daily staff reminder email (RAP_REMINDER_DIGEST). None: off.
     digest: ReminderDigest | None = None
+    # Agent run history (agentic.runs.AgentRunStore), readable even while the agents are off.
+    agent_runs: Any = None
 
 
 def demo_users() -> list[CurrentUser]:
@@ -150,14 +152,17 @@ def build_services(
         from recruiting.scheduler import InMemoryJobState
 
         job_state = InMemoryJobState() if settings.run_scheduler else None
-        agents = build_agent_runner(settings, platform, MemorySaver(), None)
+        from recruiting.agentic.runs import InMemoryAgentRuns
+
+        agent_runs = InMemoryAgentRuns()
+        agents = build_agent_runner(settings, platform, MemorySaver(), agent_runs)
         reader = build_mailbox_reader(settings, platform, InMemoryProcessed(), agents)
         from recruiting.digest import InMemoryDigestLog
 
         services = Services(
             approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state,
             reader, agents,
-            build_digest(settings, platform, users, InMemoryDigestLog(), outbox),
+            build_digest(settings, platform, users, InMemoryDigestLog(), outbox), agent_runs,
         )  # fmt: skip
         if outbox is not None:
             from recruiting.demo import seed
@@ -217,18 +222,18 @@ def build_services(
     from recruiting.mailbox import PostgresProcessed
     from recruiting.scheduler import PostgresJobState
 
-    agents = None
+    agents, agent_runs = None, PostgresAgentRuns(connect)
     if settings.agents_enabled:
         agents = build_agent_runner(
-            settings, platform, workflow_checkpointer(settings.database_url),
-            PostgresAgentRuns(connect),
-        )  # fmt: skip
+            settings, platform, workflow_checkpointer(settings.database_url), agent_runs
+        )
     return Services(
         approvals, opt_outs, users, authenticator, workflows, outreach, platform,
         PostgresJobState(connect),
         build_mailbox_reader(settings, platform, PostgresProcessed(connect), agents),
         agents,
         build_digest(settings, platform, users, PostgresDigestLog(connect)),
+        agent_runs,
     )  # fmt: skip
 
 

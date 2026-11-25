@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI agents · CBS Talent Agents</title>
+<link rel="stylesheet" href="assets/styles.css">
+<script src="assets/app.js" defer></script>
+</head>
+<body data-page="agents" data-default-role="recruiter">
+<div class="shell">
+<aside class="sidebar" id="sidebar"></aside>
+<div class="main">
+<header class="topbar" id="topbar"></header>
+<main class="content">
+
+  <div class="page-head">
+    <div>
+      <h1>AI agents</h1>
+      <p>Deep agents on LangGraph plan the work, hand parts to subagents and draft. Every message they prepare still waits in the approval queue, and a recruiter decides before a search is widened. <span class="built">Built in backend</span></p>
+    </div>
+    <div class="row">
+      <select aria-label="Agent"><option>All agents</option><option>Recruiting coordinator</option><option>Business development</option><option>Follow-up</option><option>Intake</option></select>
+      <select aria-label="Status"><option>Any status</option><option>Waiting for a person</option><option>Running</option><option>Done</option><option>Failed</option></select>
+    </div>
+  </div>
+
+  <div class="grid cols-4" style="margin-bottom:16px">
+    <div class="card kpi"><div class="label">Runs this week</div><div class="value num">18</div><div class="target">Daily limit 200 (Administrator)</div></div>
+    <div class="card kpi"><div class="label">Waiting for a person</div><div class="value num" style="color:var(--warn)">2</div><div class="target">Approve, edit or reject below</div></div>
+    <div class="card kpi"><div class="label">Drafts sent to approval</div><div class="value num">27</div><div class="target">Nothing is sent without a person</div></div>
+    <div class="card kpi"><div class="label">AI cost this week</div><div class="value num">$14.60</div><div class="target">Budget $50 · per run about $0.81</div><div class="bar ok"><span style="width:29%"></span></div></div>
+  </div>
+
+  <!-- Waiting for a decision -->
+  <div class="card" style="margin-bottom:16px" data-roles="administrator recruiter account_manager">
+    <div class="card-head">
+      <h2>Recruiting coordinator · JOB-2026-0139 Controls Engineer (Rockwell PLC)</h2>
+      <span class="chip warn">Waiting for your decision</span>
+    </div>
+    <div class="card-body stack">
+      <div class="notice warn" style="flex-direction:column">
+        <b>Widen search (scenario S12)</b>
+        <span>Only 6 candidates qualify (10 wanted). The agent proposes searching related titles across Ohio, with the nice-to-have skills in the filter.</span>
+        <span class="faint">Title variants: Automation Engineer, PLC Programmer, Controls Technician III · Location: whole state · Nice-to-have skills: yes</span>
+      </div>
+      <dl class="kv">
+        <dt>Started</dt><dd>Today 09:12 by Dana Okafor · 4 steps so far</dd>
+        <dt>Client</dt><dd>Bramwell Packaging Co., Dayton OH</dd>
+        <dt>Why now</dt><dd>Job open 4 days, priority High, 6 of 10 qualified</dd>
+      </dl>
+    </div>
+    <div class="card-foot">
+      <a class="btn" href="#" data-toast="Opens the proposal to edit: title variants, location, nice-to-have skills (mock)">Edit and approve</a>
+      <a class="btn danger" href="#" data-toast="Rejected with your reason: the agent reports back without widening (mock)">Reject</a>
+      <a class="btn ok" href="#" data-toast="Approved: the agent searches again and re-ranks; results in about a minute (mock)">Approve</a>
+    </div>
+  </div>
+
+  <section class="grid cols-2" style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-head"><h2>Recruiting coordinator</h2><span class="chip warn">1 waiting</span></div>
+      <div class="card-body stack" style="gap:8px">
+        <span>Moves a job forward: sources, ranks, drafts outreach, asks for details and prepares submissions.</span>
+        <span class="faint">Subagents: sourcing, engagement, submission · Pauses before: widen search</span>
+        <span class="faint">9 runs this week · last today 09:12 by Dana Okafor · runs on its own every 6 hours per open job</span>
+      </div>
+      <div class="card-foot" data-roles="administrator recruiter account_manager">
+        <select aria-label="Job"><option>JOB-2026-0142 · CAE Engineer (Crash / LS-DYNA)</option><option>JOB-2026-0139 · Controls Engineer (Rockwell PLC)</option><option>JOB-2026-0137 · Supplier Quality Engineer</option></select>
+        <a class="btn primary" href="#" data-toast="Run started for the job: follow it in Recent runs (mock)">Start</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Business development</h2><span class="chip ok">Done</span></div>
+      <div class="card-body stack" style="gap:8px">
+        <span>Finds companies hiring engineers now and drafts first emails for the BD Manager to approve.</span>
+        <span class="faint">Subagents: research, writer · Drafts go to the first-client-email gate</span>
+        <span class="faint">4 runs this week · last yesterday 16:40 by Marcus Hale</span>
+      </div>
+      <div class="card-foot" data-roles="administrator bd_manager">
+        <a class="btn primary" href="#" data-toast="Run started: checking career pages and drafting first emails (mock)">Start</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Follow-up</h2><span class="chip ok">Done</span></div>
+      <div class="card-body stack" style="gap:8px">
+        <span>Brings the follow-ups up to date and drafts the messages that are due.</span>
+        <span class="faint">Due messages go into the same approval gates; LinkedIn follow-ups stay manual</span>
+        <span class="faint">3 runs this week · last today 07:05 by Leah Kim</span>
+      </div>
+      <div class="card-foot">
+        <a class="btn primary" href="#" data-toast="Run started: 5 follow-ups due, drafting for approval (mock)">Start</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h2>Intake</h2><span class="chip ok">Done</span></div>
+      <div class="card-body stack" style="gap:8px">
+        <span>Files each email the mailbox reader picks up: client replies, JDs, candidate answers.</span>
+        <span class="faint">Runs on its own; email text is treated as data, never as instructions</span>
+        <span class="faint">2 runs this week · last today 08:47 (mailbox)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Run detail -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-head"><h2>Run detail · Recruiting coordinator · JOB-2026-0142</h2><span class="chip ok">Done</span></div>
+    <div class="card-body stack">
+      <dl class="kv">
+        <dt>Working on</dt><dd><a href="jobs.html">JOB-2026-0142 · CAE Engineer (Crash / LS-DYNA)</a> · Northfield Axle Systems</dd>
+        <dt>Started</dt><dd>23 Nov 14:02 by Dana Okafor · finished 14:04 · cost $0.92</dd>
+      </dl>
+      <div>
+        <h3 style="font-size:13px;margin:0 0 6px">Report</h3>
+        <div class="email-body" style="padding:0">18 candidates ranked; the best, Carlos Reyes, scores 90. Drafted outreach for the top three (waiting in the approval queue; Tom Baker was already contacted last week, so skipped). Asked Neha Joshi for her resume details and consent. Prepared a match report for Carlos Reyes (88%) for submission. Next: approve the three drafts, then the submission once consent is in.</div>
+      </div>
+      <div>
+        <h3 style="font-size:13px;margin:0 0 6px">What its tools did</h3>
+        <ol class="list card" style="box-shadow:none">
+          <li><span class="chip brand">Get job</span><span class="grow">14 fields, 2 low-confidence confirmed</span><span class="faint">14:02</span></li>
+          <li><span class="chip brand">Search and rank</span><span class="grow">ranked 18 · pool 64 · 2 excluded (work authorisation)</span><span class="faint">14:02</span></li>
+          <li><span class="chip brand">Draft outreach</span><span class="grow">drafted 3 · skipped: already contacted 1</span><span class="faint">14:03</span></li>
+          <li><span class="chip brand">Request candidate details</span><span class="grow">Neha Joshi · secure link, expires in 7 days</span><span class="faint">14:03</span></li>
+          <li><span class="chip brand">Match candidate</span><span class="grow">Carlos Reyes · score 88 · interview probability high</span><span class="faint">14:04</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><h2>Recent runs</h2><span class="faint">Only the agents your role may run</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Agent</th><th>Working on</th><th>Status</th><th>Started</th><th>By</th><th>Steps</th></tr></thead>
+        <tbody>
+          <tr data-roles="administrator recruiter account_manager"><td><a href="#">Recruiting coordinator</a></td><td>JOB-2026-0139 · Controls Engineer</td><td><span class="chip warn">Waiting</span></td><td>Today 09:12</td><td>Dana Okafor</td><td class="num">4</td></tr>
+          <tr><td><a href="#">Intake</a></td><td class="muted">Reply from Kestrel Medical Devices: JD received</td><td><span class="chip ok">Done</span></td><td>Today 08:47</td><td>Mailbox</td><td class="num">2</td></tr>
+          <tr><td><a href="#">Follow-up</a></td><td class="muted">Due follow-ups: 5 drafted, 2 snoozed</td><td><span class="chip ok">Done</span></td><td>Today 07:05</td><td>Leah Kim</td><td class="num">9</td></tr>
+          <tr data-roles="administrator bd_manager"><td><a href="#">Business development</a></td><td class="muted">Prospects: 41 checked, 6 first emails drafted</td><td><span class="chip ok">Done</span></td><td>Yesterday 16:40</td><td>Marcus Hale</td><td class="num">11</td></tr>
+          <tr data-roles="administrator recruiter account_manager"><td><a href="#">Recruiting coordinator</a></td><td>JOB-2026-0142 · CAE Engineer</td><td><span class="chip ok">Done</span></td><td>23 Nov 14:02</td><td>Dana Okafor</td><td class="num">5</td></tr>
+          <tr data-roles="administrator recruiter account_manager"><td><a href="#">Recruiting coordinator</a></td><td>JOB-2026-0137 · Supplier Quality Engineer</td><td><span class="chip info">Running</span></td><td>23 Nov 11:30</td><td>Scheduler</td><td class="num">3</td></tr>
+          <tr data-roles="administrator bd_manager"><td><a href="#">Business development</a></td><td class="muted">Prospects</td><td><span class="chip bad">Failed</span></td><td>21 Nov 10:15</td><td>Marcus Hale</td><td class="num">1</td></tr>
+          <tr data-roles="administrator recruiter account_manager"><td><a href="#">Recruiting coordinator</a></td><td>JOB-2026-0131 · Manufacturing Process Engineer</td><td><span class="chip ok">Done</span></td><td>20 Nov 15:48</td><td>Sam Wu</td><td class="num">7</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+</div>
+</body>
+</html>
