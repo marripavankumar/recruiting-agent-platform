@@ -3,6 +3,8 @@ import { signIn } from "@/app/actions";
 import { type Search, param } from "@/app/components";
 import { oidcConfig } from "@/lib/oidc";
 import { DEMO_USERS, authMode } from "@/lib/session";
+import { currentTheme } from "@/lib/theme";
+import { ThemeToggle } from "@/app/theme-toggle";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -11,6 +13,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<S
   const error = param(search, "error");
   const expired = param(search, "expired");
   const dev = authMode() === "dev";
+  const theme = await currentTheme();
   return (
     <main style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: 16 }}>
       <div className="card" style={{ width: "min(440px, 100%)" }}>
@@ -19,6 +22,7 @@ export default async function SignIn({ searchParams }: { searchParams: Promise<S
             <span className="logo-mark">CBS</span>
             <span>Recruiting Platform</span>
           </div>
+          <ThemeToggle initial={theme} />
         </div>
         <div className="card-body stack">
           {error && <div className="notice warn" role="alert">{error}</div>}

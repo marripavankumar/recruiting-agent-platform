@@ -3,7 +3,9 @@ import { signOut } from "@/app/actions";
 import { api, apiOrNull } from "@/lib/api";
 import { ROLE_LABEL, initials } from "@/lib/format";
 import { isStaff, navFor } from "@/lib/nav";
+import { currentTheme } from "@/lib/theme";
 import type { Approval, Me } from "@/lib/types";
+import { ThemeToggle } from "@/app/theme-toggle";
 import { NavLinks } from "./nav-links";
 
 export const dynamic = "force-dynamic"; // every page shows live data for the signed-in user
@@ -11,6 +13,7 @@ export const dynamic = "force-dynamic"; // every page shows live data for the si
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const me = await api<Me>("/me");
   const pending = isStaff(me.role) ? await apiOrNull<Approval[]>("/approvals/pending") : null;
+  const theme = await currentTheme();
   const counts: Record<string, number> = { "/approvals": pending?.length ?? 0 };
   return (
     <div className="shell">
@@ -30,6 +33,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         )}
         <header className="topbar">
           <span className="spacer" />
+          <ThemeToggle initial={theme} />
           <div className="role-switch">
             <span className="avatar" aria-hidden="true">{initials(me.display_name)}</span>
             <span>

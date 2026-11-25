@@ -192,7 +192,7 @@ textarea { width: 100%; resize: vertical; }
 .btn:hover { background: var(--surface-2); text-decoration: none; }
 .btn.primary { background: var(--brand); color: var(--brand-text); border-color: var(--brand); }
 .btn.primary:hover { filter: brightness(1.07); }
-.btn.ok { background: var(--ok); color: #fff; border-color: var(--ok); }
+.btn.ok { background: var(--ok); color: var(--brand-text); border-color: var(--ok); }
 .btn.danger { color: var(--bad); }
 .btn.sm { padding: 4px 10px; font-size: 12px; }
 
@@ -264,7 +264,7 @@ td .sub { display: block; font-size: 12px; color: var(--text-3); }
 .step { display: flex; align-items: center; gap: 6px; color: var(--text-3); }
 .step .dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--border); display: grid; place-items: center; font-size: 11px; font-weight: 700; }
 .step.done { color: var(--ok); }
-.step.done .dot { border-color: var(--ok); background: var(--ok); color: #fff; }
+.step.done .dot { border-color: var(--ok); background: var(--ok); color: var(--brand-text); }
 .step.now { color: var(--brand); font-weight: 600; }
 .step.now .dot { border-color: var(--brand); color: var(--brand); }
 .step-line { width: 28px; height: 2px; background: var(--border); margin: 0 6px; }
@@ -343,3 +343,12 @@ details[open] > summary::before { content: "▾ "; }
 .list li .faint.grow { overflow-wrap: anywhere; }
 .notice code { color: inherit; overflow-wrap: anywhere; }
 form { margin: 0; }
+
+/* Light / dark / system switch in the top bar (app/theme-toggle.tsx). */
+.theme-toggle { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.theme-toggle button {
+  display: grid; place-items: center; width: 28px; height: 26px; padding: 0; border: 0; border-radius: 6px;
+  background: transparent; color: var(--text-3); cursor: pointer;
+}
+.theme-toggle button:hover { color: var(--text); }
+.theme-toggle button[aria-pressed="true"] { background: var(--surface); color: var(--brand); box-shadow: var(--shadow); }
