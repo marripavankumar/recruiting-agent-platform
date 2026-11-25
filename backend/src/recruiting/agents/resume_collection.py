@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 
 from recruiting.agents.client_outreach import WorkflowStarter
-from recruiting.agents.jd_intake import InboundEmail
+from recruiting.agents.jd_intake import InboundEmail, InboundFile
 from recruiting.agents.resume_intake import ResumeFile, ResumeIntake
 from recruiting.compliance import OptOutRegistry
 from recruiting.compliance.unsubscribe import UnsubscribeLinks, compliance_footer
@@ -51,6 +51,18 @@ REQUESTABLE = {
     EngagementStatus.CONTACTED, EngagementStatus.ACCEPTED, EngagementStatus.REPLIED,
     EngagementStatus.INTERESTED, EngagementStatus.DETAILS_REQUESTED,
 }  # fmt: skip
+
+
+def pick_resume(files: tuple[InboundFile, ...]) -> InboundFile | None:
+    """The attachment that reads most like a resume: most engineering skills, then longest.
+    A cover letter or certificate sent with it is not taken for the resume."""
+    from recruiting.ai.skills import extract_skills
+
+    readable = [f for f in files if f.text.strip()]
+    if not readable:
+        return None
+    return max(readable, key=lambda f: (len({m.skill for m in extract_skills(f.text)}),
+                                        len(f.text)))  # fmt: skip
 
 
 class CollectionError(Exception):
@@ -324,7 +336,14 @@ class ResumeCollectionAgent:
                 self._engagements.save(engagement)
             return result
 
-        if email.attachments_text.strip():
+        resume = pick_resume(email.files)
+        if resume is not None:  # kept as the original file, like an upload
+            candidate = self._intake.add(
+                resume.text, "candidate_reply", candidate_id=candidate.id,
+                file=ResumeFile(resume.filename, resume.data, resume.kind),
+            ).candidate  # fmt: skip
+            result.updated.append("resume")
+        elif email.attachments_text.strip():  # text only: the mail workflow sent no files
             candidate = self._intake.add(
                 email.attachments_text, "candidate_reply", candidate_id=candidate.id
             ).candidate

@@ -34,9 +34,8 @@ import httpx
 
 from recruiting.agents.bounces import BounceError
 from recruiting.agents.inbound_router import route_email
-from recruiting.agents.jd_intake import InboundEmail
+from recruiting.agents.jd_intake import InboundEmail, attachments_text, read_attachments
 from recruiting.connectors.retry import call_with_retry
-from recruiting.documents import DocumentError, extract_text
 from recruiting.outreach.channels import APPROVAL_HEADER
 
 if TYPE_CHECKING:
@@ -457,22 +456,19 @@ class MailboxReader:
         if parsed.looks_like_bounce:
             report.unreadable_bounces += 1
             return "unreadable_bounce"  # no recipient to act on; visible in the mailbox
-        texts = []
-        for name, data in parsed.attachments:
-            try:
-                doc = extract_text(name, data)
-            except DocumentError as exc:
-                logger.info("Attachment %s in %s not read: %s", name, parsed.message_id, exc)
-                continue
-            texts.append(f"--- {doc.filename} ---\n{doc.text}")
+        files, unreadable = read_attachments(parsed.attachments)
+        for problem in unreadable:
+            logger.info("Attachment %s in %s not read: %s", problem["filename"],
+                        parsed.message_id, problem["error"])  # fmt: skip
         email = InboundEmail(
             from_address=parsed.from_address,
             subject=parsed.subject,
             body=parsed.body,
             received_at=parsed.received_at,
             message_id=parsed.message_id,
-            attachments_text="\n\n".join(texts),
+            attachments_text=attachments_text(files),
             auto_reply=parsed.auto_reply,
+            files=files,
         )
         if parsed.auto_reply:
             report.auto_replies += 1  # decided by headers: no model needed

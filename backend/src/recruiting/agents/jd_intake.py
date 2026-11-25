@@ -9,7 +9,7 @@ straight to Agent 5 for analysis.
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -29,6 +29,38 @@ ALL_FIELDS = [
 
 
 @dataclass(frozen=True)
+class InboundFile:
+    """A readable attachment: the file as sent and the text read from it."""
+
+    filename: str
+    data: bytes = field(repr=False)
+    kind: str  # documents.extract_text's kind: "pdf", "docx" or "text"
+    text: str = field(repr=False)
+
+
+def read_attachments(
+    attachments: Iterable[tuple[str, bytes]],
+) -> tuple[tuple[InboundFile, ...], list[dict[str, str]]]:
+    """The readable attachments, and an error per file that could not be read (scanned or
+    encrypted PDF, old .doc, image ...): reported, never guessed."""
+    from recruiting.documents import DocumentError, extract_text
+
+    files, errors = [], []
+    for name, data in attachments:
+        try:
+            doc = extract_text(name, data)
+        except DocumentError as exc:
+            errors.append({"filename": name, "error": str(exc)})
+            continue
+        files.append(InboundFile(doc.filename, data, doc.kind, doc.text))
+    return tuple(files), errors
+
+
+def attachments_text(files: Iterable[InboundFile]) -> str:
+    return "\n\n".join(f"--- {f.filename} ---\n{f.text}" for f in files)
+
+
+@dataclass(frozen=True)
 class InboundEmail:
     from_address: str
     subject: str
@@ -38,6 +70,8 @@ class InboundEmail:
     attachments_text: str = ""  # text already extracted from PDF / DOCX attachments
     # Marked by its headers as an automatic reply (Auto-Submitted, X-Autoreply ...): S9.
     auto_reply: bool = False
+    # The readable attachments as sent: a candidate's resume is kept as the original file.
+    files: tuple[InboundFile, ...] = field(default=(), repr=False)
 
 
 @dataclass

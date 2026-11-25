@@ -15,10 +15,9 @@ from pydantic import BaseModel, Field
 
 from recruiting.agents.bounces import BounceError
 from recruiting.agents.inbound_router import route_email
-from recruiting.agents.jd_intake import InboundEmail
+from recruiting.agents.jd_intake import InboundEmail, attachments_text, read_attachments
 from recruiting.api.deps import ServicesDep, require_platform
 from recruiting.api.platform import Platform
-from recruiting.documents import DocumentError, extract_text
 
 router = APIRouter(tags=["inbound"])
 
@@ -41,19 +40,16 @@ class InboundEmailIn(BaseModel):
     received_at: datetime | None = None
 
 
-def _attachment_text(attachments: list[AttachmentIn]) -> tuple[str, list[dict[str, str]]]:
-    """Text of each readable attachment, labelled with its file name; errors per file."""
-    parts, errors = [], []
+def _attachments(attachments: list[AttachmentIn]):
+    """The readable attachments (file and text) and an error per file that is not."""
+    decoded, errors = [], []
     for item in attachments:
         try:
-            data = base64.b64decode(item.content_base64, validate=True)
-            doc = extract_text(item.filename, data)
-        except (binascii.Error, ValueError) as exc:
-            message = str(exc) if isinstance(exc, DocumentError) else "Not valid base64 content."
-            errors.append({"filename": item.filename, "error": message})
-            continue
-        parts.append(f"--- {doc.filename} ---\n{doc.text}")
-    return "\n\n".join(parts), errors
+            decoded.append((item.filename, base64.b64decode(item.content_base64, validate=True)))
+        except binascii.Error:
+            errors.append({"filename": item.filename, "error": "Not valid base64 content."})
+    files, unreadable = read_attachments(decoded)
+    return files, errors + unreadable
 
 
 @router.post("/inbound/email")
@@ -65,7 +61,8 @@ def receive_email(
     """Called by the mail-routing workflow (n8n) for each reply to the outreach mailbox."""
     platform = require_platform(services)
     _check_secret(platform, x_rap_webhook_secret)
-    extracted, attachment_errors = _attachment_text(body.attachments)
+    files, attachment_errors = _attachments(body.attachments)
+    extracted = attachments_text(files)
     email = InboundEmail(
         from_address=body.from_address.strip(),
         subject=body.subject,
@@ -73,6 +70,7 @@ def receive_email(
         attachments_text="\n\n".join(t for t in (body.attachments_text, extracted) if t.strip()),
         message_id=body.message_id,
         received_at=body.received_at or datetime.now(UTC),
+        files=files,
     )
     # Unreadable files are reported so the mail-routing workflow can flag them to a person.
     return {**route_email(platform, email), "attachment_errors": attachment_errors}
