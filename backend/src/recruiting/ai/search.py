@@ -1,9 +1,17 @@
 """Embeddings, vector index and semantic search (plan section 5.4; Q4 vector DB adapters).
 
 `SemanticSearch` indexes JDs and resumes and finds the closest ones. The embedder and the vector
-index are adapters: `HashingEmbedder` is a local, lexical stand-in for development and tests; a
-provider embedding model replaces it in production. `QdrantIndex` is the default store (open
-source, self-hosted); `InMemoryIndex` serves tests.
+index are adapters:
+
+- `HashingEmbedder`: lexical (words and canonical skills), no model; tests and quick local runs.
+- `LocalModelEmbedder`: an open-source sentence-embedding model run on the CPU inside the
+  container (fastembed, ONNX). Text never leaves the machine, so no new data processor (G5).
+- `HybridEmbedder`: the model for meaning plus the skill dictionary, so "Allen-Bradley" and
+  "Rockwell" still count as the same skill. The default for the Podman stack.
+
+`QdrantIndex` is the default store (open source, self-hosted); `InMemoryIndex` serves tests.
+Each embedder writes to its own collections (`tag`), so switching models never mixes vectors of
+different sizes; `recruiting.reindex` fills the new collections.
 """
 
 from __future__ import annotations
@@ -25,8 +33,28 @@ Vector = list[float]
 
 class Embedder(Protocol):
     dimensions: int
+    # Collection suffix: vectors of different embedders never share a collection. "" = none.
+    tag: str
+    # Cosine of two unrelated texts and of two close matches (calibration for `relatedness`).
+    related: tuple[float, float]
 
     def embed(self, texts: Sequence[str]) -> list[Vector]: ...
+
+
+def _normalise(vector: Sequence[float]) -> Vector:
+    norm = math.sqrt(sum(v * v for v in vector)) or 1.0
+    return [float(v) / norm for v in vector]
+
+
+def cosine(a: Sequence[float], b: Sequence[float]) -> float:
+    return sum(x * y for x, y in zip(a, b, strict=True))  # vectors are unit length
+
+
+def relatedness(embedder: Embedder, a: Sequence[float], b: Sequence[float]) -> float:
+    """0..1: how related two embedded texts are, on the same scale whatever the embedder
+    (0 = no more alike than unrelated texts, 1 = a close match)."""
+    low, high = getattr(embedder, "related", (0.0, 0.5))
+    return max(0.0, min((cosine(a, b) - low) / (high - low), 1.0))
 
 
 class HashingEmbedder:
@@ -35,6 +63,9 @@ class HashingEmbedder:
     Lexical, not semantic: good enough to exercise search end to end without a model. Canonical
     skills get extra weight so "Allen-Bradley" and "Rockwell" land on the same feature.
     """
+
+    tag = ""  # the original collections
+    related = (0.0, 0.5)  # lexical cosine rarely exceeds ~0.5 even for close matches
 
     def __init__(self, dimensions: int = 512) -> None:
         self.dimensions = dimensions
@@ -53,9 +84,91 @@ class HashingEmbedder:
                 vector[self._bucket(f"w:{word}")] += 1.0
             for match in extract_skills(text):
                 vector[self._bucket(f"s:{match.skill}")] += 3.0
-            norm = math.sqrt(sum(v * v for v in vector)) or 1.0
-            vectors.append([v / norm for v in vector])
+            vectors.append(_normalise(vector))
         return vectors
+
+
+# Sizes of the models we have checked, so collections can be created before the model loads,
+# and their calibration (`related`), measured on engineering JD and resume pairs.
+KNOWN_MODELS: dict[str, tuple[int, tuple[float, float]]] = {
+    "BAAI/bge-small-en-v1.5": (384, (0.55, 0.85)),
+}
+DEFAULT_MODEL = "BAAI/bge-small-en-v1.5"  # MIT licence, about 130 MB, 512-token input
+
+
+class LocalModelEmbedder:
+    """A sentence-embedding model run locally on the CPU (fastembed, ONNX runtime; no PyTorch).
+
+    The default, BAAI/bge-small-en-v1.5, places texts by meaning: "PLC programming for
+    packaging lines" lands near "Allen-Bradley ControlLogix automation" with few words in
+    common. The model files come from `cache_dir` (the container image has them, so nothing is
+    downloaded at run time). It loads on first use; long texts are cut at 512 tokens.
+    """
+
+    def __init__(
+        self, model: str = DEFAULT_MODEL, cache_dir: str | None = None, threads: int | None = None
+    ) -> None:
+        self.model, self._cache_dir, self._threads = model, cache_dir, threads
+        self._model: Any = None
+        known = KNOWN_MODELS.get(model)
+        self._dimensions = known[0] if known else None
+        self.related = known[1] if known else (0.5, 0.85)
+        self.tag = re.sub(r"[^a-z0-9]+", "_", model.split("/")[-1].lower()).strip("_")
+
+    def _load(self) -> Any:
+        if self._model is None:
+            try:
+                from fastembed import TextEmbedding
+            except ImportError as exc:  # the "embeddings" extra is not installed
+                raise RuntimeError(
+                    "RAP_EMBEDDER=local needs the embeddings extra: uv sync --extra embeddings"
+                ) from exc
+            self._model = TextEmbedding(
+                self.model, cache_dir=self._cache_dir, threads=self._threads
+            )
+        return self._model
+
+    @property
+    def dimensions(self) -> int:
+        if self._dimensions is None:
+            self._dimensions = len(self.embed(["dimensions"])[0])
+        return self._dimensions
+
+    def embed(self, texts: Sequence[str]) -> list[Vector]:
+        if not texts:
+            return []
+        return [_normalise(v.tolist()) for v in self._load().embed(list(texts))]
+
+
+class HybridEmbedder:
+    """Model vector and skill-hash vector side by side, weighted so that
+    cosine = w * model cosine + (1 - w) * lexical cosine. The model finds related experience
+    worded differently; the lexical part keeps exact skill and tool matches (SolidWorks, PPAP,
+    ControlLogix) counting, which small models tend to blur."""
+
+    def __init__(
+        self, semantic: Embedder, lexical: Embedder | None = None, semantic_weight: float = 0.7
+    ) -> None:
+        if not 0 < semantic_weight <= 1:
+            raise ValueError("semantic_weight must be in (0, 1]")
+        self._semantic, self._lexical = semantic, lexical or HashingEmbedder()
+        self._w = semantic_weight
+        self.tag = f"{semantic.tag}_h{round(semantic_weight * 100)}"
+        (s_low, s_high), (l_low, l_high) = semantic.related, self._lexical.related
+        w = semantic_weight
+        self.related = (w * s_low + (1 - w) * l_low, w * s_high + (1 - w) * l_high)
+
+    @property
+    def dimensions(self) -> int:
+        return self._semantic.dimensions + self._lexical.dimensions
+
+    def embed(self, texts: Sequence[str]) -> list[Vector]:
+        a, b = math.sqrt(self._w), math.sqrt(1 - self._w)
+        semantic, lexical = self._semantic.embed(texts), self._lexical.embed(texts)
+        return [
+            [a * x for x in s] + [b * y for y in lex]
+            for s, lex in zip(semantic, lexical, strict=True)
+        ]
 
 
 @dataclass(frozen=True)
@@ -78,6 +191,8 @@ class VectorIndex(Protocol):
 
     def delete(self, collection: str, item_id: str) -> None: ...
 
+    def count(self, collection: str) -> int: ...
+
 
 class InMemoryIndex:
     def __init__(self) -> None:
@@ -93,6 +208,9 @@ class InMemoryIndex:
 
     def delete(self, collection: str, item_id: str) -> None:
         self._items.get(collection, {}).pop(item_id, None)
+
+    def count(self, collection: str) -> int:
+        return len(self._items.get(collection, {}))
 
     def search(
         self, collection: str, vector: Vector, limit: int, where: Mapping[str, Any] | None = None
@@ -154,6 +272,13 @@ class QdrantIndex:
             hits.append(Hit(payload.pop("_id", str(point["id"])), point["score"], payload))
         return hits
 
+    def count(self, collection: str) -> int:
+        response = self._http.get(f"/collections/{collection}")
+        if response.status_code == 404:
+            return 0
+        response.raise_for_status()
+        return int(response.json()["result"].get("points_count") or 0)
+
     def delete(self, collection: str, item_id: str) -> None:
         self._http.post(
             f"/collections/{collection}/points/delete",
@@ -171,8 +296,13 @@ class SemanticSearch:
         self._prefix = prefix
         self._ready: set[str] = set()
 
+    @property
+    def embedder(self) -> Embedder:
+        return self._embedder
+
     def _collection(self, kind: str) -> str:
-        name = f"{self._prefix}_{kind}"
+        tag = getattr(self._embedder, "tag", "")
+        name = f"{self._prefix}_{kind}" + (f"__{tag}" if tag else "")
         if name not in self._ready:
             self._index.ensure_collection(name, self._embedder.dimensions)
             self._ready.add(name)
@@ -192,3 +322,6 @@ class SemanticSearch:
 
     def remove(self, kind: str, item_id: str) -> None:
         self._index.delete(self._collection(kind), item_id)
+
+    def count(self, kind: str) -> int:
+        return self._index.count(self._collection(kind))

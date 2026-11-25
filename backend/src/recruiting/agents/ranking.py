@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 
 from recruiting.agents.hiring_signals import target_role
-from recruiting.ai.search import Embedder, HashingEmbedder
+from recruiting.ai.search import Embedder, HashingEmbedder, relatedness
 from recruiting.ai.skills import canonical
 from recruiting.records.models import Candidate, Job, RankedCandidate, Ranking
 
@@ -209,8 +209,7 @@ class CandidateRankingAgent:
                 [job.title, job.responsibilities or "", " ".join(job.required_skills)]
             )
             a, b = self._embedder.embed([job_text, project_text])
-            # Lexical cosine rarely exceeds ~0.6 even for close matches; rescale to 0..1.
-            c["project_similarity"] = min(_cosine(a, b) / 0.5, 1.0)
+            c["project_similarity"] = relatedness(self._embedder, a, b)
             if c["project_similarity"] >= 0.6:
                 strengths.append("Past projects close to this role")
         else:

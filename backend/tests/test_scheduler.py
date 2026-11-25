@@ -126,16 +126,20 @@ def test_default_jobs_drive_the_platform():
 
     services.job_state = InMemoryJobState()
     scheduler = Scheduler(default_jobs(services), services.job_state, clock)
-    assert [j.name for j in scheduler.jobs] == ["follow_ups", "outreach_retry", "hiring_signals"]
+    assert [j.name for j in scheduler.jobs] == [
+        "follow_ups", "outreach_retry", "hiring_signals", "search_index"
+    ]  # fmt: skip
     clock.offset = timedelta(minutes=2)
-    assert scheduler.tick() == {"follow_ups": "ok", "outreach_retry": "ok", "hiring_signals": "ok"}
+    assert scheduler.tick() == {
+        "follow_ups": "ok", "outreach_retry": "ok", "hiring_signals": "ok", "search_index": "ok"
+    }  # fmt: skip
     assert len(email.sent) == 1  # the retry went out
     retry = next(s for s in services.job_state.all() if s.name == "outreach_retry")
     assert retry.last_result["sent"] == 1
 
     ops = ok(client.get("/admin/operations", headers=h(ADMIN)))
     assert {j["name"] for j in ops["scheduler"]} == {"follow_ups", "outreach_retry",
-                                                     "hiring_signals"}  # fmt: skip
+                                                     "hiring_signals", "search_index"}  # fmt: skip
     assert not any("Scheduled job" in a for a in ops["alerts"])
     clock.offset = timedelta(hours=3)
     ops = ok(client.get("/admin/operations", headers=h(ADMIN)))

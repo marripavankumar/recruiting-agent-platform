@@ -99,3 +99,10 @@ class Settings(BaseSettings):
     web_base_url: str | None = None  # the web app, for the link in the digest
     # Vector store: "memory" (in-process) or "qdrant" (at RAP_QDRANT_URL).
     vector_store: Literal["memory", "qdrant"] = "memory"
+    # Semantic search (G5). "hashing": words and skills, no model (tests, quick local runs).
+    # "local": an open-source model on this machine's CPU plus the skill dictionary; text never
+    # leaves the machine. Changing it fills new search collections (python -m recruiting.reindex).
+    embedder: Literal["hashing", "local"] = "hashing"
+    embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_cache_dir: str | None = None  # model files; the container image has them
+    embedding_semantic_weight: float = 0.7  # share of the model in the score; the rest skills

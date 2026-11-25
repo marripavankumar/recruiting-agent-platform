@@ -29,7 +29,15 @@ from recruiting.agents.resume_collection import ResumeCollectionAgent
 from recruiting.agents.resume_intake import ResumeIntake
 from recruiting.ai.llm import ClaudeProvider, LLMGateway, UsageLedger
 from recruiting.ai.prompts import default_registry
-from recruiting.ai.search import HashingEmbedder, InMemoryIndex, QdrantIndex, SemanticSearch
+from recruiting.ai.search import (
+    Embedder,
+    HashingEmbedder,
+    HybridEmbedder,
+    InMemoryIndex,
+    LocalModelEmbedder,
+    QdrantIndex,
+    SemanticSearch,
+)
 from recruiting.approvals import ApprovalEngine
 from recruiting.compliance import OptOutRegistry
 from recruiting.compliance.erasure import CandidateErasure
@@ -116,6 +124,14 @@ def _log_llm_error(key: str, exc: Exception) -> None:
     logger.warning("%s failed; used the next fallback: %s", key, exc)
 
 
+def build_embedder(settings: Settings) -> Embedder:
+    """RAP_EMBEDDER: the skill-hashing embedder, or the local model mixed with it (G5)."""
+    if settings.embedder == "local":
+        model = LocalModelEmbedder(settings.embedding_model, settings.embedding_cache_dir)
+        return HybridEmbedder(model, HashingEmbedder(), settings.embedding_semantic_weight)
+    return HashingEmbedder()
+
+
 def build_resume_parser(settings: Settings):
     """The Affinda adapter when RAP_RESUME_PARSER=affinda and a workspace is set; otherwise None
     (Claude and the rules parse resumes). The key is read from the secrets provider on each call,
@@ -168,7 +184,8 @@ def build_platform(
         index: Any = QdrantIndex(settings.qdrant_url)
     else:
         index = InMemoryIndex()
-    search = SemanticSearch(HashingEmbedder(), index, prefix=f"rap_{settings.environment}")
+    embedder = build_embedder(settings)  # one model instance for search, ranking and matching
+    search = SemanticSearch(embedder, index, prefix=f"rap_{settings.environment}")
 
     gateway = None
     if llm_provider is not None or settings.llm_provider == "claude":
@@ -185,7 +202,7 @@ def build_platform(
         candidates, search, gateway, _log_llm_error, parser=build_resume_parser(settings),
         documents=documents,
     )  # fmt: skip
-    ranking_agent = CandidateRankingAgent(ranking_weights.get, embedder=HashingEmbedder())
+    ranking_agent = CandidateRankingAgent(ranking_weights.get, embedder=embedder)
     candidate_search = CandidateSearchAgent(
         candidates, search, resume_intake, ranking_agent, candidate_sources or []
     )
@@ -207,7 +224,7 @@ def build_platform(
     follow_ups = follow_ups or InMemoryFollowUps()
     submission_agent = ClientSubmissionAgent(
         companies, jobs, candidates, engagements, submissions,
-        ResumeMatchingAgent(ranking_agent, gateway, HashingEmbedder(), _log_llm_error),
+        ResumeMatchingAgent(ranking_agent, gateway, embedder, _log_llm_error),
         approvals, deliveries, workflows, rankings=rankings, **timing,
         attachment_format=None if settings.submission_attachment == "none"
         else settings.submission_attachment,

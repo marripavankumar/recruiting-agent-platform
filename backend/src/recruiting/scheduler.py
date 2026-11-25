@@ -230,6 +230,8 @@ def default_jobs(services: Services) -> list[Job]:
         jobs.append(Job("outreach_retry", timedelta(minutes=5), services.outreach.retry_due))
     if platform is not None:
         jobs.append(Job("hiring_signals", timedelta(days=1), platform.signals.run_due))
+        # Refills the search index after an embedding model change (recruiting.reindex).
+        jobs.append(Job("search_index", timedelta(hours=1), lambda: _reindex_missing(platform)))
     if services.mailbox is not None:
         jobs.append(Job("mailbox", timedelta(minutes=2), services.mailbox.run))
     if services.digest is not None:
@@ -250,6 +252,12 @@ def default_jobs(services: Services) -> list[Job]:
                         lambda: _agent_report(agents.start("business_development", None,
                                                            "scheduler"))))  # fmt: skip
     return jobs
+
+
+def _reindex_missing(platform: Any) -> dict[str, int]:
+    from recruiting.reindex import reindex
+
+    return reindex(platform, missing_only=True)
 
 
 def _agent_report(run: Any) -> dict[str, int]:

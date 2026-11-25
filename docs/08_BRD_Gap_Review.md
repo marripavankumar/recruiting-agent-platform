@@ -5,7 +5,7 @@
 
 ## 1. Summary
 
-Most of the BRD is built as written. Four gaps are fixed (three in the review, G6 since). Four remain, three of which need a decision or outside input. The plan overstated five integration claims; they are corrected.
+Most of the BRD is built as written. Five gaps are fixed (three in the review, G6 and G5 since). Three remain, two of which need a decision or outside input. The plan overstated five integration claims; they are corrected.
 
 | # | Gap | BRD | Status |
 | --- | --- | --- | --- |
@@ -13,7 +13,7 @@ Most of the BRD is built as written. Four gaps are fixed (three in the review, G
 | G2 | "Siemens PLCs", "Siemens S7" and "SIMATIC" were read only as generic PLC experience (Controls and PLC Engineer roles) | Agent 5 example skills | **Fixed:** synonyms added; "Siemens" alone still means nothing, since it is also an employer and makes NX and Teamcenter |
 | G3 | The Candidate Database could be searched by one text box only; none of the Agent 6 candidate filters existed for recruiters | Agent 6 | **Fixed:** all eleven filters in the API (`GET /candidates`) and on the Candidates page |
 | G4 | Open tracking is not wired: the delivery log can record an open, but nothing does (emails are plain text, no tracking pixel) | Agent 3 | **Open, decision needed** (section 3) |
-| G5 | Semantic search uses a hashing embedder, which matches words, not meaning | §7 | **Open, decision needed** (section 3) |
+| G5 | Semantic search used a hashing embedder, which matches words, not meaning | §7 | **Fixed (option b):** open-source BGE-small model on the CPU in the container, mixed with the skill dictionary |
 | G6 | Original resume files were not stored, only their extracted text; no document store adapter existed | §11, Agents 9 and 11 | **Fixed (S3-compatible):** originals kept, downloadable, attached to the client email as approved, erased with the candidate. SharePoint and OneDrive still open |
 | G7 | CRM/ATS sync adapters (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) do not exist, although the plan said they were included | §11 | **Open, low priority:** sync is optional (Q6, the platform is the system of record) |
 | G8 | Licensed data and source adapters do not exist: company data providers (Apollo, ZoomInfo, Crunchbase, D&B), job boards (Dice, CareerBuilder, Monster, Indeed, ZipRecruiter) and Google Custom Search for Agent 2 | Agents 1, 2, 6; §11 | **Open, needs contracts and API access.** The plan already listed the providers and job boards as open; industry-database lists import as CSV today |
@@ -36,7 +36,7 @@ Most of the BRD is built as written. Four gaps are fixed (three in the review, G
 | Agent 10 | Match score, strengths, missing skills, interview probability, submission notes |
 | Agent 11 | All nine package items, branded PDF or Word |
 | Agent 12 | All six follow-up types, plus the daily staff digest |
-| §7 AI components | NLP, resume and JD parsing, LLM, vector database, embedding search, recommendations (ranking and next steps); RAG as retrieval feeding the LLM in matching. Embedding quality: G5 |
+| §7 AI components | NLP, resume and JD parsing, LLM, vector database, embedding search with a sentence-embedding model (G5), recommendations (ranking and next steps); RAG as retrieval feeding the LLM in matching |
 | §8 databases | Every listed field of the Company, Job and Candidate databases |
 | §9 roles | All six, enforced by the API on every route |
 | §10 gates | All four; nothing is sent without approval |
@@ -46,7 +46,7 @@ Most of the BRD is built as written. Four gaps are fixed (three in the review, G
 
 **G4. Open tracking.** Tracking opens needs HTML email with a tracking image. Recommended: build it, but report opens as indicative only. Apple Mail and some corporate filters load images automatically, so open rates run high, and replies (already tracked) are the reliable signal. The privacy notice should mention it (compliance checklist P4). Cost: HTML version of each approved email, a signed image link, one endpoint.
 
-**G5. Embedding model.** Options: (a) an embedding API (Voyage AI, which Anthropic recommends; sends JD and resume text to one more processor, DPA needed per P10); (b) an open-source model run inside the API container (no new processor, larger image, slower on CPU). Recommended: (b) for the pilot, as it adds no new data processor; the adapter interface allows (a) later.
+**G5. Embedding model (done, option b, 2026-11-25).** BAAI/bge-small-en-v1.5 (MIT licence, quantised ONNX, about 70 MB) runs on the CPU inside the API and scheduler containers through fastembed; the model is in the image, so nothing is downloaded at run time and no text leaves the machine (no new processor, P10). Its vector is mixed 70/30 with the skill-dictionary vector: measured on engineering JD and resume pairs, the model alone barely separated matching pairs from other engineering pairs (0.71 vs up to 0.72), the mix separates them clearly (0.70-0.84 vs at most 0.51). Search, ranking (project similarity) and matching (resume-to-JD similarity) use the same embedder on one calibrated 0-1 scale. Each embedder has its own Qdrant collections; `python -m recruiting.reindex` and an hourly scheduler check fill them after a change. Embedding 50 long resumes takes about 2 seconds. Still to do: check search quality on real CBS JDs and resumes in the pilot. An embedding API (option a, e.g. Voyage AI) fits the same adapter if quality calls for it, with a DPA.
 
 **G6. Document storage (done for S3-compatible stores, 2026-11-25).** Original resume files from recruiter uploads and the candidate's secure link are kept in an S3-compatible store (SeaweedFS in the Podman stack, since MinIO no longer publishes images; AWS S3 or a cloud equivalent later). Recruiters download the original; the submission email attaches it next to the package, and the approval covers that exact file (SHA-256); erasure and test-data cleanup delete the files. Still open: SharePoint and OneDrive adapters if CBS wants files in Microsoft 365, and keeping originals from resumes attached to candidate email replies (their text is read today).
 

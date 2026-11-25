@@ -70,6 +70,7 @@ services:
       RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
       RAP_QDRANT_URL: http://qdrant:6333
       RAP_VECTOR_STORE: qdrant  # shared and kept across restarts (in-memory is per process)
+      RAP_EMBEDDER: local  # open-source model on this machine plus the skill dictionary (G5)
       RAP_DOCUMENT_STORES: '["s3"]'
       RAP_S3_ENDPOINT_URL: http://documents:8333
       RAP_S3_REGION: us-east-1
@@ -101,6 +102,7 @@ services:
       RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
       RAP_QDRANT_URL: http://qdrant:6333
       RAP_VECTOR_STORE: qdrant  # shared and kept across restarts (in-memory is per process)
+      RAP_EMBEDDER: local  # open-source model on this machine plus the skill dictionary (G5)
       RAP_DOCUMENT_STORES: '["s3"]'
       RAP_S3_ENDPOINT_URL: http://documents:8333
       RAP_S3_REGION: us-east-1

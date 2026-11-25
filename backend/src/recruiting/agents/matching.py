@@ -21,7 +21,7 @@ from recruiting.agents.jd_analysis import job_text
 from recruiting.agents.ranking import NO_SPONSORSHIP_JOB, CandidateRankingAgent, needs_sponsorship
 from recruiting.ai.llm import LLMError, LLMGateway
 from recruiting.ai.prompts import MatchReview
-from recruiting.ai.search import Embedder, HashingEmbedder
+from recruiting.ai.search import Embedder, HashingEmbedder, relatedness
 from recruiting.ai.skills import canonical
 from recruiting.records.models import Candidate, Job
 
@@ -108,8 +108,7 @@ class ResumeMatchingAgent:
         must_cov = 1 - len(missing) / must_total if must_total else 1.0
 
         jd_vec, cv_vec = self._embedder.embed([job_text(job), resume_text(candidate)])
-        # Lexical cosine rarely exceeds ~0.5 for close matches; rescale to 0..1.
-        similarity = min(_cosine(jd_vec, cv_vec) / 0.5, 1.0)
+        similarity = relatedness(self._embedder, jd_vec, cv_vec)
         score = round(
             STRUCTURED_SHARE * structured.score + (1 - STRUCTURED_SHARE) * 100 * similarity
         )

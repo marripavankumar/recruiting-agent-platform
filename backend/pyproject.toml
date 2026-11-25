@@ -24,6 +24,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Local embedding model for semantic search (RAP_EMBEDDER=local): ONNX runtime, no PyTorch.
+embeddings = ["fastembed>=0.7"]
 dev = [
     "pytest>=8.3",
     "ruff>=0.8",

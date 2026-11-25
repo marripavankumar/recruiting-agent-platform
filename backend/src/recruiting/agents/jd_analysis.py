@@ -43,6 +43,22 @@ def job_text(job: Job, raw_text: str = "") -> str:
     return "\n".join(p for p in parts if p)
 
 
+def index_job(search: SemanticSearch, job: Job, text: str | None = None) -> None:
+    """Index an analysed job for semantic search. `text` defaults to the job's own fields (the
+    reindex command; the original email text is not kept)."""
+    summary = (job.analysis or {}).get("search_summary", "")
+    search.index(
+        "job",
+        job.id,
+        f"{text if text is not None else job_text(job)}\n{summary}",
+        {
+            "client_company_id": job.client_company_id,
+            "status": job.status.value,
+            "job_code": job.job_code,
+        },
+    )
+
+
 class JDAnalysisAgent:
     def __init__(
         self,
@@ -119,14 +135,5 @@ class JDAnalysisAgent:
         )
 
         if self._search is not None:
-            self._search.index(
-                "job",
-                job.id,
-                f"{text}\n{summary}",
-                {
-                    "client_company_id": job.client_company_id,
-                    "status": job.status.value,
-                    "job_code": job.job_code,
-                },
-            )
+            index_job(self._search, job, text)
         return job

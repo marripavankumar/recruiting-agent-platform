@@ -72,6 +72,10 @@ def parse_by_rules(text: str) -> ParsedResume:
     )
 
 
+def index_candidate(search: SemanticSearch, candidate: Candidate) -> None:
+    search.index("candidate", candidate.id, candidate_text(candidate), {"source": candidate.source})
+
+
 def candidate_text(candidate: Candidate) -> str:
     """What semantic search sees. The name is left out: it must not influence matching."""
     roles = "; ".join(r.get("title", "") for r in candidate.work_history[:3])
@@ -190,9 +194,7 @@ class ResumeIntake:
         if replaced and self._documents is not None:
             self._documents.delete(replaced)  # only after the record points at the new file
         if self._search is not None:
-            self._search.index(
-                "candidate", candidate.id, candidate_text(candidate), {"source": candidate.source}
-            )
+            index_candidate(self._search, candidate)
         return IntakeOutcome(candidate, existing is None, by)
 
     def _keep_file(self, candidate: Candidate, file: ResumeFile | None) -> str | None:
