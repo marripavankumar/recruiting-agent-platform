@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   draftCandidateOutreach,
   prepareSubmission,
@@ -14,7 +15,7 @@ import {
 import { Back, Empty, type Search, Notice, PageHead, Score, Status, Tabs, param } from "@/app/components";
 import { api, apiOrNull } from "@/lib/api";
 import { day, humanize, when } from "@/lib/format";
-import type { Engagement, Job, Ranking, Submission } from "@/lib/types";
+import type { Engagement, Job, Me, Ranking, Submission } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Job" };
 
@@ -53,6 +54,8 @@ export default async function JobPage({ params, searchParams }: { params: Promis
   const { id } = await params;
   const search = await searchParams;
   const tab = TABS.some(([k]) => k === param(search, "tab")) ? param(search, "tab")! : "details";
+  // Staff page: clients follow their jobs and submissions in the portal.
+  if ((await api<Me>("/me")).role === "client") redirect("/portal");
   const job = await api<Job>(`/jobs/${encodeURIComponent(id)}`);
   const base = `/jobs/${job.id}`;
   const back = `${base}?tab=${tab}`;

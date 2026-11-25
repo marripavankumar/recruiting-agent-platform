@@ -2,16 +2,21 @@
 // actions and route handlers: it reads the session cookie.
 
 import { redirect } from "next/navigation";
+import { FORBIDDEN_DIGEST } from "./errors";
 import { identityHeaders } from "./session";
 
 export const API_URL = (process.env.RAP_API_URL ?? "http://localhost:8000").replace(/\/$/, "");
 
 export class ApiError extends Error {
+  digest?: string;
+
   constructor(
     public status: number,
     message: string,
   ) {
     super(message);
+    // The API refused this role: the error page says so instead of "could not load".
+    if (status === 403) this.digest = FORBIDDEN_DIGEST;
   }
 }
 

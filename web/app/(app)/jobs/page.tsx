@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Empty, type Search, Notice, PageHead, Status } from "@/app/components";
 import { api, apiOrNull } from "@/lib/api";
 import { day, humanize } from "@/lib/format";
-import type { Job } from "@/lib/types";
+import type { Job, Me } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Jobs & candidates" };
 
 export default async function Jobs({ searchParams }: { searchParams: Promise<Search> }) {
   const search = await searchParams;
+  // Staff page: clients follow their jobs and submissions in the portal.
+  if ((await api<Me>("/me")).role === "client") redirect("/portal");
   const jobs = await api<Job[]>("/jobs");
   const companies = (await apiOrNull<{ id: string; name: string }[]>("/companies")) ?? [];
   const name = new Map(companies.map((c) => [c.id, c.name]));
