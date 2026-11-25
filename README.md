@@ -66,7 +66,7 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | [mock-ui/](mock-ui/) | Static clickable mock-up: the reference for screens not built in the web app yet |
 | [db/migrations/](db/migrations/) | PostgreSQL schema |
 | [scripts/](scripts/) | `start` / `stop` the whole stack on Podman, `testdata` to load or clean test data (bash `.sh` and PowerShell `.ps1`) |
-| [infra/](infra/) | Compose stack for Podman or Docker (PostgreSQL, Qdrant, n8n; the API, scheduler and web app with `--profile app`); per-cloud Terraform modules to come |
+| [infra/](infra/) | Compose stack for Podman or Docker (PostgreSQL, Qdrant, n8n, an S3-compatible document store; the API, scheduler and web app with `--profile app`); per-cloud Terraform modules to come |
 | [docs/](docs/) | BRD, plan, checklists |
 
 To run locally, see [section 6 of the environment plan](docs/05_Environment_Setup_Plan.md#6-running-the-scaffold-locally).

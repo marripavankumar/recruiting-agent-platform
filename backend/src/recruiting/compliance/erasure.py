@@ -54,7 +54,9 @@ class CandidateErasure:
         search: SemanticSearch,
         opt_outs: OptOutRegistry,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        documents: Any = None,
     ) -> None:
+        self._documents = documents  # storage.DocumentStore: original resume files
         self._candidates = candidates
         self._engagements = engagements
         self._submissions = submissions
@@ -111,6 +113,11 @@ class CandidateErasure:
                 self._follow_ups.save(item)
                 cancelled += 1
         self._search.remove("candidate", candidate.id)
+        files = (
+            self._documents.delete_prefix(f"candidates/{candidate.id}/")
+            if self._documents is not None
+            else 0
+        )
         record = {
             "candidate_id": candidate.id,
             "erased_at": now,
@@ -119,6 +126,7 @@ class CandidateErasure:
             "engagements": len(engagements),
             "submissions": len(submissions),
             "follow_ups_cancelled": cancelled,
+            "files_deleted": files,
             "audit_records_kept": approvals,
         }
         logger.warning("candidate_erased %s", {**record, "erased_at": now.isoformat()})

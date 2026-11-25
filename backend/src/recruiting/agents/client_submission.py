@@ -188,6 +188,8 @@ class ClientSubmissionAgent:
             "location": candidate.current_location or "",
             "key_projects": report["key_projects"],
             "notes": report["notes"],
+            # The original file, attached to the client email next to the package (if stored).
+            "resume_file": candidate.resume_file,
         }
         submission = existing or Submission(
             id=new_id(),
@@ -250,7 +252,10 @@ class ClientSubmissionAgent:
             body += f"\n\nThe full submission package, with the resume, is attached as a {kind}."
         else:
             body += f"\n\nRESUME\n{p.get('resume') or '-'}"
-        return {
+        original = p.get("resume_file") or None
+        if original:
+            body += f"\nThe candidate's original resume ({original['filename']}) is also attached."
+        content = {
             "subject": f"Candidate submission: {p['job_code']} {p['job_title']} - "
             f"{p['candidate_name']}",
             "body": body,
@@ -265,6 +270,12 @@ class ClientSubmissionAgent:
             ),  # fmt: skip
             "warnings": "; ".join(submission.warnings),
         }
+        if original:
+            # Covered by the approval: the sender attaches this exact file (checked by SHA-256).
+            content["resume_file"] = json.dumps(
+                {k: original[k] for k in ("key", "sha256", "filename", "content_type")}
+            )
+        return content
 
     # ----- recruiter approval step ----------
 

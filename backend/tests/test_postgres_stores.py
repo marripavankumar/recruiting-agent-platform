@@ -665,3 +665,17 @@ def test_test_data_loads_through_the_api_and_cleans_up(connect):
     with pytest.raises(TestDataError, match="production"):
         clean(Settings(storage="postgres", database_url=DATABASE_URL, environment="prod",
                        _env_file=None))  # fmt: skip
+
+
+def test_candidate_resume_file_reference_round_trips(connect):
+    from recruiting.records.models import Candidate
+    from recruiting.records.postgres import PostgresCandidates
+
+    repo = PostgresCandidates(connect)
+    ref = {"key": "candidates/x/abc.pdf", "filename": "cv.pdf", "content_type": "application/pdf",
+           "size": 1234, "sha256": "0" * 64, "stored_at": "2026-11-25T10:00:00+00:00"}  # fmt: skip
+    saved = repo.save(Candidate(str(uuid.uuid4()), "Ana Lima", "manual", resume_file=ref))
+    assert repo.get(saved.id).resume_file == ref
+    saved.resume_file = None
+    repo.save(saved)
+    assert repo.get(saved.id).resume_file is None

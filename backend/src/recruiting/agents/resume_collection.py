@@ -20,7 +20,7 @@ from datetime import UTC, datetime, timedelta
 
 from recruiting.agents.client_outreach import WorkflowStarter
 from recruiting.agents.jd_intake import InboundEmail
-from recruiting.agents.resume_intake import ResumeIntake
+from recruiting.agents.resume_intake import ResumeFile, ResumeIntake
 from recruiting.compliance import OptOutRegistry
 from recruiting.compliance.unsubscribe import UnsubscribeLinks, compliance_footer
 from recruiting.domain import Channel, GateType
@@ -64,6 +64,7 @@ def token_hash(token: str) -> str:
 @dataclass
 class CollectedDetails:
     resume_text: str | None = None
+    resume_file: ResumeFile | None = None  # the uploaded original, when a file was sent
     availability: str | None = None
     visa_status: str | None = None
     current_location: str | None = None
@@ -268,8 +269,9 @@ class ResumeCollectionAgent:
         now = self._clock()
         if details.resume_text and details.resume_text.strip():
             candidate = self._intake.add(
-                details.resume_text, "candidate_upload", candidate_id=candidate.id
-            ).candidate
+                details.resume_text, "candidate_upload", candidate_id=candidate.id,
+                file=details.resume_file,
+            ).candidate  # fmt: skip
         changed = []
         for item in DETAIL_ITEMS:
             value = (getattr(details, item) or "").strip()

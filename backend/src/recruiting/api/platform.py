@@ -95,6 +95,7 @@ class Platform:
     bounces: BounceHandler
     inbound_webhook_secret: str | None = None
     branding: Branding = field(default_factory=Branding)  # submission package look
+    documents: Any = None  # storage.DocumentStore for original files; None: text only
 
 
 def round_robin_recruiter(users: UserDirectory) -> Callable[[], str | None]:
@@ -156,6 +157,7 @@ def build_platform(
     follow_ups: FollowUpStore | None = None,
     follow_up_cadence: CadenceStore | None = None,
     clock: Callable[[], datetime] | None = None,
+    documents: Any = None,
 ) -> Platform:
     timing: dict[str, Any] = {"clock": clock} if clock is not None else {}
     companies = companies or InMemoryCompanies()
@@ -180,8 +182,9 @@ def build_platform(
     rankings = rankings or InMemoryRankings()
     ranking_weights = ranking_weights or InMemoryWeights()
     resume_intake = ResumeIntake(
-        candidates, search, gateway, _log_llm_error, parser=build_resume_parser(settings)
-    )
+        candidates, search, gateway, _log_llm_error, parser=build_resume_parser(settings),
+        documents=documents,
+    )  # fmt: skip
     ranking_agent = CandidateRankingAgent(ranking_weights.get, embedder=HashingEmbedder())
     candidate_search = CandidateSearchAgent(
         candidates, search, resume_intake, ranking_agent, candidate_sources or []
@@ -280,9 +283,17 @@ def build_platform(
             **timing,
         ),  # fmt: skip
         erasure=CandidateErasure(
-            candidates, engagements, submissions, follow_ups, search, opt_outs, **timing
+            candidates,
+            engagements,
+            submissions,
+            follow_ups,
+            search,
+            opt_outs,
+            **timing,
+            documents=documents,
         ),  # fmt: skip
         bounces=BounceHandler(deliveries, companies, candidates, outreach_agent),
         inbound_webhook_secret=settings.inbound_webhook_secret,
         branding=Branding(settings.brand_name, settings.brand_color, settings.brand_logo_path),
+        documents=documents,
     )

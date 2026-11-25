@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
 from recruiting.agents.resume_collection import LABELS, CollectedDetails, CollectionError
+from recruiting.agents.resume_intake import ResumeFile
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
 from recruiting.documents import MAX_BYTES, DocumentError, extract_text
 from recruiting.domain import Role
@@ -205,16 +206,18 @@ def collect_submit(
     consent_submit: str = Form(default=""),
     resume_file: Annotated[UploadFile | None, File()] = None,
 ) -> HTMLResponse:
-    file_problem = None
+    file_problem = original = None
     if resume_file is not None and resume_file.filename:
         try:
             # Read one byte past the limit so an oversized file is refused, not cut short.
-            doc = extract_text(resume_file.filename, resume_file.file.read(MAX_BYTES + 1))
+            data = resume_file.file.read(MAX_BYTES + 1)
+            doc = extract_text(resume_file.filename, data)
             resume_text = doc.text  # the file wins over pasted text
+            original = ResumeFile(resume_file.filename, data, doc.kind)
         except DocumentError as exc:
             file_problem = str(exc)  # keep the other details; the resume stays missing
     details = CollectedDetails(
-        resume_text=resume_text or None,
+        resume_text=resume_text or None, resume_file=original,
         availability=availability, visa_status=visa_status, current_location=current_location,
         expected_rate=expected_rate, notice_period=notice_period,
         work_authorization=work_authorization, preferred_location=preferred_location,

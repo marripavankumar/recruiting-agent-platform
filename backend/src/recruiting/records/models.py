@@ -174,6 +174,8 @@ class Candidate:
     work_history: list[dict[str, Any]] = field(default_factory=list)
     # Q9 inputs: {"reply_hours": float, "completeness": 0..1, "recruiter_rating": 1..5}
     communication: dict[str, Any] = field(default_factory=dict)
+    # The original resume file in the document store (storage.StoredFile.to_dict()), or None.
+    resume_file: dict[str, Any] | None = None
 
 
 class Verdict(StrEnum):

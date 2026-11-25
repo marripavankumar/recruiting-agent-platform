@@ -20,6 +20,7 @@ dependencies = [
     "reportlab>=4.2",
     "deepagents>=0.7",
     "langchain-anthropic>=1.7",
+    "boto3>=1.35",
 ]
 
 [project.optional-dependencies]

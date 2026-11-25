@@ -13,8 +13,9 @@ canned HTML and the agents run on their rule-based paths. Every company, person 
 fictional (.example domains). The five demo staff users are added if missing.
 
 `clean` deletes every company, job, candidate, approval, message, follow-up, agent run and
-audit entry, client users and this environment's search index (Qdrant points). It keeps the staff
-users and the Administrator's settings (gate policies, ranking weights, follow-up cadence).
+audit entry, client users, stored resume files and this environment's search index (Qdrant
+points). It keeps the staff users and the Administrator's settings (gate policies, ranking
+weights, follow-up cadence).
 
 Both refuse to run with RAP_ENVIRONMENT=prod. Run them where the API runs, with its settings
 (scripts/testdata.sh or scripts\\testdata.ps1 run them in the API container).
@@ -146,6 +147,11 @@ def clean(settings: Settings) -> dict[str, int]:
         conn.execute("DELETE FROM app_user WHERE role = 'client'")
         for table in _delete_order(conn, DATA_TABLES):
             conn.execute(f"DELETE FROM {table}")
+    from recruiting.api.services import build_document_store
+
+    documents = build_document_store(settings)
+    if documents is not None:  # original resume files (this environment's bucket)
+        documents.delete_prefix("candidates/")
     if settings.vector_store == "qdrant":
         # Only this environment's collections (api/platform.py names them rap_<environment>_*).
         _clear_qdrant(settings.qdrant_url, prefix=f"rap_{settings.environment}_")

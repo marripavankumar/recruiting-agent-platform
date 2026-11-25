@@ -27,7 +27,7 @@ The platform follows the same rule as the business integrations (plan Section 5.
 | Observability | OpenTelemetry | Azure Monitor | CloudWatch | Cloud Operations | Grafana stack |
 | Container registry | OCI registry | Azure Container Registry | ECR | Artifact Registry | Any OCI registry |
 
-SharePoint, OneDrive and S3 are the BRD's document-storage options, independent of the hosting cloud (not built yet: see the BRD gap review, doc 08). For example, the platform can run on AWS and store resumes in SharePoint.
+SharePoint, OneDrive and S3 are the BRD's document-storage options, independent of the hosting cloud (S3-compatible built; SharePoint and OneDrive not yet, doc 08). For example, the platform can run on AWS and store resumes in SharePoint.
 
 ### Rules that keep it portable
 
@@ -107,7 +107,7 @@ Podman on Windows runs in a WSL 2 machine. One-time setup: `wsl --install --no-d
 
 ```
 cp .env.example .env
-podman compose -f infra/docker-compose.yml up -d     # PostgreSQL, Qdrant, n8n
+podman compose -f infra/docker-compose.yml up -d     # PostgreSQL, Qdrant, n8n, document store (SeaweedFS, S3 API)
 cd backend
 python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/activate elsewhere
 pip install -e ".[dev]"                               # or: uv sync --extra dev, then prefix commands with "uv run"

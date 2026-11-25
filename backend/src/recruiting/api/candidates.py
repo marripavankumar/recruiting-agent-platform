@@ -9,17 +9,20 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import UTC, datetime
 from typing import Annotated, Literal
+from urllib.parse import quote
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile, status
 from pydantic import BaseModel, Field
 
 from recruiting.agents.candidate_search import CandidateFilter, Widening, shortfall
 from recruiting.agents.ranking import RankingWeights
+from recruiting.agents.resume_intake import ResumeFile
 from recruiting.api.deps import ServicesDep, UserDep, require_platform, require_role
 from recruiting.documents import MAX_BYTES, DocumentError, extract_text
 from recruiting.domain import Role
 from recruiting.records.models import ConsentStatus, Ranking, Verdict
 from recruiting.records.rankings import UnknownRankingEntry
+from recruiting.storage import StorageError, StoredFile
 
 router = APIRouter(tags=["candidates"])
 
@@ -143,11 +146,14 @@ def upload_resumes(
     for upload in files:
         name = upload.filename or "resume"
         try:
-            doc = extract_text(name, upload.file.read(MAX_BYTES + 1))
+            data = upload.file.read(MAX_BYTES + 1)
+            doc = extract_text(name, data)
         except DocumentError as exc:
             errors.append({"filename": name, "error": str(exc)})
             continue
-        result = platform.resume_intake.add(doc.text, source, consent)
+        result = platform.resume_intake.add(
+            doc.text, source, consent, file=ResumeFile(name, data, doc.kind)
+        )
         added.append({"filename": name, "kind": doc.kind, "id": result.candidate.id,
                       "full_name": result.candidate.full_name, "created": result.created,
                       "parsed_by": result.parsed_by})  # fmt: skip
@@ -210,6 +216,38 @@ def get_candidate(candidate_id: str, user: UserDep, services: ServicesDep) -> di
     if candidate is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidate not found")
     return _candidate_out(candidate, full=True)
+
+
+@router.get("/candidates/{candidate_id}/resume-file")
+def download_resume_file(candidate_id: str, user: UserDep, services: ServicesDep) -> Response:
+    """The original resume file as uploaded (PDF, Word or text), for the same roles that see the
+    candidate. 404 when only resume text is known."""
+    require_role(user, TALENT)
+    platform = require_platform(services)
+    candidate = platform.candidates.get(candidate_id)
+    if candidate is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Candidate not found")
+    stored = StoredFile.from_dict(candidate.resume_file)
+    if stored is None or platform.documents is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "No original resume file is stored")
+    try:
+        data = platform.documents.get(stored.key)
+    except StorageError as exc:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, "The resume file is no longer stored"
+        ) from exc
+    return Response(
+        data,
+        media_type=stored.content_type,
+        headers={
+            # ASCII fallback plus the exact name (RFC 6266 / 5987) for names like "José.pdf".
+            "Content-Disposition": 'attachment; filename="'
+            + (stored.filename.encode("ascii", "replace").decode().replace("?", "_"))
+            + f"\"; filename*=UTF-8''{quote(stored.filename)}",
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.post("/jobs/{job_id}/ranking")

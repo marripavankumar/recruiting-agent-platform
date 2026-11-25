@@ -25,6 +25,7 @@ from recruiting.records.memory import (
     normalize_phone,
 )
 from recruiting.records.models import Candidate, ConsentStatus
+from recruiting.storage import DocumentStore, store_resume
 
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+(\.[\w-]+)+")
 _PHONE = re.compile(r"(\+?\(?\d[\d\s().-]{8,}\d)")  # "(313) 555-0108", "+1 313 555 0108"
@@ -98,6 +99,15 @@ class ResumeParser(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class ResumeFile:
+    """An uploaded resume file, kept as sent when a document store is configured."""
+
+    filename: str
+    data: bytes
+    kind: str  # documents.extract_text's kind: "pdf", "docx" or "text"
+
+
 @dataclass
 class IntakeOutcome:
     candidate: Candidate
@@ -113,8 +123,10 @@ class ResumeIntake:
         gateway: LLMGateway | None = None,
         on_error: Callable[[str, Exception], None] | None = None,
         parser: ResumeParser | None = None,
+        documents: DocumentStore | None = None,
     ) -> None:
         self._parser = parser
+        self._documents = documents
         self._candidates = candidates
         self._search = search
         self._gateway = gateway
@@ -139,8 +151,10 @@ class ResumeIntake:
         source: str,
         consent: ConsentStatus = ConsentStatus.NONE,
         candidate_id: str | None = None,
+        file: ResumeFile | None = None,
     ) -> IntakeOutcome:
-        """With `candidate_id` (a resume the candidate uploaded), that record is updated."""
+        """With `candidate_id` (a resume the candidate uploaded), that record is updated. With
+        `file`, the original is kept in the document store and replaces any earlier one."""
         parsed, by = self.parse(resume_text)
         if candidate_id is not None:
             existing = self._candidates.get(candidate_id)
@@ -171,9 +185,28 @@ class ResumeIntake:
         candidate.resume_text = resume_text
         if consent is not ConsentStatus.NONE:
             candidate.consent_status = consent
+        replaced = self._keep_file(candidate, file)
         self._candidates.save(candidate)
+        if replaced and self._documents is not None:
+            self._documents.delete(replaced)  # only after the record points at the new file
         if self._search is not None:
             self._search.index(
                 "candidate", candidate.id, candidate_text(candidate), {"source": candidate.source}
             )
         return IntakeOutcome(candidate, existing is None, by)
+
+    def _keep_file(self, candidate: Candidate, file: ResumeFile | None) -> str | None:
+        """Store the original; the key of the file it replaces, if any. A storage failure keeps
+        the resume text and is logged: the candidate is never lost over a file."""
+        if file is None or self._documents is None:
+            return None
+        try:
+            stored = store_resume(
+                self._documents, candidate.id, file.filename, file.data, file.kind
+            )
+        except Exception as exc:
+            self._on_error("resume_file", exc)
+            return None
+        old = (candidate.resume_file or {}).get("key")
+        candidate.resume_file = stored.to_dict()
+        return old if old != stored.key else None

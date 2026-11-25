@@ -50,7 +50,12 @@ class Settings(BaseSettings):
     # No fixed default: the Administrator activates one or more per deployment.
     email_providers: list[str] = []  # ["m365"] or ["gmail"]
     email_sender: str | None = None  # mailbox the approved emails are sent from
+    # Where original resume files are kept: ["s3"] (AWS S3, MinIO or any S3-compatible store).
+    # Empty: in-memory runs keep files in memory; PostgreSQL runs keep only the resume text.
     document_stores: list[str] = []
+    s3_bucket: str | None = None  # default: rap-<environment>-documents, one per environment
+    s3_endpoint_url: str | None = None  # MinIO or another S3-compatible store; None for AWS
+    s3_region: str | None = None
 
     # Outreach is off outside prod unless explicitly allowed (environment plan section 2).
     outreach_enabled: bool = False

@@ -5,7 +5,7 @@
 
 ## 1. Summary
 
-Most of the BRD is built as written. Three gaps were fixed in this review. Five remain, four of which need a decision or outside input. The plan overstated five integration claims; they are corrected.
+Most of the BRD is built as written. Four gaps are fixed (three in the review, G6 since). Four remain, three of which need a decision or outside input. The plan overstated five integration claims; they are corrected.
 
 | # | Gap | BRD | Status |
 | --- | --- | --- | --- |
@@ -14,7 +14,7 @@ Most of the BRD is built as written. Three gaps were fixed in this review. Five 
 | G3 | The Candidate Database could be searched by one text box only; none of the Agent 6 candidate filters existed for recruiters | Agent 6 | **Fixed:** all eleven filters in the API (`GET /candidates`) and on the Candidates page |
 | G4 | Open tracking is not wired: the delivery log can record an open, but nothing does (emails are plain text, no tracking pixel) | Agent 3 | **Open, decision needed** (section 3) |
 | G5 | Semantic search uses a hashing embedder, which matches words, not meaning | §7 | **Open, decision needed** (section 3) |
-| G6 | Original resume files are not stored; only their extracted text. SharePoint, OneDrive and S3 adapters do not exist, although the plan said they were built | §11, Agents 9 and 11 | **Open, decision needed** (section 3) |
+| G6 | Original resume files were not stored, only their extracted text; no document store adapter existed | §11, Agents 9 and 11 | **Fixed (S3-compatible):** originals kept, downloadable, attached to the client email as approved, erased with the candidate. SharePoint and OneDrive still open |
 | G7 | CRM/ATS sync adapters (Bullhorn, RecruitCRM, Zoho Recruit, Salesforce) do not exist, although the plan said they were included | §11 | **Open, low priority:** sync is optional (Q6, the platform is the system of record) |
 | G8 | Licensed data and source adapters do not exist: company data providers (Apollo, ZoomInfo, Crunchbase, D&B), job boards (Dice, CareerBuilder, Monster, Indeed, ZipRecruiter) and Google Custom Search for Agent 2 | Agents 1, 2, 6; §11 | **Open, needs contracts and API access.** The plan already listed the providers and job boards as open; industry-database lists import as CSV today |
 
@@ -48,7 +48,7 @@ Most of the BRD is built as written. Three gaps were fixed in this review. Five 
 
 **G5. Embedding model.** Options: (a) an embedding API (Voyage AI, which Anthropic recommends; sends JD and resume text to one more processor, DPA needed per P10); (b) an open-source model run inside the API container (no new processor, larger image, slower on CPU). Recommended: (b) for the pilot, as it adds no new data processor; the adapter interface allows (a) later.
 
-**G6. Document storage.** Which store keeps the original resume files: SharePoint, OneDrive, or S3 (or MinIO, which speaks S3, on Podman)? Recommended: S3-compatible first (MinIO in the Podman stack now, S3 or a cloud equivalent later), then SharePoint if CBS works in Microsoft 365. Until then the platform keeps the extracted text, and the submission package carries the resume as text.
+**G6. Document storage (done for S3-compatible stores, 2026-11-25).** Original resume files from recruiter uploads and the candidate's secure link are kept in an S3-compatible store (SeaweedFS in the Podman stack, since MinIO no longer publishes images; AWS S3 or a cloud equivalent later). Recruiters download the original; the submission email attaches it next to the package, and the approval covers that exact file (SHA-256); erasure and test-data cleanup delete the files. Still open: SharePoint and OneDrive adapters if CBS wants files in Microsoft 365, and keeping originals from resumes attached to candidate email replies (their text is read today).
 
 ## 4. Interpretations to confirm
 

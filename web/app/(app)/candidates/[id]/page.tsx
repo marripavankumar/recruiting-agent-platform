@@ -18,6 +18,7 @@ type Candidate = CandidateRow & {
   industries: string[];
   projects: string[];
   resume_text: string | null;
+  resume_file: { filename: string; size: number; stored_at: string } | null;
 };
 
 const DETAILS: [keyof Candidate, string][] = [
@@ -52,7 +53,14 @@ export default async function CandidatePage({ params, searchParams }: { params: 
       <Notice search={search} />
       <div className="split">
         <section className="card">
-          <div className="card-head"><h2>Resume</h2></div>
+          <div className="card-head">
+            <h2>Resume</h2>
+            {c.resume_file && (
+              <a className="btn sm" href={`/files/candidates/${encodeURIComponent(c.id)}/resume`} title={`Stored ${c.resume_file.stored_at.slice(0, 10)}`}>
+                Download original ({c.resume_file.filename}, {Math.max(1, Math.round(c.resume_file.size / 1024))} KB)
+              </a>
+            )}
+          </div>
           <div className="card-body">
             {c.resume_text ? <div className="email-body" style={{ padding: 0 }}>{c.resume_text}</div> : <span className="muted">No resume text stored.</span>}
           </div>

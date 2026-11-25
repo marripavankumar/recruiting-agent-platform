@@ -123,17 +123,22 @@ def build_services(
 
         approvals, opt_outs = ApprovalEngine(), OptOutRegistry()
         users = InMemoryUserDirectory(demo_users() if settings.demo_users else ())
+        documents = build_document_store(settings)
         outbox = fetcher = None
         if settings.demo_data:
             from recruiting.demo import DemoCareerPages, DemoOutbox
 
             outbox, fetcher = DemoOutbox(), DemoCareerPages()
-            outreach = OutreachService(approvals, opt_outs, [ManualLinkedInChannel(), outbox])
+            outreach = OutreachService(
+                approvals, opt_outs, [ManualLinkedInChannel(), outbox],
+                attachments=build_attachment_renderer(settings, documents),
+            )  # fmt: skip
         else:
-            outreach = build_outreach(settings, approvals, opt_outs)
+            outreach = build_outreach(settings, approvals, opt_outs, documents=documents)
         workflows = build_workflows(approvals, outreach, MemorySaver())
         platform = build_platform(
             settings,
+            documents=documents,
             users=users,
             opt_outs=opt_outs,
             deliveries=outreach.log,
@@ -182,12 +187,14 @@ def build_services(
     approvals = ApprovalEngine(PostgresPolicyStore(connect), store=PostgresApprovalStore(connect))
     opt_outs = OptOutRegistry(PostgresOptOutStore(connect))
     users = PostgresUserDirectory(connect)
+    documents = build_document_store(settings)
     outreach = build_outreach(
-        settings, approvals, opt_outs, PostgresDeliveryLog(connect), email_channel
+        settings, approvals, opt_outs, PostgresDeliveryLog(connect), email_channel, documents
     )
     workflows = build_workflows(approvals, outreach, workflow_checkpointer(settings.database_url))
     platform = build_platform(
         settings,
+        documents=documents,
         users=users,
         opt_outs=opt_outs,
         deliveries=outreach.log,
@@ -333,20 +340,61 @@ def build_email_channels(settings: Settings, unsubscribe: bool = True) -> list[C
     return channels
 
 
+def build_attachment_renderer(settings: Settings, documents: Any = None) -> Any:
+    """Attachments for resume-submission emails: the branded package (RAP_SUBMISSION_ATTACHMENT)
+    and the candidate's original resume file (with a document store). None: neither."""
+    from recruiting.outreach.packages import Branding, SubmissionPackageRenderer
+
+    package = None if settings.submission_attachment == "none" else settings.submission_attachment
+    if package is None and documents is None:
+        return None
+    branding = Branding(settings.brand_name, settings.brand_color, settings.brand_logo_path)
+    return SubmissionPackageRenderer(package, branding, documents)
+
+
+def build_document_store(settings: Settings) -> Any:
+    """The store for original resume files (RAP_DOCUMENT_STORES, first listed), or None. Without
+    one, in-memory runs keep files in memory and PostgreSQL runs keep the resume text only."""
+    from recruiting.storage import InMemoryDocumentStore, S3DocumentStore
+
+    kind = settings.document_stores[0] if settings.document_stores else None
+    if kind is None:
+        return InMemoryDocumentStore() if settings.storage == "memory" else None
+    if kind == "memory":
+        return InMemoryDocumentStore()
+    if kind == "s3":
+        from recruiting.connectors.secrets import EnvironmentSecrets
+
+        secrets = EnvironmentSecrets()  # cloud vault adapters plug in here (environment plan)
+
+        def optional(name: str) -> str | None:
+            try:
+                return secrets.get(name)
+            except KeyError:
+                return None  # the standard AWS chain: instance role, environment
+
+        return S3DocumentStore(
+            settings.s3_bucket or f"rap-{settings.environment}-documents",
+            endpoint_url=settings.s3_endpoint_url,
+            region=settings.s3_region,
+            access_key_id=optional("s3_access_key_id"),
+            secret_access_key=optional("s3_secret_access_key"),
+        )
+    raise RuntimeError(
+        f"Document store {kind} is not available; use s3 (SharePoint and OneDrive: not built yet)"
+    )
+
+
 def build_outreach(
     settings: Settings,
     approvals: ApprovalEngine,
     opt_outs: OptOutRegistry,
     log: DeliveryLog | None = None,
     email_channel: ChannelAdapter | None = None,
+    documents: Any = None,
 ) -> OutreachService:
     # LinkedIn is manual (Q15); email goes through the active provider, if any.
-    from recruiting.outreach.packages import Branding, SubmissionPackageRenderer
-
-    renderer = None
-    if settings.submission_attachment != "none":
-        branding = Branding(settings.brand_name, settings.brand_color, settings.brand_logo_path)
-        renderer = SubmissionPackageRenderer(settings.submission_attachment, branding)
+    renderer = build_attachment_renderer(settings, documents)
     return OutreachService(
         approvals,
         opt_outs,

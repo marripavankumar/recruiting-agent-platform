@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "rap-local",
+      "credentials": [{ "accessKey": "rap", "secretKey": "rap-local-documents-secret" }],
+      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+    }
+  ]
+}

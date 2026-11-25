@@ -12,6 +12,7 @@ and the recruiter's notes; a confidentiality footer.
 
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import re
@@ -317,14 +318,38 @@ def render(content: Mapping[str, str], fmt: Format, branding: Branding) -> Attac
     return Attachment(filename(data, fmt, branding), MIME[fmt], blob)
 
 
-class SubmissionPackageRenderer:
-    """Outreach Service hook: attaches the package to resume-submission emails."""
+class AttachmentError(Exception):
+    """An approved attachment cannot be produced exactly as approved: nothing is sent."""
 
-    def __init__(self, fmt: Format, branding: Branding) -> None:
+
+class SubmissionPackageRenderer:
+    """Outreach Service hook: attaches the package to resume-submission emails (`fmt` None: no
+    package), and the candidate's original resume when the approved content names one."""
+
+    def __init__(self, fmt: Format | None, branding: Branding, documents: Any = None) -> None:
         self.fmt, self.branding = fmt, branding
+        self.documents = documents  # storage.DocumentStore
 
     def __call__(self, gate: GateType, content: Mapping[str, str]) -> list[Attachment]:
         if gate is not GateType.RESUME_SUBMISSION:
             return []
-        attachment = render(content, self.fmt, self.branding)
-        return [attachment] if attachment else []
+        package = render(content, self.fmt, self.branding) if self.fmt else None
+        return [a for a in (package, self._original(content)) if a]
+
+    def _original(self, content: Mapping[str, str]) -> Attachment | None:
+        if not content.get("resume_file"):
+            return None
+        ref = json.loads(content["resume_file"])
+        if self.documents is None:
+            raise AttachmentError("The approved resume file cannot be read: no document store")
+        from recruiting.storage import StorageError
+
+        try:
+            data = self.documents.get(ref["key"])
+        except StorageError as exc:
+            raise AttachmentError(
+                "The approved resume file is no longer stored (erased or removed)"
+            ) from exc
+        if hashlib.sha256(data).hexdigest() != ref["sha256"]:
+            raise AttachmentError("The stored resume file differs from the approved one")
+        return Attachment(ref["filename"], ref["content_type"], data)

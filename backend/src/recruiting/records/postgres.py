@@ -342,7 +342,7 @@ class PostgresJobs:
 _CANDIDATE = """id::text, full_name, source, email, phone, linkedin_url, current_location,
     preferred_location, skills, projects, experience_years, availability, notice_period,
     visa_status, work_authorization, expected_rate, resume_text, consent_status, education,
-    industries, work_history, communication"""
+    industries, work_history, communication, resume_file"""
 
 
 class PostgresCandidates:
@@ -359,6 +359,7 @@ class PostgresCandidates:
         values[19] = list(values[19] or [])
         values[20] = list(values[20] or [])
         values[21] = dict(values[21] or {})
+        values[22] = dict(values[22]) if values[22] else None
         return Candidate(*values)
 
     def save(self, candidate: Candidate) -> Candidate:
@@ -369,9 +370,10 @@ class PostgresCandidates:
                 INSERT INTO candidate (id, full_name, source, email, phone, linkedin_url,
                     current_location, preferred_location, skills, projects, experience_years,
                     availability, notice_period, visa_status, work_authorization, expected_rate,
-                    resume_text, consent_status, education, industries, work_history, communication)
+                    resume_text, consent_status, education, industries, work_history, communication,
+                    resume_file)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s)
+                    %s, %s, %s, %s, %s)
                 ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name,
                     email = EXCLUDED.email, phone = EXCLUDED.phone,
                     linkedin_url = EXCLUDED.linkedin_url,
@@ -384,7 +386,8 @@ class PostgresCandidates:
                     expected_rate = EXCLUDED.expected_rate, resume_text = EXCLUDED.resume_text,
                     consent_status = EXCLUDED.consent_status, education = EXCLUDED.education,
                     industries = EXCLUDED.industries, work_history = EXCLUDED.work_history,
-                    communication = EXCLUDED.communication, updated_at = now()
+                    communication = EXCLUDED.communication, resume_file = EXCLUDED.resume_file,
+                    updated_at = now()
                 """,
                 (
                     c.id, c.full_name, c.source, c.email, c.phone, c.linkedin_url,
@@ -392,6 +395,7 @@ class PostgresCandidates:
                     c.experience_years, c.availability, c.notice_period, c.visa_status,
                     c.work_authorization, c.expected_rate, c.resume_text, c.consent_status.value,
                     c.education, c.industries, Jsonb(c.work_history), Jsonb(c.communication),
+                    Jsonb(c.resume_file) if c.resume_file else None,
                 ),
             )  # fmt: skip
         return candidate
