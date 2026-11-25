@@ -126,7 +126,13 @@ cd ../web && npm install && npm run dev                # http://localhost:3000, 
 
 # With PostgreSQL (RAP_STORAGE=postgres), add users first:
 #   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"
+
+# Everything in containers (API, scheduler and web app too), the same images the cloud runs.
+# Reads ../.env; the compose file points the services at each other. Add users as above first.
+docker compose -f infra/docker-compose.yml --profile app up --build -d   # web :3000, API :8000
 ```
+
+The images are [backend/Dockerfile](../backend/Dockerfile) (API by default; the scheduler is the same image with `python -m recruiting.scheduler`) and [web/Dockerfile](../web/Dockerfile) (Next.js standalone). Neither holds secrets or environment-specific settings: everything is read from `RAP_*` variables at runtime, so one build is promoted from dev to test to prod.
 
 Main endpoints (all need sign-in except the last two):
 

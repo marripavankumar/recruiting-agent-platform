@@ -62,7 +62,7 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | [web/](web/) | Next.js web app and client portal: dashboard, approval queue, jobs and candidates, follow-ups, AI agents, client portal |
 | [mock-ui/](mock-ui/) | Static clickable mock-up: the reference for screens not built in the web app yet |
 | [db/migrations/](db/migrations/) | PostgreSQL schema |
-| [infra/](infra/) | Local Docker Compose stack (PostgreSQL, Qdrant, n8n); per-cloud Terraform modules to come |
+| [infra/](infra/) | Local Docker Compose stack (PostgreSQL, Qdrant, n8n; the API, scheduler and web app with `--profile app`); per-cloud Terraform modules to come |
 | [docs/](docs/) | BRD, plan, checklists |
 
 To run locally, see [section 6 of the environment plan](docs/05_Environment_Setup_Plan.md#6-running-the-scaffold-locally).

@@ -36,6 +36,57 @@ services:
     volumes:
       - n8n-data:/home/node/.n8n
 
+  # The platform itself: `docker compose -f infra/docker-compose.yml --profile app up --build`.
+  # Settings come from ../.env (copy .env.example); the values below only point the services
+  # at each other. Sign-in defaults to the local demo users (RAP_AUTH_PROVIDER=dev): add
+  # users to app_user first, or set the OIDC variables.
+  api:
+    profiles: [app]
+    build: ../backend
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      RAP_STORAGE: postgres
+      RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
+      RAP_QDRANT_URL: http://qdrant:6333
+      RAP_PUBLIC_BASE_URL: ${RAP_PUBLIC_BASE_URL:-http://localhost:8000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  scheduler:
+    profiles: [app]
+    build: ../backend
+    command: ["python", "-m", "recruiting.scheduler"]
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      RAP_STORAGE: postgres
+      RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
+      RAP_QDRANT_URL: http://qdrant:6333
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    profiles: [app]
+    build: ../web
+    environment:
+      RAP_API_URL: http://api:8000
+      RAP_WEB_AUTH: ${RAP_WEB_AUTH:-dev}
+      RAP_WEB_BASE_URL: ${RAP_WEB_BASE_URL:-http://localhost:3000}
+      RAP_OIDC_ISSUER: ${RAP_OIDC_ISSUER:-}
+      RAP_OIDC_CLIENT_ID: ${RAP_OIDC_CLIENT_ID:-}
+      RAP_OIDC_CLIENT_SECRET: ${RAP_OIDC_CLIENT_SECRET:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
 volumes:
   postgres-data:
   qdrant-data:
