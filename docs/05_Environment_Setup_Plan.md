@@ -131,6 +131,10 @@ cd ../web && npm install && npm run dev                # http://localhost:3000, 
 #   psql postgresql://rap:rap@localhost:5432/rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('bd@cbs.example', 'BD Manager', 'bd_manager')"
 
 # Everything in containers (API, scheduler and web app too), the same images the cloud runs.
+# Easiest: scripts/start.sh [--build] and scripts/stop.sh [--machine] (bash), or
+# scripts\start.ps1 [-Build] and scripts\stop.ps1 [-Machine] (PowerShell). They start the Podman
+# machine if needed, create .env if missing, wait until healthy and add the demo users to an empty
+# database. By hand:
 # Reads ../.env; the compose file points the services at each other. Add users as above first.
 podman compose -f infra/docker-compose.yml --profile app up --build -d   # web :3000, API :8000
 # The web app's demo sign-in lists these five users; with PostgreSQL they must exist in app_user:
