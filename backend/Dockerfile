@@ -1,12 +1,13 @@
 # Backend image: the API (default) and the scheduler (same image, different command).
-#   docker build -t rap-backend backend
-#   docker run -p 8000:8000 --env-file .env rap-backend
-#   docker run --env-file .env rap-backend python -m recruiting.scheduler
+# Podman or Docker; --format docker keeps the HEALTHCHECK (Podman's OCI default drops it).
+#   podman build --format docker -t rap-backend backend
+#   podman run -p 8000:8000 --env-file .env rap-backend
+#   podman run --env-file .env rap-backend python -m recruiting.scheduler
 # Settings come from RAP_* environment variables (see .env.example); no secrets in the image.
 
 FROM ghcr.io/astral-sh/uv:0.13.9 AS uv
 
-FROM python:3.12.16-slim-bookworm AS build
+FROM docker.io/library/python:3.12.16-slim-bookworm AS build
 COPY --from=uv /uv /usr/local/bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_DOWNLOADS=never
 WORKDIR /app
@@ -16,7 +17,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY src ./src
 RUN uv sync --frozen --no-dev --no-editable
 
-FROM python:3.12.16-slim-bookworm
+FROM docker.io/library/python:3.12.16-slim-bookworm
 RUN useradd --system --uid 10001 --home-dir /app rap
 WORKDIR /app
 COPY --from=build --chown=rap:rap /app/.venv /app/.venv

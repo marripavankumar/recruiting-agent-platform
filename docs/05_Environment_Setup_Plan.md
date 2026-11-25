@@ -2,12 +2,13 @@
 
 **Status:** Draft, 2026-11-22  
 **Decision:** cloud-agnostic, plug-and-play hosting. The BRD names no hosting cloud, so the platform must run on Azure, AWS, Google Cloud or on-premises without code changes. Choosing or changing a cloud is a configuration and infrastructure-module choice.
+**Current hosting (2026-11-25):** Podman. Until a cloud is chosen, every environment runs the same images with Podman (`podman compose`). The cloud modules below stay the target; nothing in the code changes when one is picked.
 
 ## 1. How cloud plug-and-play works
 
 The platform follows the same rule as the business integrations (plan Section 5.5): **application code depends on interfaces, never on a cloud SDK directly.**
 
-1. **Everything runs in containers.** Backend API, agent workers, web app, Qdrant and n8n are container images. They run the same way on a laptop (Docker Compose), a Kubernetes cluster or a cloud container service.
+1. **Everything runs in containers.** Backend API, agent workers, web app, Qdrant and n8n are container images. They run the same way on a laptop (Podman or Docker Compose), a Kubernetes cluster or a cloud container service.
 2. **Cloud services sit behind adapters.** Each cloud-specific service has one interface in the code and one adapter per cloud. The active adapter is set by configuration (`RAP_*` environment variables).
 3. **Infrastructure is code, one module per cloud.** Terraform modules share one set of inputs and outputs (`infra/terraform/modules/<cloud>`). An environment picks its cloud by choosing a module; the outputs (database URL, vault name, bucket) feed the same application settings.
 4. **Only open standards cross the boundary:** PostgreSQL wire protocol, S3-compatible or native object-storage adapters, OpenID Connect for sign-in, OpenTelemetry for logs, metrics and traces, and OCI container images.
@@ -16,7 +17,7 @@ The platform follows the same rule as the business integrations (plan Section 5.
 
 | Platform need | Interface / standard | Azure | AWS | Google Cloud | On-premises / local |
 | --- | --- | --- | --- | --- | --- |
-| Container runtime | OCI images | Azure Container Apps or AKS | ECS Fargate or EKS | Cloud Run or GKE | Docker Compose or Kubernetes |
+| Container runtime | OCI images | Azure Container Apps or AKS | ECS Fargate or EKS | Cloud Run or GKE | Podman (current), Docker Compose or Kubernetes |
 | PostgreSQL (BRD §11) | PostgreSQL protocol | Azure Database for PostgreSQL | Amazon RDS / Aurora PostgreSQL | Cloud SQL for PostgreSQL | PostgreSQL container |
 | Vector DB | Qdrant API | Qdrant container with persistent disk | Same | Same | Same |
 | Workflow automation | n8n | n8n container | Same | Same | Same |
@@ -39,7 +40,7 @@ SharePoint, OneDrive and S3 are the BRD's document-storage options and are built
 
 | Environment | Purpose | Data | Deploys | Who has access |
 | --- | --- | --- | --- | --- |
-| Local | Developer laptops | Synthetic only | `docker compose up` | Developers |
+| Local | Developer laptops | Synthetic only | `podman compose up` | Developers |
 | Dev | Shared integration | Synthetic only | Automatically on merge to `main` | Delivery team |
 | Test | System and UAT testing (Phase 8) | Synthetic plus anonymised samples approved by legal | On release tag | Delivery team, CBS UAT users |
 | Prod | Live operation | Real company, job and candidate data | Manual approval after test sign-off | CBS users by role; ops on-call |
@@ -100,11 +101,13 @@ Required for compliance items E11 and E12 before Phase 2 sends anything.
 
 ## 6. Running the scaffold locally
 
-Prerequisites: Python 3.12+ (or [uv](https://docs.astral.sh/uv/)), Docker Desktop.
+Prerequisites: Python 3.12+ (or [uv](https://docs.astral.sh/uv/)), Podman with a compose provider (or Docker Desktop; replace `podman` with `docker` below).
+
+Podman on Windows runs in a WSL 2 machine. One-time setup: `wsl --install` (admin, then reboot), `podman machine init`, `podman machine start`, and a compose provider: `uv tool install podman-compose`.
 
 ```
 cp .env.example .env
-docker compose -f infra/docker-compose.yml up -d     # PostgreSQL, Qdrant, n8n
+podman compose -f infra/docker-compose.yml up -d     # PostgreSQL, Qdrant, n8n
 cd backend
 python -m venv .venv && .venv/Scripts/activate        # Windows; use .venv/bin/activate elsewhere
 pip install -e ".[dev]"                               # or: uv sync --extra dev, then prefix commands with "uv run"
@@ -129,10 +132,10 @@ cd ../web && npm install && npm run dev                # http://localhost:3000, 
 
 # Everything in containers (API, scheduler and web app too), the same images the cloud runs.
 # Reads ../.env; the compose file points the services at each other. Add users as above first.
-docker compose -f infra/docker-compose.yml --profile app up --build -d   # web :3000, API :8000
+podman compose -f infra/docker-compose.yml --profile app up --build -d   # web :3000, API :8000
 ```
 
-The images are [backend/Dockerfile](../backend/Dockerfile) (API by default; the scheduler is the same image with `python -m recruiting.scheduler`) and [web/Dockerfile](../web/Dockerfile) (Next.js standalone). Neither holds secrets or environment-specific settings: everything is read from `RAP_*` variables at runtime, so one build is promoted from dev to test to prod.
+The images are [backend/Dockerfile](../backend/Dockerfile) (API by default; the scheduler is the same image with `python -m recruiting.scheduler`) and [web/Dockerfile](../web/Dockerfile) (Next.js standalone). Image names are fully qualified (`docker.io/...`) because Podman does not assume Docker Hub, and the compose file repeats the health checks because Podman's default OCI image format drops `HEALTHCHECK` (or build with `--format docker`). Neither holds secrets or environment-specific settings: everything is read from `RAP_*` variables at runtime, so one build is promoted from dev to test to prod.
 
 Main endpoints (all need sign-in except the last two):
 

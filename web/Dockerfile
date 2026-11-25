@@ -1,21 +1,21 @@
-# Web app image (Next.js standalone output).
-#   docker build -t rap-web web
-#   docker run -p 3000:3000 -e RAP_API_URL=http://api:8000 -e RAP_WEB_AUTH=oidc ... rap-web
+# Web app image (Next.js standalone output). Podman or Docker; --format docker keeps the HEALTHCHECK.
+#   podman build --format docker -t rap-web web
+#   podman run -p 3000:3000 -e RAP_API_URL=http://api:8000 -e RAP_WEB_AUTH=oidc ... rap-web
 # Settings are read at runtime (server side), so one image serves every environment.
 
-FROM node:24.22.3-bookworm-slim AS deps
+FROM docker.io/library/node:24.22.3-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
-FROM node:24.22.3-bookworm-slim AS build
+FROM docker.io/library/node:24.22.3-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:24.22.3-bookworm-slim
+FROM docker.io/library/node:24.22.3-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 HOSTNAME=0.0.0.0 PORT=3000
 COPY --from=build --chown=node:node /app/.next/standalone ./
