@@ -103,7 +103,7 @@ Required for compliance items E11 and E12 before Phase 2 sends anything.
 
 Prerequisites: Python 3.12+ (or [uv](https://docs.astral.sh/uv/)), Podman with a compose provider (or Docker Desktop; replace `podman` with `docker` below).
 
-Podman on Windows runs in a WSL 2 machine. One-time setup: `wsl --install` (admin, then reboot), `podman machine init`, `podman machine start`, and a compose provider: `uv tool install podman-compose`.
+Podman on Windows runs in a WSL 2 machine. One-time setup: `wsl --install --no-distribution` (admin; reboot if it asks), `podman machine init --cpus 4 --memory 6144`, `podman machine start`, and a compose provider: `uv tool install podman-compose`. If Windows Smart App Control blocks `podman-compose.exe`, run it as a module instead: `uv run --no-project --with podman-compose python -m podman_compose -f infra/docker-compose.yml ...` in place of `podman compose -f infra/docker-compose.yml ...`.
 
 ```
 cp .env.example .env
@@ -133,6 +133,8 @@ cd ../web && npm install && npm run dev                # http://localhost:3000, 
 # Everything in containers (API, scheduler and web app too), the same images the cloud runs.
 # Reads ../.env; the compose file points the services at each other. Add users as above first.
 podman compose -f infra/docker-compose.yml --profile app up --build -d   # web :3000, API :8000
+# The web app's demo sign-in lists these five users; with PostgreSQL they must exist in app_user:
+podman exec recruiting-agent-platform_postgres_1 psql -U rap -d rap -c "INSERT INTO app_user (email, display_name, role) VALUES ('administrator@cbs.example','Demo Administrator','administrator'), ('bd.manager@cbs.example','Demo BD Manager','bd_manager'), ('recruiter@cbs.example','Demo Recruiter','recruiter'), ('account.manager@cbs.example','Demo Account Manager','account_manager'), ('sales.manager@cbs.example','Demo Sales Manager','sales_manager') ON CONFLICT (email) DO NOTHING"
 ```
 
 The images are [backend/Dockerfile](../backend/Dockerfile) (API by default; the scheduler is the same image with `python -m recruiting.scheduler`) and [web/Dockerfile](../web/Dockerfile) (Next.js standalone). Image names are fully qualified (`docker.io/...`) because Podman does not assume Docker Hub, and the compose file repeats the health checks because Podman's default OCI image format drops `HEALTHCHECK` (or build with `--format docker`). Neither holds secrets or environment-specific settings: everything is read from `RAP_*` variables at runtime, so one build is promoted from dev to test to prod.
