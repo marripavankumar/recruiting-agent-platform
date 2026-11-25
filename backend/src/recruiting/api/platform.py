@@ -112,7 +112,25 @@ def round_robin_recruiter(users: UserDirectory) -> Callable[[], str | None]:
 
 
 def _log_llm_error(key: str, exc: Exception) -> None:
-    logger.warning("LLM call for %s failed; used the rule-based fallback: %s", key, exc)
+    logger.warning("%s failed; used the next fallback: %s", key, exc)
+
+
+def build_resume_parser(settings: Settings):
+    """The Affinda adapter when RAP_RESUME_PARSER=affinda and a workspace is set; otherwise None
+    (Claude and the rules parse resumes). The key is read from the secrets provider on each call,
+    so a missing or rotated key shows up as a parse failure that falls back, not a crash."""
+    if settings.resume_parser != "affinda" or not settings.affinda_workspace:
+        return None
+    from recruiting.connectors.affinda import AffindaResumeParser
+    from recruiting.connectors.secrets import EnvironmentSecrets
+
+    secrets = EnvironmentSecrets()  # cloud vault adapters plug in here (environment plan)
+    return AffindaResumeParser(
+        lambda: secrets.get("affinda_api_key"),
+        settings.affinda_workspace,
+        settings.affinda_document_type,
+        settings.affinda_base_url,
+    )
 
 
 def build_platform(
@@ -161,7 +179,9 @@ def build_platform(
     analysis = JDAnalysisAgent(search, gateway, _log_llm_error)
     rankings = rankings or InMemoryRankings()
     ranking_weights = ranking_weights or InMemoryWeights()
-    resume_intake = ResumeIntake(candidates, search, gateway, _log_llm_error)
+    resume_intake = ResumeIntake(
+        candidates, search, gateway, _log_llm_error, parser=build_resume_parser(settings)
+    )
     ranking_agent = CandidateRankingAgent(ranking_weights.get, embedder=HashingEmbedder())
     candidate_search = CandidateSearchAgent(
         candidates, search, resume_intake, ranking_agent, candidate_sources or []

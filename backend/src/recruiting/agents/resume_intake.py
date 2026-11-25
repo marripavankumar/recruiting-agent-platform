@@ -1,9 +1,10 @@
 """Resume intake: turns resume text into a Candidate Database record (BRD section 8).
 
 Used by Agent 6 for the internal Resume Database and by recruiters adding resumes by hand;
-Agent 9 will use it for resumes collected from candidates. Parsing goes through the LLM gateway
-with a rule-based fallback. Candidates are de-duplicated by email, phone and LinkedIn URL, and
-indexed for semantic search.
+Agent 9 will use it for resumes collected from candidates. Parsing goes through the resume
+parser adapter (Affinda) when one is configured, then the LLM gateway, then the rules: each one
+is the fallback for the one before. Candidates are de-duplicated by email, phone and LinkedIn
+URL, and indexed for semantic search.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Protocol
 
 from recruiting.ai.llm import LLMError, LLMGateway
 from recruiting.ai.prompts import ParsedResume
@@ -88,6 +90,14 @@ def candidate_text(candidate: Candidate) -> str:
     )
 
 
+class ResumeParser(Protocol):
+    name: str
+
+    def parse(self, text: str) -> ParsedResume:
+        """Raises an exception when it cannot parse; intake then falls back."""
+        ...
+
+
 @dataclass
 class IntakeOutcome:
     candidate: Candidate
@@ -102,13 +112,20 @@ class ResumeIntake:
         search: SemanticSearch | None = None,
         gateway: LLMGateway | None = None,
         on_error: Callable[[str, Exception], None] | None = None,
+        parser: ResumeParser | None = None,
     ) -> None:
+        self._parser = parser
         self._candidates = candidates
         self._search = search
         self._gateway = gateway
         self._on_error = on_error or (lambda _key, _exc: None)
 
     def parse(self, text: str) -> tuple[ParsedResume, str]:
+        if self._parser is not None:
+            try:
+                return self._parser.parse(text), self._parser.name
+            except Exception as exc:  # any parser failure: fall back, never lose the resume
+                self._on_error("resume_parser", exc)
         if self._gateway is not None:
             try:
                 return self._gateway.run("resume_parse", ParsedResume, resume=text), "llm"

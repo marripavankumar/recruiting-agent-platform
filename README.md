@@ -20,7 +20,7 @@ An AI-powered multi-agent platform for CBS LLC. It automates the end-to-end recr
 | Phase | Name | Agents / BRD scope | Weeks | Status | % Done |
 | --- | --- | --- | --- | --- | --- |
 | 0 | Discovery and setup | §1, §2, §11, §12 | 1–3 | In progress | 80% |
-| 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | In progress | 75% |
+| 1 | Core platform and data foundation | §7, §8, §9, §10 | 3–8 | In progress | 80% |
 | 2 | Client acquisition | Agents 1–3 | 7–12 | In progress | 60% |
 | 3 | JD intake and analysis | Agents 4–5 | 11–15 | In progress | 70% |
 | 4 | Candidate search and ranking | Agents 6–7 | 14–19 | In progress | 60% |

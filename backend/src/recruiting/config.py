@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     llm_provider: Literal["claude", "none"] = "claude"
     llm_model: str = "claude-opus-5-5"
     resume_parser: str = "affinda"
+    # Affinda (resume_parser=affinda): used only when a workspace is set and the API key is in the
+    # secrets provider (RAP_SECRET_AFFINDA_API_KEY); otherwise Claude and the rules parse resumes.
+    # The key works only on its region: https://api.us1.affinda.com (US), api.eu1 (EU),
+    # api.affinda.com (global/AU).
+    affinda_workspace: str | None = None
+    affinda_document_type: str | None = None
+    affinda_base_url: str = "https://api.us1.affinda.com"
     # No fixed default: the Administrator activates one or more per deployment.
     email_providers: list[str] = []  # ["m365"] or ["gmail"]
     email_sender: str | None = None  # mailbox the approved emails are sent from
