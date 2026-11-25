@@ -78,5 +78,12 @@ class Settings(BaseSettings):
     # Run the scheduled sweeps inside the API process (local in-memory runs). Deployments run
     # `python -m recruiting.scheduler` as its own process instead.
     run_scheduler: bool = False
+    # Daily email to each staff user with their overdue and due-today follow-ups (Agent 12).
+    # Sent through the first email provider; in demo runs it goes to the in-memory outbox.
+    reminder_digest: bool = False
+    digest_hour: int = 7  # local hour the digest goes out
+    digest_timezone: str = "America/New_York"
+    digest_weekends: bool = False
+    web_base_url: str | None = None  # the web app, for the link in the digest
     # Vector store: "memory" (in-process) or "qdrant" (at RAP_QDRANT_URL).
     vector_store: Literal["memory", "qdrant"] = "memory"

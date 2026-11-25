@@ -622,3 +622,18 @@ def test_agent_runs_store(connect):
     assert [r.id for r in store.list(agent="recruiting", subject_id="job-1")] == [run.id]
     assert [r.id for r in store.list(status=RunStatus.WAITING)] == [run.id]
     assert store.list(since=now + timedelta(seconds=30)) == [store.get(other.id)]
+
+
+def test_reminder_digest_is_claimed_once_per_user_and_day(connect):
+    from datetime import UTC, date, datetime
+
+    from recruiting.digest import PostgresDigestLog
+
+    user = make_user(connect, Role.RECRUITER)
+    first, second = PostgresDigestLog(connect), PostgresDigestLog(connect)
+    now, today = datetime(2026, 11, 25, 12, 0, tzinfo=UTC), date(2026, 11, 25)
+    assert first.claim(user.user_id, today, now) is True
+    assert second.claim(user.user_id, today, now) is False  # another replica: not twice
+    second.release(user.user_id, today)  # the send failed
+    assert second.claim(user.user_id, today, now) is True  # retried
+    assert first.claim(user.user_id, date(2026, 11, 26), now) is True  # next day

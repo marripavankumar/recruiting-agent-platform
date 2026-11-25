@@ -29,6 +29,7 @@ from recruiting.outreach import (
 if TYPE_CHECKING:
     from recruiting.agentic.runs import AgentRunner
     from recruiting.api.platform import Platform
+    from recruiting.digest import ReminderDigest
     from recruiting.mailbox import MailboxReader
     from recruiting.scheduler import JobStateStore
 
@@ -54,6 +55,8 @@ class Services:
     mailbox: MailboxReader | None = None
     # Deep agents (RAP_AGENTS_ENABLED). None: the deterministic agents do the work.
     agents: AgentRunner | None = None
+    # Daily staff reminder email (RAP_REMINDER_DIGEST). None: off.
+    digest: ReminderDigest | None = None
 
 
 def demo_users() -> list[CurrentUser]:
@@ -130,9 +133,12 @@ def build_services(settings: Settings) -> Services:
         job_state = InMemoryJobState() if settings.run_scheduler else None
         agents = build_agent_runner(settings, platform, MemorySaver(), None)
         reader = build_mailbox_reader(settings, platform, InMemoryProcessed(), agents)
+        from recruiting.digest import InMemoryDigestLog
+
         services = Services(
             approvals, opt_outs, users, authenticator, workflows, outreach, platform, job_state,
             reader, agents,
+            build_digest(settings, platform, users, InMemoryDigestLog(), outbox),
         )  # fmt: skip
         if outbox is not None:
             from recruiting.demo import seed
@@ -183,6 +189,7 @@ def build_services(settings: Settings) -> Services:
         approvals=approvals,
     )
     from recruiting.agentic.runs import PostgresAgentRuns
+    from recruiting.digest import PostgresDigestLog
     from recruiting.mailbox import PostgresProcessed
     from recruiting.scheduler import PostgresJobState
 
@@ -197,7 +204,38 @@ def build_services(settings: Settings) -> Services:
         PostgresJobState(connect),
         build_mailbox_reader(settings, platform, PostgresProcessed(connect), agents),
         agents,
+        build_digest(settings, platform, users, PostgresDigestLog(connect)),
     )  # fmt: skip
+
+
+def build_digest(
+    settings: Settings,
+    platform: Platform,
+    users: UserDirectory,
+    log: Any,
+    channel: ChannelAdapter | None = None,
+) -> ReminderDigest | None:
+    """The staff reminder digest, or None when RAP_REMINDER_DIGEST is off. `channel` overrides
+    the email provider (the demo outbox)."""
+    if not settings.reminder_digest:
+        return None
+    from recruiting.digest import ReminderDigest
+
+    if channel is None:
+        channels = build_email_channels(settings, unsubscribe=False)
+        if not channels:
+            raise RuntimeError("RAP_REMINDER_DIGEST needs RAP_EMAIL_PROVIDERS and RAP_EMAIL_SENDER")
+        channel = channels[0]
+    return ReminderDigest(
+        platform.follow_ups,
+        users,
+        channel,
+        log,
+        hour=settings.digest_hour,
+        timezone=settings.digest_timezone,
+        weekends=settings.digest_weekends,
+        web_base_url=settings.web_base_url,
+    )
 
 
 def build_agent_runner(settings: Settings, platform: Platform, checkpointer: Any, runs: Any):
@@ -246,9 +284,10 @@ def build_mailbox_reader(
     return MailboxReader(mailbox, platform, processed, own_addresses=own, agents=agents)
 
 
-def build_email_channels(settings: Settings) -> list[ChannelAdapter]:
+def build_email_channels(settings: Settings, unsubscribe: bool = True) -> list[ChannelAdapter]:
     """Q11: no fixed default. Tokens come from the secrets adapter on every send, so a rotated
-    token is picked up without a restart. The first listed provider is used."""
+    token is picked up without a restart. The first listed provider is used. `unsubscribe=False`
+    for internal mail to staff, which must not carry a List-Unsubscribe link."""
     from recruiting.compliance.unsubscribe import UnsubscribeLinks
     from recruiting.connectors.secrets import EnvironmentSecrets
 
@@ -267,7 +306,9 @@ def build_email_channels(settings: Settings) -> list[ChannelAdapter]:
             links = UnsubscribeLinks(settings.unsubscribe_secret, settings.public_base_url)
             channels.append(
                 GmailEmailChannel(
-                    settings.email_sender, lambda: secrets.get("gmail_access_token"), links.url
+                    settings.email_sender,
+                    lambda: secrets.get("gmail_access_token"),
+                    links.url if unsubscribe else None,
                 )
             )
         else:

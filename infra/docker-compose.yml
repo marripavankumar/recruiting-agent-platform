@@ -75,6 +75,7 @@ services:
       RAP_STORAGE: postgres
       RAP_DATABASE_URL: postgresql://rap:rap@postgres:5432/rap
       RAP_QDRANT_URL: http://qdrant:6333
+      RAP_WEB_BASE_URL: ${RAP_WEB_BASE_URL:-http://localhost:3000}  # link in the reminder digest
     depends_on:
       postgres:
         condition: service_healthy

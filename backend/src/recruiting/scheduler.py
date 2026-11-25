@@ -6,6 +6,8 @@ Jobs (each one is idempotent, so a late or repeated run does no harm):
 - hiring_signals: career pages due for a re-check, daily (S4);
 - mailbox: replies, JDs and bounce notices from the outreach mailbox, every 2 minutes
   (when RAP_READ_MAILBOX is on);
+- reminder_digest: each staff user's overdue and due-today follow-ups by email, once a day at
+  RAP_DIGEST_HOUR (checked hourly; when RAP_REMINDER_DIGEST is on);
 - with deep agents on (RAP_AGENTS_ENABLED): recruiting_agents every 30 minutes (one run per
   open job that had none for 6 hours), follow_up_agent hourly, business_development_agent
   daily.
@@ -230,6 +232,9 @@ def default_jobs(services: Services) -> list[Job]:
         jobs.append(Job("hiring_signals", timedelta(days=1), platform.signals.run_due))
     if services.mailbox is not None:
         jobs.append(Job("mailbox", timedelta(minutes=2), services.mailbox.run))
+    if services.digest is not None:
+        # Hourly check; the digest itself sends once a day per user, at RAP_DIGEST_HOUR.
+        jobs.append(Job("reminder_digest", timedelta(hours=1), services.digest.run))
     if agents is not None:
         jobs.append(
             Job("recruiting_agents", timedelta(minutes=30), lambda: _run_recruiting_agents(agents))

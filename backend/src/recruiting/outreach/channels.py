@@ -97,12 +97,13 @@ class Microsoft365EmailChannel:
                     }
                     for a in message.attachments
                 ],
-                "internetMessageHeaders": [
-                    {"name": APPROVAL_HEADER, "value": message.approval_request_id}
-                ],
             },
             "saveToSentItems": True,
         }
+        if message.approval_request_id:  # internal mail (the staff digest) has none
+            payload["message"]["internetMessageHeaders"] = [
+                {"name": APPROVAL_HEADER, "value": message.approval_request_id}
+            ]
         post_once(
             self._http,
             f"/users/{self._sender}/sendMail",
@@ -136,7 +137,8 @@ class GmailEmailChannel:
         mime["From"] = self._sender
         mime["To"] = message.recipient
         mime["Subject"] = message.content.get("subject", "")
-        mime[APPROVAL_HEADER] = message.approval_request_id
+        if message.approval_request_id:  # internal mail (the staff digest) has none
+            mime[APPROVAL_HEADER] = message.approval_request_id
         if self._unsubscribe_url:
             mime["List-Unsubscribe"] = f"<{self._unsubscribe_url(message.recipient)}>"
             mime["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
