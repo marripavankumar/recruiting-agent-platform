@@ -110,6 +110,8 @@ class LLMResponse:
     input_tokens: int
     output_tokens: int
     cache_read_tokens: int = 0
+    # Cost the provider reported itself (OpenRouter), used instead of the price table.
+    reported_cost_usd: float | None = None
 
 
 class LLMProvider(Protocol):
@@ -126,6 +128,8 @@ PRICES: dict[str, tuple[float, float, float]] = {
 
 
 def cost_usd(response: LLMResponse) -> float | None:
+    if response.reported_cost_usd is not None:
+        return response.reported_cost_usd
     price = PRICES.get(response.model)
     if price is None:
         return None
@@ -181,6 +185,10 @@ class LLMGateway:
     @property
     def ledger(self) -> UsageLedger:
         return self._ledger
+
+    @property
+    def provider_name(self) -> str:
+        return self._provider.name
 
     def run(self, template_name: str, output: type[T], **variables: Any) -> T:
         template = self._registry.get(template_name)

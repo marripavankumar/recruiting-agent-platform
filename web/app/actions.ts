@@ -421,6 +421,14 @@ export async function setRankingWeights(form: FormData): Promise<void> {
   );
 }
 
+export async function setLlmModel(form: FormData): Promise<void> {
+  const model = text(form, "model");
+  if (!model) redirect(backTo(form, { error: "Choose a model" }));
+  await act(form, "AI model saved: it is used from the next AI call", () =>
+    api("/admin/llm-model", { method: "PUT", body: { model } }),
+  );
+}
+
 export async function setCadence(form: FormData): Promise<void> {
   const kind = text(form, "kind")!;
   const days = (text(form, "days") ?? "").split(/[\s,]+/).filter(Boolean).map(Number);

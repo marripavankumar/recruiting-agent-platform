@@ -104,6 +104,8 @@ class Platform:
     inbound_webhook_secret: str | None = None
     branding: Branding = field(default_factory=Branding)  # submission package look
     documents: Any = None  # storage.DocumentStore for original files; None: text only
+    # OpenRouter (RAP_LLM_PROVIDER=openrouter): the model list and the Administrator's choice.
+    model_selection: Any = None  # ai.openrouter.ModelSelection
 
 
 def round_robin_recruiter(users: UserDirectory) -> Callable[[], str | None]:
@@ -150,6 +152,15 @@ def build_resume_parser(settings: Settings):
     )
 
 
+def build_model_selection(settings: Settings, store: Any = None, catalog: Any = None) -> Any:
+    """The OpenRouter model list and the saved choice (RAP_OPENROUTER_MODEL until one is made)."""
+    from recruiting.ai.openrouter import InMemoryModelChoice, ModelSelection, OpenRouterCatalog
+
+    return ModelSelection(
+        catalog or OpenRouterCatalog(), store or InMemoryModelChoice(), settings.openrouter_model
+    )
+
+
 def build_platform(
     settings: Settings,
     *,
@@ -174,6 +185,8 @@ def build_platform(
     follow_up_cadence: CadenceStore | None = None,
     clock: Callable[[], datetime] | None = None,
     documents: Any = None,
+    model_choice: Any = None,  # ai.openrouter.ModelChoiceStore; default in memory
+    model_catalog: Any = None,  # ai.openrouter.OpenRouterCatalog; tests pass a stub
 ) -> Platform:
     timing: dict[str, Any] = {"clock": clock} if clock is not None else {}
     companies = companies or InMemoryCompanies()
@@ -187,9 +200,19 @@ def build_platform(
     embedder = build_embedder(settings)  # one model instance for search, ranking and matching
     search = SemanticSearch(embedder, index, prefix=f"rap_{settings.environment}")
 
-    gateway = None
-    if llm_provider is not None or settings.llm_provider == "claude":
-        provider = llm_provider or ClaudeProvider(model=settings.llm_model)
+    gateway, selection = None, None
+    if settings.llm_provider == "openrouter":
+        selection = build_model_selection(settings, model_choice, model_catalog)
+    if llm_provider is not None:
+        gateway = LLMGateway(llm_provider, default_registry(), ledger)
+    elif settings.llm_provider == "claude":
+        gateway = LLMGateway(ClaudeProvider(model=settings.llm_model), default_registry(), ledger)
+    elif selection is not None:
+        from recruiting.ai.openrouter import OpenRouterProvider
+        from recruiting.connectors.secrets import EnvironmentSecrets
+
+        secrets = EnvironmentSecrets()  # cloud vault adapters plug in here (environment plan)
+        provider = OpenRouterProvider(lambda: secrets.get("openrouter_api_key"), selection)
         gateway = LLMGateway(provider, default_registry(), ledger)
 
     if settings.environment != "local" and settings.unsubscribe_secret.startswith("local-dev"):
@@ -313,4 +336,5 @@ def build_platform(
         inbound_webhook_secret=settings.inbound_webhook_secret,
         branding=Branding(settings.brand_name, settings.brand_color, settings.brand_logo_path),
         documents=documents,
+        model_selection=selection,
     )

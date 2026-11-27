@@ -57,6 +57,7 @@ Full details, exit criteria and status notes are in the [implementation plan](do
 | 2026-11-22 | Q15 LinkedIn connection requests | Agent 8 drafts, recruiter approves and sends by hand, platform logs it; partner integration explored. Pending legal confirmation |
 | 2026-11-22 | Hosting | Cloud-agnostic, plug-and-play: containers on Azure, AWS, Google Cloud or on-premises; cloud services behind adapters and per-cloud Terraform modules |
 | 2026-11-22 | Application stack | Python 3.12 + FastAPI (backend, LangGraph agents); Next.js (web app, client portal) |
+| 2026-11-27 | LLM provider option | OpenRouter adapter next to Claude (RAP_LLM_PROVIDER=openrouter); the Administrator chooses the model from a live Premium / Basic / Free list. Claude stays the default |
 
 ## Repository layout
 

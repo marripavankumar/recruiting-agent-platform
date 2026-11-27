@@ -135,6 +135,85 @@ def update_gate_policy(
     return _policy_out(policy)
 
 
+class LLMModelIn(BaseModel):
+    model: str = Field(min_length=1, max_length=200)
+
+
+def _model_out(model) -> dict:
+    return {
+        "id": model.id,
+        "name": model.name,
+        "tier": model.tier.value,
+        "input_per_million": model.input_per_million,
+        "output_per_million": model.output_per_million,
+        "context_length": model.context_length,
+        "reasoning": model.reasoning,
+    }
+
+
+@router.get("/llm-models")
+def llm_models(user: UserDep, services: ServicesDep) -> dict:
+    """The AI models the Administrator can choose from (RAP_LLM_PROVIDER=openrouter), live from
+    OpenRouter, in Premium / Basic / Free tiers by price, and the one in use."""
+    from recruiting.ai.openrouter import (
+        PREMIUM_INPUT_PER_MILLION,
+        TIER_ORDER,
+        CatalogUnavailable,
+        ModelTier,
+    )
+
+    _require_admin(user)
+    platform = services.platform
+    gateway = platform.gateway if platform else None
+    provider = gateway.provider_name if gateway else "none"
+    out: dict = {
+        "provider": provider,
+        "selected": None,
+        "selected_model": None,
+        "tiers": [],
+        "catalog_error": None,
+        "premium_input_per_million": None,
+    }
+    selection = platform.model_selection if platform else None
+    if selection is None:
+        return out
+    out["premium_input_per_million"] = PREMIUM_INPUT_PER_MILLION
+    out["selected"] = selection.current()
+    try:
+        models = selection.catalog.models()
+    except CatalogUnavailable as exc:
+        out["catalog_error"] = str(exc)
+        return out
+    for tier in sorted(ModelTier, key=TIER_ORDER.__getitem__):
+        group = [_model_out(m) for m in models if m.tier is tier]
+        out["tiers"].append({"tier": tier.value, "models": group})
+    chosen = next((m for m in models if m.id == out["selected"]), None)
+    out["selected_model"] = _model_out(chosen) if chosen else None
+    return out
+
+
+@router.put("/llm-model")
+def set_llm_model(body: LLMModelIn, user: UserDep, services: ServicesDep) -> dict:
+    """Choose the model the LLM gateway and the deep agents use from now on."""
+    from recruiting.ai.openrouter import CatalogUnavailable, UnknownModel
+
+    _require_admin(user)
+    platform = services.platform
+    selection = platform.model_selection if platform else None
+    if selection is None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Choosing a model needs RAP_LLM_PROVIDER=openrouter; Claude uses RAP_LLM_MODEL",
+        )
+    try:
+        model = selection.choose(body.model, user.user_id)
+    except UnknownModel as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(exc)) from exc
+    except CatalogUnavailable as exc:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+    return _model_out(model)
+
+
 @router.get("/llm-usage")
 def llm_usage(user: UserDep, services: ServicesDep) -> list[dict]:
     """Cost tracking per prompt template version (plan section 5.4)."""

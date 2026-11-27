@@ -63,7 +63,7 @@ These items change what the product does. They need answers before the phase in 
 | P7 | Retention periods and deletion | PIPEDA; CCPA; EEOC recordkeeping (applications kept at least 1 year) | Retention date on Candidate and Company records; scheduled purge; legal to set periods | 1 | Legal | Not reviewed |
 | P8 | Security safeguards suitable for the data's sensitivity (resumes, rates, visa status) | PIPEDA; CCPA; state breach-notification laws | Encryption at rest and in transit, role-based access (6 roles), secrets vault, audit log | 1 | Solution architect | Not reviewed |
 | P9 | Breach notification process | PIPEDA (breach of security safeguards); US state laws | Incident-response runbook with notification steps | 1 | Admin | Not reviewed |
-| P10 | Processor contracts with sub-processors (Anthropic, Affinda, cloud and storage providers) | PIPEDA accountability; CCPA service-provider terms | DPAs signed; providers that train on customer data are not used | 0 | Legal | Not reviewed |
+| P10 | Processor contracts with sub-processors (Anthropic, OpenRouter and the model providers it routes to, Affinda, cloud and storage providers) | PIPEDA accountability; CCPA service-provider terms | DPAs signed; providers that train on customer data are not used | 0 | Legal | Not reviewed |
 | P11 | Client portal shows each client only their own data | BRD §9, Q8 | Tenant-scoped access control tested in Phase 8 | 1, 8 | QA engineer | Not reviewed |
 | P12 | GDPR | GDPR | N/A at launch (USA and Canada only); revisit if EU residents are sourced | — | Legal | N/A |
 
@@ -86,7 +86,7 @@ These items change what the product does. They need answers before the phase in 
 | T2 | Review each job board's resume-database terms (Dice, CareerBuilder, Monster, Indeed, ZipRecruiter): seats, automated access, storage | Same as T1 | Before enablement | Legal | Not reviewed |
 | T3 | Google Custom Search and company-website crawling: API terms, robots.txt, rate limits | Crawler honours robots.txt; Search API used within its terms | 2 | Integration engineer | Not reviewed |
 | T4 | Open-source licences: LangGraph (MIT), Qdrant (Apache 2.0), PostgreSQL; n8n Sustainable Use License allows internal use only | n8n used internally, not resold or offered as a hosted service to clients | 0 | Solution architect | Not reviewed |
-| T5 | LLM and resume-parser terms (Anthropic, Affinda): data use, retention, region | Business or enterprise terms under which inputs are not used for training; DPA signed (P10) | 0 | Legal | Not reviewed |
+| T5 | LLM and resume-parser terms (Anthropic, OpenRouter, Affinda): data use, retention, region | Business or enterprise terms under which inputs are not used for training; DPA signed (P10). OpenRouter: the chosen model's provider policy applies too; free models may log prompts, so real candidate data stays on paid models with acceptable terms | 0 | Legal | Not reviewed |
 
 ## 7. Questions for counsel
 

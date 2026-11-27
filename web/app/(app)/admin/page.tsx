@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { createUser, setCadence, setGatePolicy, setRankingWeights, updateUser } from "@/app/actions";
+import { createUser, setCadence, setGatePolicy, setLlmModel, setRankingWeights, updateUser } from "@/app/actions";
 import { Back, Empty, type Search, Notice, PageHead, Tabs, param } from "@/app/components";
 import { api, apiOrNull } from "@/lib/api";
 import { GATE_LABEL, ROLE_LABEL, WEIGHT_KEYS, humanize, when } from "@/lib/format";
@@ -13,6 +13,7 @@ const TABS: [string, string][] = [
   ["gates", "Approval gates"],
   ["ranking", "Ranking weights"],
   ["cadence", "Follow-up cadence"],
+  ["model", "AI model"],
   ["usage", "AI usage"],
   ["access", "Access log"],
 ];
@@ -23,6 +24,16 @@ const STAFF_ROLES = ROLES.filter((r) => r !== "client");
 type User = { id: string; email: string; display_name: string; role: Role; client_company_id: string | null; active: boolean };
 type Gate = { gate: string; first_approver_role: Role; second_approver_role: Role | null };
 type Usage = { template: string; model: string; calls: number; input_tokens: number; output_tokens: number; cost_usd: number };
+type Tier = "premium" | "basic" | "free";
+type LlmModel = { id: string; name: string; tier: Tier; input_per_million: number; output_per_million: number; context_length: number | null; reasoning: boolean };
+type LlmModels = {
+  provider: string;
+  selected: string | null;
+  selected_model: LlmModel | null;
+  tiers: { tier: Tier; models: LlmModel[] }[];
+  catalog_error: string | null;
+  premium_input_per_million: number | null;
+};
 type Denied = { at: string; status: number; method: string; path: string; user_id: string | null; role: string | null; client_ip: string | null };
 
 export default async function Admin({ searchParams }: { searchParams: Promise<Search> }) {
@@ -40,6 +51,7 @@ export default async function Admin({ searchParams }: { searchParams: Promise<Se
       {tab === "gates" && <Gates back={back} />}
       {tab === "ranking" && <Weights back={back} />}
       {tab === "cadence" && <Cadence back={back} />}
+      {tab === "model" && <ModelTab back={back} />}
       {tab === "usage" && <UsageTab />}
       {tab === "access" && <Access />}
     </>
@@ -197,6 +209,84 @@ async function Cadence({ back }: { back: string }) {
         ))}
       </ul>
     </section>
+  );
+}
+
+const TIER_LABEL: Record<Tier, string> = { premium: "Premium", basic: "Basic", free: "Free" };
+
+function price(perMillion: number): string {
+  return `$${perMillion < 0.1 ? perMillion.toFixed(3) : perMillion.toFixed(2)}`;
+}
+
+function describe(m: LlmModel): string {
+  const cost = m.tier === "free" ? "free" : `${price(m.input_per_million)} in / ${price(m.output_per_million)} out per M tokens`;
+  const context = m.context_length ? ` · ${Math.round(m.context_length / 1000)}k context` : "";
+  return `${m.name} — ${cost}${context}${m.reasoning ? " · reasoning" : ""}`;
+}
+
+async function ModelTab({ back }: { back: string }) {
+  const data = await api<LlmModels>("/admin/llm-models");
+  if (data.provider !== "openrouter") {
+    return (
+      <section className="card">
+        <div className="card-head"><h2>AI model</h2></div>
+        <div className="card-body stack">
+          <p>
+            {data.provider === "claude"
+              ? "The platform uses Claude directly through the Anthropic API; its model is set with RAP_LLM_MODEL."
+              : "No AI model is configured: every agent runs its rule-based path."}
+          </p>
+          <p className="faint">To choose from the OpenRouter models here, set RAP_LLM_PROVIDER=openrouter and RAP_SECRET_OPENROUTER_API_KEY, then restart the API and scheduler.</p>
+        </div>
+      </section>
+    );
+  }
+  const count = data.tiers.reduce((n, t) => n + t.models.length, 0);
+  const threshold = data.premium_input_per_million ?? 1;
+  return (
+    <div className="stack">
+      <section className="card">
+        <div className="card-head"><h2>Model in use</h2><span className="faint">OpenRouter. Every AI step and AI agent run uses it from its next call.</span></div>
+        <div className="card-body">
+          {data.selected_model ? (
+            <p><strong>{data.selected_model.name}</strong> <span className="chip">{TIER_LABEL[data.selected_model.tier]}</span> <span className="mono faint">{data.selected_model.id}</span> <span className="faint">{describe(data.selected_model).split(" — ")[1]}</span></p>
+          ) : data.selected ? (
+            <p><span className="mono">{data.selected}</span> <span className="chip warn">Not in the current list</span> <span className="faint">It may have been withdrawn or lost tool or structured-output support: choose another.</span></p>
+          ) : (
+            <p><span className="chip warn">None chosen</span> <span className="faint">Until a model is chosen, AI steps use their rule-based paths and AI agent runs fail.</span></p>
+          )}
+        </div>
+      </section>
+
+      {data.catalog_error ? (
+        <section className="card"><div className="card-body"><span className="chip bad">List unavailable</span> {data.catalog_error}. Try again in a few minutes.</div></section>
+      ) : (
+        <form action={setLlmModel} className="card">
+          <Back to={back} />
+          <div className="card-head">
+            <h2>Choose a model</h2>
+            <span className="faint">{count} models with tool calls and structured output, live from OpenRouter. Premium: ${threshold.toFixed(2)} or more per million input tokens · Basic: less · Free: no charge, rate-limited.</span>
+          </div>
+          <div className="card-body">
+            <label className="stack" style={{ gap: 4 }}>
+              <span className="faint">Model</span>
+              <select name="model" defaultValue={data.selected ?? ""} required>
+                <option value="" disabled>Select a model…</option>
+                {data.tiers.filter((t) => t.models.length > 0).map((t) => (
+                  <optgroup key={t.tier} label={`${TIER_LABEL[t.tier]} (${t.models.length})`}>
+                    {t.models.map((m) => <option key={m.id} value={m.id}>{describe(m)}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="card-foot">
+            <button className="btn primary" type="submit">Use this model</button>
+            <span className="faint">Prompts, including resume text and emails, pass through OpenRouter to the model&apos;s provider. Free models may keep prompts: use paid models for real candidate data.</span>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 

@@ -229,7 +229,7 @@ class AgentRunner:
     def __init__(
         self,
         platform: Platform,
-        model: BaseChatModel,
+        model: BaseChatModel | None,
         runs: AgentRunStore,
         checkpointer: Any,
         ledger: UsageLedger | None = None,
@@ -237,8 +237,13 @@ class AgentRunner:
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
         recursion_limit: int = 120,
         daily_limit: int = 200,
+        model_source: Callable[[], tuple[BaseChatModel, str]] | None = None,
+        provider: str = "claude",
     ) -> None:
+        """`model_source`, when given, is asked for the chat model and its name at the start of
+        each run and resume (OpenRouter: the model the Administrator chose), instead of `model`."""
         self._platform, self._model, self._runs = platform, model, runs
+        self._model_source, self._provider = model_source, provider
         self._checkpointer, self._ledger, self._model_name = checkpointer, ledger, model_name
         self._clock, self._recursion_limit, self._daily_limit = clock, recursion_limit, daily_limit
 
@@ -321,9 +326,18 @@ class AgentRunner:
 
     def _invoke(self, run, spec, payload, subject, recruiter) -> AgentRun:
         ctx = ToolContext(self._platform, run.agent, recruiter=recruiter, clock=self._clock)
-        graph = build_agent(spec, self._model, ctx, subject, self._checkpointer)
+        model, model_name = self._model, self._model_name
+        if self._model_source is not None:
+            try:
+                model, model_name = self._model_source()
+            except Exception as exc:  # no model chosen, key missing: the run fails, visibly
+                logger.warning("Agent run %s (%s): no model: %s", run.id, run.agent, exc)
+                run.status, run.error = RunStatus.FAILED, f"{type(exc).__name__}: {exc}"[:1000]
+                run.updated_at = self._clock()
+                return self._runs.save(run)
+        graph = build_agent(spec, model, ctx, subject, self._checkpointer)
         callbacks = (
-            [UsageCallback(self._ledger, run.agent, self._model_name, self._clock)]
+            [UsageCallback(self._ledger, run.agent, model_name, self._clock, self._provider)]
             if self._ledger
             else []
         )

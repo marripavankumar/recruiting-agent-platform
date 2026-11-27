@@ -570,6 +570,34 @@ class PostgresWeights:
         return weights
 
 
+class PostgresModelChoice:
+    """The Administrator's OpenRouter model choice (migration 0016)."""
+
+    def __init__(self, connect: Connect) -> None:
+        self._connect = connect
+
+    def get(self) -> str | None:
+        with self._connect() as conn:
+            row = conn.execute("SELECT model FROM llm_settings WHERE id").fetchone()
+        return row[0] if row else None
+
+    def save(self, model_id: str, by: str) -> None:
+        with self._connect() as conn:
+            conn.execute(
+                """
+                INSERT INTO llm_settings (id, model, updated_by) VALUES (true, %s, %s)
+                ON CONFLICT (id) DO UPDATE SET model = EXCLUDED.model,
+                    updated_by = EXCLUDED.updated_by, updated_at = now()
+                """,
+                (model_id, by),
+            )
+            conn.execute(
+                "INSERT INTO audit_log (actor, action, entity_type, entity_id, details)"
+                " VALUES (%s, 'llm_model.update', 'llm_settings', 'default', %s)",
+                (by, Jsonb({"model": model_id})),
+            )
+
+
 class PostgresUsageLedger:
     def __init__(self, connect: Connect) -> None:
         self._connect = connect

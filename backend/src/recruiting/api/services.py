@@ -182,6 +182,7 @@ def build_services(
         PostgresEngagements,
         PostgresFollowUps,
         PostgresJobs,
+        PostgresModelChoice,
         PostgresRankings,
         PostgresSubmissions,
         PostgresUsageLedger,
@@ -216,6 +217,7 @@ def build_services(
         follow_up_cadence=PostgresCadence(connect),
         approvals=approvals,
         fetcher=career_pages,
+        model_choice=PostgresModelChoice(connect),
     )
     from recruiting.agentic.runs import PostgresAgentRuns
     from recruiting.digest import PostgresDigestLog
@@ -271,11 +273,22 @@ def build_agent_runner(settings: Settings, platform: Platform, checkpointer: Any
     """The deep-agent runner, or None when RAP_AGENTS_ENABLED is off."""
     if not settings.agents_enabled:
         return None
-    if settings.llm_provider != "claude":
-        raise RuntimeError("RAP_AGENTS_ENABLED needs RAP_LLM_PROVIDER=claude")
+    if settings.llm_provider not in ("claude", "openrouter"):
+        raise RuntimeError("RAP_AGENTS_ENABLED needs RAP_LLM_PROVIDER=claude or openrouter")
     from recruiting.agentic.model import build_chat_model
     from recruiting.agentic.runs import AgentRunner, InMemoryAgentRuns
 
+    if settings.llm_provider == "openrouter":
+        return AgentRunner(
+            platform,
+            None,
+            runs or InMemoryAgentRuns(),
+            checkpointer,
+            ledger=platform.gateway.ledger if platform.gateway else None,
+            daily_limit=settings.agent_daily_run_limit,
+            model_source=openrouter_model_source(settings, platform.model_selection),
+            provider="openrouter",
+        )
     return AgentRunner(
         platform,
         build_chat_model(settings.llm_model, settings.agent_effort),
@@ -285,6 +298,26 @@ def build_agent_runner(settings: Settings, platform: Platform, checkpointer: Any
         model_name=settings.llm_model,
         daily_limit=settings.agent_daily_run_limit,
     )
+
+
+def openrouter_model_source(settings: Settings, selection: Any):
+    """Builds the deep agents' chat model from the model chosen now, on each run."""
+    from recruiting.agentic.model import build_openrouter_chat_model
+    from recruiting.connectors.secrets import EnvironmentSecrets
+
+    secrets = EnvironmentSecrets()  # cloud vault adapters plug in here (environment plan)
+
+    def source():
+        model = selection.current()
+        if not model:
+            raise RuntimeError(
+                "No OpenRouter model chosen: Administration > AI model, or RAP_OPENROUTER_MODEL"
+            )
+        effort = selection.reasoning_effort(model, settings.agent_effort)
+        chat = build_openrouter_chat_model(model, secrets.get("openrouter_api_key"), effort)
+        return chat, model
+
+    return source
 
 
 def build_mailbox_reader(

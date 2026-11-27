@@ -624,6 +624,24 @@ def test_agent_runs_store(connect):
     assert store.list(since=now + timedelta(seconds=30)) == [store.get(other.id)]
 
 
+def test_llm_model_choice_is_shared_and_audited(connect):
+    from recruiting.records.postgres import PostgresModelChoice
+
+    with connect() as conn:
+        conn.execute("DELETE FROM llm_settings")
+    first, second = PostgresModelChoice(connect), PostgresModelChoice(connect)
+    assert first.get() is None
+    first.save("vendor/big", "u-admin")
+    first.save("vendor/small", "u-admin")
+    assert second.get() == "vendor/small"  # another API or scheduler process sees it
+    with connect() as conn:
+        (count,) = conn.execute(
+            "SELECT count(*) FROM audit_log WHERE action = 'llm_model.update'"
+            " AND details->>'model' = 'vendor/small'"
+        ).fetchone()
+    assert count >= 1
+
+
 def test_reminder_digest_is_claimed_once_per_user_and_day(connect):
     from datetime import UTC, date, datetime
 

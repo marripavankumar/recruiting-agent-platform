@@ -36,9 +36,12 @@ class Settings(BaseSettings):
 
     # Default active adapters (stack decision record, 2026-11-22).
     # "claude" uses the Anthropic API (ANTHROPIC_API_KEY or an `ant auth login` profile);
+    # "openrouter" uses OpenRouter (RAP_SECRET_OPENROUTER_API_KEY): the Administrator picks the
+    # model from a live list (Administration > AI model); RAP_OPENROUTER_MODEL is used until then.
     # "none" runs every agent on its rule-based fallback.
-    llm_provider: Literal["claude", "none"] = "claude"
-    llm_model: str = "claude-opus-5-5"
+    llm_provider: Literal["claude", "openrouter", "none"] = "claude"
+    llm_model: str = "claude-opus-5-5"  # the Claude model (llm_provider=claude)
+    openrouter_model: str | None = None  # an OpenRouter model id, e.g. from GET /admin/llm-models
     resume_parser: str = "affinda"
     # Affinda (resume_parser=affinda): used only when a workspace is set and the API key is in the
     # secrets provider (RAP_SECRET_AFFINDA_API_KEY); otherwise Claude and the rules parse resumes.
@@ -78,7 +81,8 @@ class Settings(BaseSettings):
     brand_name: str = "CBS LLC"
     brand_color: str = "#1F3A93"
     brand_logo_path: str | None = None  # PNG or JPEG
-    # Deep agents (LangGraph + deepagents) drive the workflow when on; needs llm_provider=claude.
+    # Deep agents (LangGraph + deepagents) drive the workflow when on; needs llm_provider=claude
+    # or openrouter (with a model that supports tool calls; the AI model list has only those).
     # Off: every agent runs its deterministic code path, as before.
     agents_enabled: bool = False
     agent_effort: Literal["low", "medium", "high", "xhigh", "max"] = "high"

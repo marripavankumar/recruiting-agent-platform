@@ -42,7 +42,7 @@ flowchart LR
     subgraph External["External systems (adapters)"]
         IDP["Identity provider<br/>OIDC: Entra ID, Okta, Google, Keycloak"]
         MAIL["Email<br/>Microsoft 365 / Gmail API"]
-        CLAUDE["Claude API<br/>LLM gateway + deep agents"]
+        CLAUDE["Claude API or OpenRouter<br/>LLM gateway + deep agents<br/>(model chosen by Administrator)"]
         AFF["Affinda<br/>resume parser"]
         DATA["Company data sources<br/>ZoomInfo, Apollo, Crunchbase, D&B"]
         CAREER["Company career pages<br/>schema.org JobPosting"]
@@ -142,7 +142,7 @@ flowchart TB
         AG["agents: business_development,<br/>intake, recruiting, follow_up"]
         TOOLS["tools: guard-railed wrappers"]
         RUNS["runs: durable LangGraph threads"]
-        MODEL["model: Claude Opus 5.5"]
+        MODEL["model: Claude Opus 5.5,<br/>or the chosen OpenRouter model"]
     end
 
     subgraph Agents["agents/ - deterministic BRD agents 1-12"]
@@ -164,6 +164,7 @@ flowchart TB
 
     subgraph AI["ai/"]
         LLM["llm: LLMGateway,<br/>prompt registry, cost ledger"]
+        ORT["openrouter: model catalog<br/>Premium / Basic / Free,<br/>saved model choice"]
         SEARCH["search: embedders,<br/>QdrantIndex, SemanticSearch"]
         SKILLS["skills: skill dictionary"]
     end
@@ -194,6 +195,7 @@ flowchart TB
     Agents --> STORE
     OUT --> REG
     LLM --> REG
+    LLM --> ORT
     STORE --> REG
     REG --> SEC
     SCH --> MBX --> IR

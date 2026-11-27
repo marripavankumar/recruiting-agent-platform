@@ -37,6 +37,29 @@ def build_chat_model(
     )
 
 
+def build_openrouter_chat_model(
+    model: str, api_key: str, effort: str | None = None, max_tokens: int = 16000
+) -> BaseChatModel:
+    """Any OpenRouter model with tool calls, through its OpenAI-compatible API. Requests go only
+    to providers that support every parameter sent (tools included); `effort` is sent only for
+    models that take a reasoning setting (ModelSelection.reasoning_effort)."""
+    from langchain_openai import ChatOpenAI
+
+    from recruiting.ai.openrouter import OPENROUTER_URL
+
+    extra: dict[str, Any] = {"provider": {"require_parameters": True}}
+    if effort:
+        extra["reasoning"] = {"effort": effort, "exclude": True}
+    return ChatOpenAI(
+        model=model,
+        base_url=OPENROUTER_URL,
+        api_key=api_key,
+        max_tokens=max_tokens,
+        max_retries=2,
+        extra_body=extra,
+    )
+
+
 def _cost(model: str, input_tokens: int, output_tokens: int, cache_read: int) -> float | None:
     price = PRICES.get(model)
     if price is None:
@@ -54,8 +77,10 @@ class UsageCallback(BaseCallbackHandler):
         agent: str,
         model: str,
         clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        provider: str = "claude",
     ) -> None:
         self._ledger, self._agent, self._model, self._clock = ledger, agent, model, clock
+        self._provider = provider
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         for generations in response.generations:
@@ -66,17 +91,20 @@ class UsageCallback(BaseCallbackHandler):
                     continue
                 details = usage.get("input_token_details") or {}
                 cache_read = int(details.get("cache_read") or 0)
-                model = (getattr(message, "response_metadata", None) or {}).get(
-                    "model_name", self._model
-                )
+                metadata = getattr(message, "response_metadata", None) or {}
+                model = metadata.get("model_name", self._model)
+                # OpenRouter reports the cost of each call itself (usage.cost, in USD).
+                reported = (metadata.get("token_usage") or {}).get("cost")
                 self._ledger.record(
                     UsageRecord(
                         template_key=f"agent:{self._agent}",
-                        provider="claude",
+                        provider=self._provider,
                         model=model,
                         input_tokens=int(usage.get("input_tokens") or 0),
                         output_tokens=int(usage.get("output_tokens") or 0),
-                        cost_usd=_cost(
+                        cost_usd=float(reported)
+                        if isinstance(reported, int | float)
+                        else _cost(
                             model,
                             int(usage.get("input_tokens") or 0),
                             int(usage.get("output_tokens") or 0),
